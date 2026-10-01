@@ -1,2 +1,66 @@
+/* Tailwind + Plugin für Formulare einbinden */
 @import 'tailwindcss';
-@plugin '@tailwindcss/typography';
+@plugin '@tailwindcss/forms';
+
+/* Farben und Schriften aus dem EduDevice Corporate Design Manual */
+@theme {
+	/* Basisfarben: Text, Hintergründe, Flächen */
+	--color-navy: #1b1464;
+	--color-surface: #f4f5fa;
+	--color-muted: #8a8fa3;
+
+	/* Akzentfarbe: nur für Buttons, Links und aktive Zustände */
+	--color-accent: #8b2fe8;
+
+	/* Farben des Marken-Verlaufs */
+	--color-bright-blue: #00a3ff;
+	--color-blue-violet: #4a5ff7;
+	--color-deep-indigo: #433896;
+
+	/* Funktionsfarben: nur für System-Feedback */
+	--color-success: #17b978;
+	--color-warning: #f0a020;
+	--color-error: #e23d5b;
+
+	/* Schriften */
+	--font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+	--font-heading: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Marken-Verlauf, 135° wie im Manual, mit weichem Lichteffekt oben links */
+@utility bg-brand-gradient {
+	background-image:
+		radial-gradient(ellipse at 15% 10%, rgb(255 255 255 / 0.18), transparent 45%),
+		linear-gradient(
+			135deg,
+			var(--color-bright-blue) 0%,
+			var(--color-blue-violet) 30%,
+			var(--color-accent) 68%,
+			var(--color-deep-indigo) 100%
+		);
+}
+
+/* Grundeinstellungen für die ganze Seite */
+@layer base {
+	body {
+		@apply bg-white font-sans text-navy;
+	}
+	h1,
+	h2,
+	h3 {
+		font-family: var(--font-heading);
+	}
+}
+
+/* Wiederverwendbare Klassen für Formulare */
+@layer components {
+	.label {
+		@apply mb-1.5 block text-sm font-medium;
+	}
+	.input {
+		@apply w-full rounded-lg border border-muted/40 bg-white px-4 py-3 text-navy outline-none transition placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15;
+	}
+	.btn-primary {
+		@apply w-full cursor-pointer rounded-lg bg-accent px-4 py-3 font-medium text-white transition hover:bg-accent/90;
+	}
+}
