@@ -18,7 +18,7 @@
 	<!-- Rechte Seite: Logo oben rechts, Formular in der Mitte -->
 	<main class="flex min-h-screen flex-col bg-white px-6 py-6 sm:px-10 sm:py-8">
 		<div class="flex justify-end">
-			<img src="/logo.png" alt="EduDevice" class="h-12 w-auto sm:h-16" />
+			<img src="/EduDeviceFlow.png" alt="EduDevice" class="h-12 w-auto sm:h-16" />
 		</div>
 
 		<div class="flex flex-1 items-center justify-center py-10">
