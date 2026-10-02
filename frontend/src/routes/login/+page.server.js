@@ -6,15 +6,17 @@ import { verifyPassword, createSession } from '$lib/server/auth.js';
 export function load({ locals }) {
     if (locals.user) redirect(303, '/');
 }
-
+// Formular-Wert -> Wert in der DB (users.role)
+const ROLES = { student: 'schueler', teacher: 'lehrkraft', admin: 'admin' };
 export const actions = {
     // Prüft die Login-Daten und erstellt bei Erfolg eine Session.
     login: async ({ request, cookies }) => {
         const form = await request.formData();
         const username = form.get('username')?.toString().trim();
         const password = form.get('password')?.toString();
+        const role = ROLES[form.get('role')?.toString()];
 
-        if (!username || !password) {
+        if (!username || !password || !role) {
             return fail(400, { username, error: 'Please fill in all fields' });
         }
 
@@ -29,6 +31,11 @@ export const actions = {
         const valid = await verifyPassword(password, rows[0].password_hash);
         if (!valid) {
             return fail(400, { username, error: 'Wrong username or password' });
+        }
+        
+        // Gewählte Rolle muss zur Rolle in der DB passen
+        if (rows[0].role !== role) {
+            return fail(400, { username, error: 'This account does not have the selected role' });
         }
 
         // Session-Cookie setzen (30 Tage gültig) und zur Startseite weiterleiten.

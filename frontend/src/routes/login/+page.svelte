@@ -3,6 +3,14 @@
 
 	// form enthält eine Fehlermeldung vom Login-Action.
 	let { form } = $props();
+	// Ausgewählte Rolle (Student ist Standard)
+	let role = $state('student');
+
+	const roles = [
+		{ value: 'student', label: 'Student' },
+		{ value: 'teacher', label: 'Teacher' },
+		{ value: 'admin', label: 'Admin' }
+	];
 </script>
 
 <svelte:head>
@@ -10,8 +18,10 @@
 </svelte:head>
 
 <AuthLayout>
+
 	<h1 class="text-center text-4xl font-bold">Log in</h1>
-	<p class="mt-2 text-center text-muted">Welcome back! Log in with your school account.</p>
+	<p class="mt-2 text-center text-subtle">Welcome back! Log in with your school account.</p>
+	
 
 	<!-- Fehlermeldung anzeigen, falls der Login fehlgeschlagen ist -->
 	{#if form?.error}
@@ -49,12 +59,29 @@
 			/>
 		</div>
 
+		<!-- Rollen-Auswahl: wird beim Login mit der Rolle in der DB verglichen -->
+		<fieldset>
+			<legend class="label">Sign in as</legend>
+			<div class="grid grid-cols-3 gap-3">
+				{#each roles as r (r.value)}
+					<label
+						class="cursor-pointer rounded-lg border py-2.5 text-center text-sm font-medium transition
+						{role === r.value
+							? 'border-accent bg-accent-xlight text-accent-dark'
+							: 'border-ghost bg-white text-navy hover:border-accent/50'}"
+					>
+						<input type="radio" name="role" value={r.value} bind:group={role} class="sr-only" />
+						{r.label}
+					</label>
+				{/each}
+			</div>
+		</fieldset>
 		<button type="submit" class="btn-primary">Log in</button>
 
 		<!-- Link zur Registrierung für User ohne Account -->
-		<p class="text-center text-sm text-muted">
+		<p class="text-center text-sm text-subtle">
 			No account?
-			<a href="/register" class="font-medium text-accent hover:underline">Register here</a>
+			<a href="/register" class="font-medium text-accent hover:text-accent-darker">Register here</a>
 		</p>
 	</form>
 </AuthLayout>

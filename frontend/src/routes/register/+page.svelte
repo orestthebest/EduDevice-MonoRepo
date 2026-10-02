@@ -3,6 +3,14 @@
 
     // form enthält eine evtl. Fehlermeldung vom register-Action.
     let { form } = $props();
+
+    	// Ausgewählte Rolle (Student ist Standard)
+	let role = $state('student');
+
+	const roles = [
+		{ value: 'student', label: 'Student' },
+		{ value: 'teacher', label: 'Teacher' }
+	];
 </script>
 
 <svelte:head>
@@ -11,7 +19,7 @@
 
 <AuthLayout>
     <h1 class="text-4xl font-bold">Register</h1>
-    <p class="mt-2 text-muted">Create your student account.</p>
+    <p class="mt-2 text-subtle">Create your student account.</p>
 
     <!-- Fehlermeldung anzeigen, falls die Registrierung fehlgeschlagen ist -->
     {#if form?.error}
@@ -22,6 +30,25 @@
 
     <!-- Registrierungs-Formular: schickt die Daten an den register-Action -->
     <form action="?/register" method="POST" class="mt-8 flex flex-col gap-5">
+
+        
+        <!-- Rollen-Auswahl: versteckte Radio-Buttons, gestylt als zwei Buttons -->
+        <fieldset>
+            <legend class="label">Sign up as</legend>
+            <div class="grid grid-cols-2 gap-3">
+                {#each roles as r (r.value)}
+                    <label
+                        class="cursor-pointer rounded-lg border py-2.5 text-center text-sm font-medium transition
+                        {role === r.value
+                            ? 'border-accent bg-accent-xlight text-accent-dark'
+                            : 'border-ghost bg-white text-navy hover:border-accent/50'}"
+                    >
+                        <input type="radio" name="role" value={r.value} bind:group={role} class="sr-only" />
+                        {r.label}
+                    </label>
+                {/each}
+            </div>
+        </fieldset>
 
         <!-- Vor- und Nachname nebeneinander -->
         <div class="grid gap-5 sm:grid-cols-2">
@@ -47,28 +74,21 @@
         <div>
             <label for="email" class="label">E-mail</label>
             <input type="email" id="email" name="email" required autocomplete="email"
+                placeholder="you@school.example"
                 value={form?.values?.email ?? ''} class="input" />
         </div>
 
-        <!-- Passwort und Wiederholung nebeneinander -->
-        <div class="grid gap-5 sm:grid-cols-2">
-            <div>
-                <label for="password" class="label">Password</label>
-                <input type="password" id="password" name="password" required
-                    autocomplete="new-password" class="input" />
-            </div>
-            <div>
-                <label for="passwordRepeat" class="label">Repeat password</label>
-                <input type="password" id="passwordRepeat" name="passwordRepeat" required
-                    autocomplete="new-password" class="input" />
-            </div>
+        <div>
+            <label for="password" class="label">Password</label>
+            <input type="password" id="password" name="password" required minlength="8"
+                placeholder="At least 8 characters" autocomplete="new-password" class="input" />
         </div>
 
         <button type="submit" class="btn-primary">Create Account</button>
 
         <!-- Link zum Login für User, die schon einen Account haben -->
-        <p class="text-center text-sm text-muted">
-            Already have an account? <a href="/login" class="font-medium text-accent hover:underline">Login here</a>
+        <p class="text-center text-sm text-subtle">
+            Already have an account? <a href="/login" class="font-medium text-accent hover:text-accent-darker">Login here</a>
         </p>
     </form>
 </AuthLayout>

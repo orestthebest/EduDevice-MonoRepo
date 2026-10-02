@@ -6,6 +6,10 @@ export function load({ locals }) {
     if (locals.user) redirect(303, '/');
 }
 
+// Formular-Wert -> Wert in der DB (users.role). Admin kann man sich NICHT selbst geben.
+const ROLES = { student: 'schueler', teacher: 'lehrkraft' };
+
+
 // Legt einen neuen User (Rolle: student) an und loggt ihn direkt ein.
 export const actions = {
     register: async ({ request, cookies }) => {
@@ -18,6 +22,7 @@ export const actions = {
         };
         const password = form.get('password')?.toString();
         const passwordRepeat = form.get('passwordRepeat')?.toString();
+        const role = ROLES[form.get('role')?.toString()];
 
         if (!values.firstName || !values.lastName || !values.username || !values.email || !password) {
             return fail(400, { values, error: 'Please fill in all fields' });
@@ -28,13 +33,16 @@ export const actions = {
         if (password !== passwordRepeat) {
             return fail(400, { values, error: 'Passwords do not match' });
         }
+        if (!role) {
+        return fail(400, { values, error: 'Please choose Student or Teacher' });
+        }
 
         let result;
         try {
             // Passwort wird gehasht gespeichert, niemals im Klartext.
             [result] = await pool.execute(
-                'INSERT INTO users (first_name, last_name, username, email, password_hash) VALUES (?, ?, ?, ?, ?)',
-                [values.firstName, values.lastName, values.username, values.email, await hashPassword(password)]
+                'INSERT INTO users (first_name, last_name, username, email, password_hash, role) VALUES (?, ?, ?, ?, ?, ?)',
+                [values.firstName, values.lastName, values.username, values.email, await hashPassword(password), role]
             );
         } catch (err) {
             // username und email sind UNIQUE -> Duplikate lösen diesen Fehler aus.

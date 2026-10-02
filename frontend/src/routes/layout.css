@@ -96,3 +96,9 @@
 		@apply w-full cursor-pointer rounded-lg bg-accent px-4 py-3 font-medium text-white transition hover:bg-accent-dark;
 	}
 }
+
+/* Chrome-Autofill: blauen Hintergrund überschreiben */
+input:-webkit-autofill {
+	-webkit-box-shadow: 0 0 0 1000px white inset;
+	-webkit-text-fill-color: var(--color-navy);
+}
