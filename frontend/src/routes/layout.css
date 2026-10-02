@@ -25,6 +25,28 @@
 	/* Schriften */
 	--font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
 	--font-heading: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+
+	/* Akzent-Abstufungen */
+	--color-accent-dark: #7a22d4;    /* Button-Hover, aktiver Sidebar-Text, Badge-Text */
+	--color-accent-darker: #6d1fc0;  /* Link-Hover */
+	--color-accent-light: #f1e8fd;   /* Badges ("Class 5B", Rollen) */
+	--color-accent-xlight: #f8f2ff;  /* ausgewählter Rollen-Button */
+
+	/* Sekundärtext (dunkler als muted, besser lesbar) */
+	--color-subtle: #5f6580;
+	--color-success-dark: #0f7a50;
+
+	/* Rahmen und Linien */
+	--color-line: #e6e8f2;           /* Karten-Rahmen */
+	--color-divider: #eef0f6;        /* Linien zwischen Zeilen */
+	--color-input: #cfd2de;          /* Textfelder */
+	--color-ghost: #d9dcea;          /* Outline-Buttons */
+	--color-sidebar-border: #d6cbf5;
+
+	/* Dashboard-Verlauf (Sidebar + Begrüßungs-Banner) */
+	--color-dash-start: #e6d8ff;
+	--color-dash-middle: #dde2ff;
+	--color-dash-end: #cfe9ff;
 }
 
 /* Marken-Verlauf, 135° wie im Manual, mit weichem Lichteffekt oben links */
@@ -38,6 +60,16 @@
 			var(--color-accent) 68%,
 			var(--color-deep-indigo) 100%
 		);
+}
+
+/* Dashboard-Verlauf: Banner diagonal (135°) */
+@utility bg-dash-gradient {
+	background-image: linear-gradient(135deg, var(--color-dash-start) 0%, var(--color-dash-middle) 55%, var(--color-dash-end) 100%);
+}
+
+/* Dashboard-Verlauf: Sidebar von oben nach unten (180°) */
+@utility bg-dash-gradient-vertical {
+	background-image: linear-gradient(180deg, var(--color-dash-start) 0%, var(--color-dash-middle) 50%, var(--color-dash-end) 100%);
 }
 
 /* Grundeinstellungen für die ganze Seite */
@@ -58,9 +90,9 @@
 		@apply mb-1.5 block text-sm font-medium;
 	}
 	.input {
-		@apply w-full rounded-lg border border-muted/40 bg-white px-4 py-3 text-navy outline-none transition placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15;
+		@apply w-full rounded-lg border border-input bg-white px-4 py-3 text-navy outline-none transition placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15;
 	}
 	.btn-primary {
-		@apply w-full cursor-pointer rounded-lg bg-accent px-4 py-3 font-medium text-white transition hover:bg-accent/90;
+		@apply w-full cursor-pointer rounded-lg bg-accent px-4 py-3 font-medium text-white transition hover:bg-accent-dark;
 	}
 }
