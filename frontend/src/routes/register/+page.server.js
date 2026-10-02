@@ -21,7 +21,6 @@ export const actions = {
             email: form.get('email')?.toString().trim()
         };
         const password = form.get('password')?.toString();
-        const passwordRepeat = form.get('passwordRepeat')?.toString();
         const role = ROLES[form.get('role')?.toString()];
 
         if (!values.firstName || !values.lastName || !values.username || !values.email || !password) {
@@ -29,9 +28,6 @@ export const actions = {
         }
         if (password.length < 8) {
             return fail(400, { values, error: 'Password must be at least 8 characters' });
-        }
-        if (password !== passwordRepeat) {
-            return fail(400, { values, error: 'Passwords do not match' });
         }
         if (!role) {
         return fail(400, { values, error: 'Please choose Student or Teacher' });
