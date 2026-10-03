@@ -15,7 +15,8 @@
 		upload: 'M12 16V4M7 9l5-5 5 5M4 20h16',
 		download: 'M12 4v12M7 11l5 5 5-5M4 20h16',
 		trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
-		plus: 'M12 5v14M5 12h14'
+		plus: 'M12 5v14M5 12h14',
+		back: 'M15 6l-6 6 6 6'
 	};
 </script>
 

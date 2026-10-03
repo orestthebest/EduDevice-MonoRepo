@@ -115,3 +115,35 @@ export async function createClassSubject(teacherId, classId, subjectName) {
 		conn.release();
 	}
 }
+
+// Ein Fach laden, aber NUR wenn der User Zugriff hat (sonst null)
+export async function getClassSubjectForUser(id, user) {
+	const f = roleFilter(user);
+	const where = f.where ? f.where + ' AND cs.id = ?' : ' WHERE cs.id = ?';
+	const [rows] = await pool.execute(SUBJECT_SELECT + f.join + where, [...f.params, id]);
+	return rows[0] ?? null;
+}
+
+// Alle Materialien eines Fachs (neueste zuerst)
+export async function getMaterials(classSubjectId) {
+	const [rows] = await pool.execute(
+		`SELECT m.id, m.title, m.original_name, m.size_bytes, m.uploaded_at,
+		        LOWER(SUBSTRING_INDEX(m.original_name, '.', -1)) AS ext
+		 FROM materials m WHERE m.class_subject_id = ? ORDER BY m.uploaded_at DESC`,
+		[classSubjectId]
+	);
+	return rows;
+}
+
+// Ein Material laden (für Download), aber NUR wenn der User Zugriff auf das Fach hat
+export async function getMaterialForUser(id, user) {
+	const [rows] = await pool.execute(
+		'SELECT id, class_subject_id, original_name, stored_name, mime_type FROM materials WHERE id = ?',
+		[id]
+	);
+	const material = rows[0];
+	if (!material) return null;
+
+	const subject = await getClassSubjectForUser(material.class_subject_id, user);
+	return subject ? material : null;
+}
