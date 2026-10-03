@@ -147,3 +147,13 @@ export async function getMaterialForUser(id, user) {
 	const subject = await getClassSubjectForUser(material.class_subject_id, user);
 	return subject ? material : null;
 }
+
+// Neues Material in der DB speichern (die Datei selbst liegt schon im uploads-Ordner)
+export async function insertMaterial({ classSubjectId, uploadedBy, title, originalName, storedName, mimeType, sizeBytes }) {
+	const [result] = await pool.execute(
+		`INSERT INTO materials (class_subject_id, uploaded_by, title, original_name, stored_name, mime_type, size_bytes)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		[classSubjectId, uploadedBy, title, originalName, storedName, mimeType, sizeBytes]
+	);
+	return result.insertId;
+}
