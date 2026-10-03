@@ -1,5 +1,5 @@
 import { error, fail } from '@sveltejs/kit';
-import { getClassSubjectForUser, getMaterials, insertMaterial } from '$lib/server/subjects.js';
+import { getClassSubjectForUser, getMaterials, insertMaterial, getSubjectStudents, getAddableStudents, addStudent, removeStudent } from '$lib/server/subjects.js';
 import { saveFile, deleteFile, getExtension, ALLOWED_EXTENSIONS, MAX_SIZE } from '$lib/server/files.js';
 
 // Fach + Materialien laden. Kein Zugriff -> 404 (wir verraten nicht, dass es das Fach gibt)
@@ -7,9 +7,14 @@ export async function load({ params, locals }) {
 	const subject = await getClassSubjectForUser(Number(params.id), locals.user);
 	if (!subject) error(404, 'Subject not found');
 
+	// Schülerliste nur für den Lehrer des Fachs laden
+	const isOwner = locals.user.role === 'lehrkraft' && subject.teacher_id === locals.user.id;
+
 	return {
 		subject,
 		materials: await getMaterials(subject.id),
+		students: isOwner ? await getSubjectStudents(subject.id) : [],
+		addableStudents: isOwner ? await getAddableStudents(subject.id) : [],
 		allowedExtensions: ALLOWED_EXTENSIONS,
 		maxSizeMb: MAX_SIZE / 1024 / 1024
 	};
@@ -64,6 +69,32 @@ export const actions = {
 			throw err;
 		}
 
-		return { uploaded: true };
+				return { uploaded: true };
+	},
+
+	// Schüler zum Fach hinzufügen (nur der Lehrer des Fachs)
+	addStudent: async ({ request, params, locals }) => {
+		const subject = await getOwnSubject(params, locals.user);
+		if (!subject) return fail(403, { studentError: 'You are not allowed to do this' });
+
+		const form = await request.formData();
+		const studentId = Number(form.get('student_id'));
+		if (!studentId) return fail(400, { studentError: 'Please choose a student' });
+
+		const added = await addStudent(subject.id, studentId);
+		if (!added) return fail(400, { studentError: 'Student not found or already added' });
+
+		return { studentAdded: true };
+	},
+
+	// Schüler aus dem Fach entfernen (nur der Lehrer des Fachs)
+	removeStudent: async ({ request, params, locals }) => {
+		const subject = await getOwnSubject(params, locals.user);
+		if (!subject) return fail(403, { studentError: 'You are not allowed to do this' });
+
+		const form = await request.formData();
+		await removeStudent(subject.id, Number(form.get('student_id')));
+
+		return { studentRemoved: true };
 	}
 };
