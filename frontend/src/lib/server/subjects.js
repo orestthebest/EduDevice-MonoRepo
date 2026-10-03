@@ -206,3 +206,41 @@ export async function removeStudent(classSubjectId, studentId) {
 		[classSubjectId, studentId]
 	);
 }
+
+// Material löschen. Gibt den Dateinamen im uploads-Ordner zurück (zum Löschen der Datei),
+// oder null, wenn es das Material in diesem Fach nicht gibt.
+export async function deleteMaterial(materialId, classSubjectId) {
+	const [rows] = await pool.execute(
+		'SELECT stored_name FROM materials WHERE id = ? AND class_subject_id = ?',
+		[materialId, classSubjectId]
+	);
+	if (rows.length === 0) return null;
+
+	await pool.execute('DELETE FROM materials WHERE id = ?', [materialId]);
+	return rows[0].stored_name;
+}
+
+// Fach löschen.
+// Noten, Quizzes und Stundenplan hängen OHNE "ON DELETE CASCADE" am Fach bzw. würden
+// Anwesenheiten mitlöschen -> dann blockieren wir das Löschen lieber.
+// Materialien + Schülerliste werden per CASCADE automatisch mitgelöscht.
+// Rückgabe: { blocked: true } oder { storedNames: [...] } (Dateien, die gelöscht werden müssen)
+export async function deleteClassSubject(classSubjectId) {
+	const [[usage]] = await pool.execute(
+		`SELECT
+			(SELECT COUNT(*) FROM grades        WHERE class_subject_id = ?) +
+			(SELECT COUNT(*) FROM period_grades WHERE class_subject_id = ?) +
+			(SELECT COUNT(*) FROM quizzes       WHERE class_subject_id = ?) +
+			(SELECT COUNT(*) FROM timetable     WHERE class_subject_id = ?) AS total`,
+		[classSubjectId, classSubjectId, classSubjectId, classSubjectId]
+	);
+	if (Number(usage.total) > 0) return { blocked: true };
+
+	const [files] = await pool.execute(
+		'SELECT stored_name FROM materials WHERE class_subject_id = ?',
+		[classSubjectId]
+	);
+	await pool.execute('DELETE FROM class_subjects WHERE id = ?', [classSubjectId]);
+
+	return { storedNames: files.map((f) => f.stored_name) };
+}

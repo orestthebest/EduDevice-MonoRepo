@@ -1,5 +1,5 @@
-import { error, fail } from '@sveltejs/kit';
-import { getClassSubjectForUser, getMaterials, insertMaterial, getSubjectStudents, getAddableStudents, addStudent, removeStudent } from '$lib/server/subjects.js';
+import { error, fail, redirect } from '@sveltejs/kit';
+import { getClassSubjectForUser, getMaterials, insertMaterial, getSubjectStudents, getAddableStudents, addStudent, removeStudent, deleteMaterial, deleteClassSubject } from '$lib/server/subjects.js';
 import { saveFile, deleteFile, getExtension, ALLOWED_EXTENSIONS, MAX_SIZE } from '$lib/server/files.js';
 
 // Fach + Materialien laden. Kein Zugriff -> 404 (wir verraten nicht, dass es das Fach gibt)
@@ -95,6 +95,35 @@ export const actions = {
 		const form = await request.formData();
 		await removeStudent(subject.id, Number(form.get('student_id')));
 
-		return { studentRemoved: true };
+				return { studentRemoved: true };
+	},
+
+	// Material löschen: erst DB-Eintrag, dann Datei im uploads-Ordner
+	deleteMaterial: async ({ request, params, locals }) => {
+		const subject = await getOwnSubject(params, locals.user);
+		if (!subject) return fail(403, { deleteError: 'You are not allowed to do this' });
+
+		const form = await request.formData();
+		const storedName = await deleteMaterial(Number(form.get('material_id')), subject.id);
+		if (!storedName) return fail(404, { deleteError: 'Material not found' });
+
+		await deleteFile(storedName);
+		return { deleted: true };
+	},
+
+	// Ganzes Fach löschen (mit allen Materialien + Dateien), danach zurück zur Übersicht
+	deleteSubject: async ({ params, locals }) => {
+		const subject = await getOwnSubject(params, locals.user);
+		if (!subject) return fail(403, { deleteError: 'You are not allowed to do this' });
+
+		const result = await deleteClassSubject(subject.id);
+		if (result.blocked) {
+			return fail(400, { deleteError: 'This subject already has grades, quizzes or a timetable and cannot be deleted' });
+		}
+
+		// Dateien aller Materialien aus dem uploads-Ordner löschen
+		for (const name of result.storedNames) await deleteFile(name);
+
+		redirect(303, '/subjects');
 	}
 };

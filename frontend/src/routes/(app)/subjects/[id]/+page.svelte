@@ -45,6 +45,16 @@
 	// Tabs (nur für den Lehrer sichtbar): "materials" oder "students"
 	let tab = $state('materials');
 
+    // Bestätigungs-Dialog zum Löschen (für Material UND ganzes Fach)
+	let confirmDialog = $state();
+	let confirm = $state({ action: '', id: null, title: '', text: '' });
+	let deleting = $state(false);
+
+	function askDelete(action, id, title, text) {
+		confirm = { action, id, title, text };
+		confirmDialog.showModal();
+	}
+
 	// Suche im "Add student"-Feld
 	let search = $state('');
 	const filteredStudents = $derived(
@@ -58,7 +68,17 @@
 	<title>{s.subject_name} · EduDevice</title>
 </svelte:head>
 
-<PageHeader title={s.subject_name} {subtitle} back="/subjects" />
+<PageHeader title={s.subject_name} {subtitle} back="/subjects">
+	{#if canEdit}
+		<button
+			type="button"
+			onclick={() => askDelete('deleteSubject', null, `Delete ${s.subject_name}?`, `This deletes the subject for class ${s.class_name} including all ${s.file_count} materials. Students lose access. This cannot be undone.`)}
+			class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-medium text-subtle transition hover:border-error hover:text-error"
+		>
+			<Icon name="trash" /> Delete subject
+		</button>
+	{/if}
+</PageHeader>
 
 
 {#if canEdit}
@@ -110,6 +130,16 @@
 					>
 						<Icon name="download" /> Download
 					</a>
+                    {#if canEdit}
+							<button
+								type="button"
+								onclick={() => askDelete('deleteMaterial', m.id, 'Delete material?', `"${m.title}" will be removed for all students.`)}
+								class="grid size-9 cursor-pointer place-items-center rounded-lg border border-ghost text-subtle transition hover:border-error hover:text-error"
+								title="Delete" aria-label="Delete {m.title}"
+							>
+								<Icon name="trash" />
+							</button>
+					{/if}
 				</li>
 			{/each}
 		</ul>
@@ -255,4 +285,51 @@
 			</form>
 		</section>
 	</div>
+{/if}
+
+
+{#if canEdit}
+	<!-- Bestätigungs-Dialog: Löschen (Material oder Fach) -->
+	<dialog
+		bind:this={confirmDialog}
+		class="m-auto w-full max-w-sm rounded-2xl border border-line bg-white p-0 text-navy shadow-xl backdrop:bg-navy/35"
+	>
+		<form
+			method="POST"
+			action="?/{confirm.action}"
+			class="p-6"
+			use:enhance={() => {
+				deleting = true;
+				return async ({ result, update }) => {
+					await update();
+					deleting = false;
+					// Bei Erfolg (oder Weiterleitung nach Fach-Löschen) Dialog schließen
+					if (result.type !== 'failure') confirmDialog?.close();
+				};
+			}}
+		>
+			<span class="grid size-11 place-items-center rounded-xl bg-error/12 text-error">
+				<Icon name="trash" class="size-5" />
+			</span>
+			<h2 class="mt-4 text-lg font-bold">{confirm.title}</h2>
+			<p class="mt-1 text-sm text-subtle">{confirm.text}</p>
+
+			{#if form?.deleteError}
+				<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.deleteError}</p>
+			{/if}
+
+			<input type="hidden" name="material_id" value={confirm.id ?? ''} />
+
+			<div class="mt-6 flex justify-end gap-2">
+				<button type="button" onclick={() => confirmDialog.close()}
+					class="cursor-pointer rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+					Cancel
+				</button>
+				<button type="submit" disabled={deleting}
+					class="cursor-pointer rounded-lg bg-error px-4 py-2.5 text-sm font-medium text-white transition hover:bg-error/90 disabled:opacity-60">
+					{deleting ? 'Deleting…' : 'Delete'}
+				</button>
+			</div>
+		</form>
+	</dialog>
 {/if}
