@@ -20,7 +20,7 @@
 	};
 
 	// Materialien kommen in Schritt 3 aus der DB
-	const recentMaterials = data.recentMaterials ?? [];
+	const recentMaterials = $derived(data.recentMaterials ?? []);
 </script>
 
 <svelte:head>

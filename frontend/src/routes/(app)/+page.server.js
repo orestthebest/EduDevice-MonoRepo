@@ -1,7 +1,9 @@
-import { redirect } from '@sveltejs/kit';
+import { getRecentMaterials } from '$lib/server/subjects.js';
 
-// Nicht eingeloggt -> zum Login.
+// Dashboard: neueste Materialien laden
+// (Login-Check passiert schon in (app)/+layout.server.js)
 export async function load({ locals }) {
-	if (!locals.user) redirect(303, '/login');
-	return { user: locals.user };
+	return {
+		recentMaterials: await getRecentMaterials(locals.user)
+	};
 }
