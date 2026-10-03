@@ -58,3 +58,60 @@ export async function getRecentMaterials(user, limit = 6) {
 	);
 	return rows;
 }
+
+// Alle Klassen (für das Dropdown im "New subject"-Dialog)
+export async function getClasses() {
+	const [rows] = await pool.execute(
+		`SELECT c.id, c.name, sy.label AS school_year
+		 FROM classes c JOIN school_years sy ON sy.id = c.school_year_id
+		 ORDER BY sy.start_date DESC, c.name`
+	);
+	return rows;
+}
+
+// Alle Fachnamen im Katalog (als Vorschläge beim Tippen)
+export async function getSubjectNames() {
+	const [rows] = await pool.execute('SELECT name FROM subjects ORDER BY name');
+	return rows.map((r) => r.name);
+}
+
+// Neues Fach für eine Klasse anlegen.
+// 1. Fachname im Katalog suchen oder neu anlegen
+// 2. class_subjects-Eintrag (Klasse + Fach + Lehrer) anlegen
+// 3. alle Schüler der Klasse automatisch eintragen
+// Alles in einer Transaktion: entweder alles klappt oder nichts wird gespeichert.
+export async function createClassSubject(teacherId, classId, subjectName) {
+	const conn = await pool.getConnection();
+	try {
+		await conn.beginTransaction();
+
+		// LAST_INSERT_ID(id) sorgt dafür, dass insertId auch bei einem schon
+		// vorhandenen Fach die richtige id zurückgibt
+		const [subject] = await conn.execute(
+			'INSERT INTO subjects (name) VALUES (?) ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)',
+			[subjectName]
+		);
+
+		const [cs] = await conn.execute(
+			'INSERT INTO class_subjects (class_id, subject_id, teacher_id) VALUES (?, ?, ?)',
+			[classId, subject.insertId, teacherId]
+		);
+
+		await conn.execute(
+			`INSERT INTO class_subject_students (class_subject_id, student_id)
+			 SELECT ?, sc.student_id
+			 FROM student_classes sc
+			 JOIN users u ON u.id = sc.student_id AND u.role = 'schueler'
+			 WHERE sc.class_id = ?`,
+			[cs.insertId, classId]
+		);
+
+		await conn.commit();
+		return cs.insertId;
+	} catch (err) {
+		await conn.rollback();
+		throw err;
+	} finally {
+		conn.release();
+	}
+}

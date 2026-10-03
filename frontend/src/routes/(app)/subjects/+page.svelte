@@ -1,8 +1,9 @@
 <script>
+	import { enhance } from '$app/forms';
 	import Icon from '$lib/components/Icon.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 
-	let { data } = $props();
+	let { data, form } = $props();
 
 	const isStudent = $derived(data.user.role === 'schueler');
 	const isTeacher = $derived(data.user.role === 'lehrkraft');
@@ -14,13 +15,26 @@
 		: isStudent ? 'All subjects you are enrolled in'
 		: 'All subjects of the school'
 	);
+    // "New subject"-Dialog (natives <dialog>-Element)
+	let dialog = $state();
+	let saving = $state(false);
 </script>
 
 <svelte:head>
 	<title>{title} · EduDevice</title>
 </svelte:head>
 
-<PageHeader {title} {subtitle} />
+<PageHeader {title} {subtitle}>
+	{#if isTeacher}
+		<button
+			type="button"
+			onclick={() => dialog.showModal()}
+			class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-accent px-4 text-sm font-medium text-white transition hover:bg-accent-dark"
+		>
+			<Icon name="plus" /> New subject
+		</button>
+	{/if}
+</PageHeader>
 
 {#if data.subjects.length === 0}
 	<!-- Leerer Zustand -->
@@ -69,4 +83,75 @@
 			</a>
 		{/each}
 	</div>
+{/if}
+
+
+{#if isTeacher}
+	<!-- Dialog: neues Fach anlegen -->
+	<dialog
+		bind:this={dialog}
+		class="m-auto w-full max-w-md rounded-2xl border border-line bg-white p-0 text-navy shadow-xl backdrop:bg-navy/35"
+	>
+		<form
+			method="POST"
+			action="?/create"
+			class="p-6"
+			use:enhance={() => {
+				saving = true;
+				return async ({ result, update }) => {
+					await update();
+					saving = false;
+					// Bei Erfolg Dialog schließen
+					if (result.type === 'success') dialog.close();
+				};
+			}}
+		>
+			<div class="flex items-start justify-between">
+				<div>
+					<h2 class="text-xl font-bold">New subject</h2>
+					<p class="mt-1 text-sm text-subtle">All students of the class are added automatically.</p>
+				</div>
+				<button type="button" onclick={() => dialog.close()} class="cursor-pointer rounded-lg p-1 text-subtle hover:bg-surface" aria-label="Close">
+					<Icon name="x" class="size-5" />
+				</button>
+			</div>
+
+			{#if form?.error}
+				<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.error}</p>
+			{/if}
+
+			<div class="mt-5 flex flex-col gap-4">
+				<div>
+					<label for="class_id" class="label">Class</label>
+					<select id="class_id" name="class_id" required class="input">
+						<option value="" disabled selected>Choose a class</option>
+						{#each data.classes as c (c.id)}
+							<option value={c.id}>{c.name} · {c.school_year}</option>
+						{/each}
+					</select>
+				</div>
+
+				<div>
+					<label for="name" class="label">Subject name</label>
+					<!-- list="subject-names" zeigt vorhandene Fächer als Vorschläge -->
+					<input id="name" name="name" list="subject-names" required maxlength="150"
+						placeholder="e.g. Mathematics" value={form?.name ?? ''} class="input" autocomplete="off" />
+					<datalist id="subject-names">
+						{#each data.subjectNames as n (n)}<option value={n}></option>{/each}
+					</datalist>
+				</div>
+			</div>
+
+			<div class="mt-6 flex justify-end gap-2">
+				<button type="button" onclick={() => dialog.close()}
+					class="cursor-pointer rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+					Cancel
+				</button>
+				<button type="submit" disabled={saving}
+					class="cursor-pointer rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60">
+					{saving ? 'Creating…' : 'Create subject'}
+				</button>
+			</div>
+		</form>
+	</dialog>
 {/if}
