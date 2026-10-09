@@ -174,26 +174,32 @@ export async function getSubjectStudents(classSubjectId) {
 	return rows;
 }
 
-// Alle Schüler, die NOCH NICHT im Fach sind (für "Add student")
+// Schüler, die man noch hinzufügen kann:
+// NUR Schüler aus der Klasse des Fachs, die noch nicht im Fach sind
 export async function getAddableStudents(classSubjectId) {
 	const [rows] = await pool.execute(
 		`SELECT u.id, u.first_name, u.last_name, u.username
-		 FROM users u
-		 WHERE u.role = 'schueler'
-		   AND u.id NOT IN (SELECT student_id FROM class_subject_students WHERE class_subject_id = ?)
+		 FROM class_subjects cs
+		 JOIN student_classes sc ON sc.class_id = cs.class_id
+		 JOIN users u ON u.id = sc.student_id AND u.role = 'schueler'
+		 WHERE cs.id = ?
+		   AND u.id NOT IN (SELECT student_id FROM class_subject_students WHERE class_subject_id = cs.id)
 		 ORDER BY u.last_name, u.first_name`,
 		[classSubjectId]
 	);
 	return rows;
 }
 
-// Schüler zu einem Fach hinzufügen.
-// Das SELECT ... WHERE role = 'schueler' stellt sicher, dass nur echte Schüler eingetragen werden.
+// Schüler zum Fach hinzufügen – nur wenn er in der Klasse des Fachs ist.
 // INSERT IGNORE: ist er schon drin, passiert einfach nichts.
 export async function addStudent(classSubjectId, studentId) {
 	const [result] = await pool.execute(
 		`INSERT IGNORE INTO class_subject_students (class_subject_id, student_id)
-		 SELECT ?, id FROM users WHERE id = ? AND role = 'schueler'`,
+		 SELECT cs.id, sc.student_id
+		 FROM class_subjects cs
+		 JOIN student_classes sc ON sc.class_id = cs.class_id
+		 JOIN users u ON u.id = sc.student_id AND u.role = 'schueler'
+		 WHERE cs.id = ? AND sc.student_id = ?`,
 		[classSubjectId, studentId]
 	);
 	return result.affectedRows > 0;

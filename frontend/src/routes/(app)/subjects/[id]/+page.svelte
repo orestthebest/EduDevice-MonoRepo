@@ -267,7 +267,9 @@
 
 				{#if filteredStudents.length === 0}
 					<p class="rounded-xl bg-surface px-4 py-6 text-center text-sm text-subtle">
-						{data.addableStudents.length === 0 ? 'All students are already in this subject.' : 'No student found.'}
+						{data.addableStudents.length === 0
+						? `No more students in class ${s.class_name}. Students are assigned to classes by an administrator.`
+						: 'No student found.'}
 					</p>
 				{:else}
 					<!-- size="7" macht aus dem Dropdown eine Liste -->
