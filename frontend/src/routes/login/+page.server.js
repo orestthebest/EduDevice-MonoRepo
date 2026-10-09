@@ -10,7 +10,7 @@ export function load({ locals }) {
 const ROLES = { student: 'schueler', teacher: 'lehrkraft', admin: 'admin' };
 export const actions = {
     // Prüft die Login-Daten und erstellt bei Erfolg eine Session.
-    login: async ({ request, cookies }) => {
+    login: async ({ request, cookies, url }) => {
         const form = await request.formData();
         const username = form.get('username')?.toString().trim();
         const password = form.get('password')?.toString();
@@ -42,7 +42,8 @@ export const actions = {
         const sessionId = await createSession(rows[0].id);
         cookies.set('session', sessionId, {
             path: '/',
-            maxAge: 60 * 60 * 24 * 30
+            maxAge: 60 * 60 * 24 * 30,
+            secure: url.protocol === 'https:'
         });
 
         redirect(303, '/');

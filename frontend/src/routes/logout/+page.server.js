@@ -7,12 +7,12 @@ export function load() {
 
 export const actions = {
     // Loggt den User aus: löscht die Session in der DB und das Cookie.
-    logout: async ({ cookies }) => {
+    logout: async ({ cookies, url }) => {
         const sessionId = cookies.get('session');
 
         if (sessionId) {
             await invalidateSession(sessionId);
-            cookies.delete('session', { path: '/' });
+            cookies.delete('session', { path: '/', secure: url.protocol === 'https:' });
         }
 
         redirect(303, '/');
