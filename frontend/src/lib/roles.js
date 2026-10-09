@@ -24,7 +24,8 @@ export const NAV = {
 		section: 'Administration',
 		items: [
 			{ href: '/', label: 'Dashboard', icon: 'home' },
-			{ href: '/subjects', label: 'Classes & subjects', icon: 'grid' }
+			{ href: '/classes', label: 'Classes & students', icon: 'users' },
+			{ href: '/subjects', label: 'All subjects', icon: 'grid' }
 		]
 	}
 };

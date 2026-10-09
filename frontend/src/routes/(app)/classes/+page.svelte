@@ -27,7 +27,7 @@
 				<div class="p-5">
 					<div class="flex items-start justify-between">
 						<span class="grid size-10 place-items-center rounded-xl bg-surface text-navy transition group-hover:bg-accent-light group-hover:text-accent-dark">
-							<Icon name="grid" />
+							<Icon name="users" />
 						</span>
 						<span class="rounded-full bg-accent-light px-2.5 py-1 text-xs font-semibold text-accent-dark">
 							{c.school_year}
