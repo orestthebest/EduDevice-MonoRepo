@@ -1,9 +1,22 @@
-import { validateSession } from '$lib/server/auth.js';
+import { api } from '$lib/server/api.js';
 
-// Läuft bei jeder Anfrage: liest die Session aus dem Cookie und legt den
-// eingeloggten User in event.locals ab, damit ihn alle Seiten nutzen können.
+// Läuft bei jeder Anfrage: liest das Token (JWT) aus dem Cookie und fragt die
+// REST-API, wer eingeloggt ist. Der User landet in event.locals.user.
 export async function handle({ event, resolve }) {
-	const sessionId = event.cookies.get('session');
-	event.locals.user = sessionId ? await validateSession(sessionId) : null;
+	const token = event.cookies.get('token');
+	event.locals.token = token ?? null;
+	event.locals.user = null;
+
+	if (token) {
+		const res = await api('/auth/me', { token });
+		if (res.ok) {
+			event.locals.user = await res.json();
+		} else {
+			// Token abgelaufen (nach 60 Min.) oder ungültig -> Cookie löschen = ausgeloggt
+			event.locals.token = null;
+			event.cookies.delete('token', { path: '/', secure: event.url.protocol === 'https:' });
+		}
+	}
+
 	return resolve(event);
 }

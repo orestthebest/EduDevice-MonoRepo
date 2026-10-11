@@ -1,30 +1,24 @@
 import { fail } from '@sveltejs/kit';
-import {
-	getSubjectsForUser,
-	getClasses,
-	getSubjectNames,
-	createClassSubject
-} from '$lib/server/subjects.js';
+import { api, apiJson } from '$lib/server/api.js';
 
-// Alle Fächer laden, die der eingeloggte User sehen darf
-// (Lehrer bekommen zusätzlich Klassen + Fachnamen für den "New subject"-Dialog)
+// Alle Fächer laden, die der User sehen darf (die API filtert nach Rolle)
+// Lehrer bekommen zusätzlich Klassen + Fachnamen für den "New subject"-Dialog
 export async function load({ locals }) {
+	const token = locals.token;
 	const isTeacher = locals.user.role === 'lehrkraft';
-	return {
-		subjects: await getSubjectsForUser(locals.user),
-		classes: isTeacher ? await getClasses() : [],
-		subjectNames: isTeacher ? await getSubjectNames() : []
-	};
+
+	const [subjects, classes, subjectNames] = await Promise.all([
+		apiJson('/subjects', { token }),
+		isTeacher ? apiJson('/classes', { token }) : [],
+		isTeacher ? apiJson('/subjects/names', { token }) : []
+	]);
+
+	return { subjects, classes, subjectNames };
 }
 
 export const actions = {
-	// Neues Fach anlegen (nur Lehrer)
+	// Neues Fach anlegen (nur Lehrer – das prüft die API)
 	create: async ({ request, locals }) => {
-		// Rolle hier nochmal prüfen: Actions sind NICHT durch das Layout geschützt
-		if (locals.user?.role !== 'lehrkraft') {
-			return fail(403, { error: 'Only teachers can create subjects' });
-		}
-
 		const form = await request.formData();
 		const classId = Number(form.get('class_id'));
 		const name = form.get('name')?.toString().trim();
@@ -36,18 +30,20 @@ export const actions = {
 			return fail(400, { name, error: 'Subject name is too long' });
 		}
 
-		try {
-			await createClassSubject(locals.user.id, classId, name);
-		} catch (err) {
-			// UNIQUE (class_id, subject_id): Klasse hat dieses Fach schon
-			if (err.code === 'ER_DUP_ENTRY') {
-				return fail(400, { name, error: `This class already has the subject "${name}"` });
-			}
-			// Klasse existiert nicht (Foreign Key)
-			if (err.code === 'ER_NO_REFERENCED_ROW_2') {
-				return fail(400, { name, error: 'This class does not exist' });
-			}
-			throw err;
+		const res = await api('/subjects', {
+			method: 'POST',
+			token: locals.token,
+			json: { class_id: classId, name }
+		});
+
+		if (res.status === 409) {
+			return fail(400, { name, error: `This class already has the subject "${name}"` });
+		}
+		if (res.status === 403) {
+			return fail(403, { name, error: 'Only teachers can create subjects' });
+		}
+		if (!res.ok) {
+			return fail(400, { name, error: 'This class does not exist' });
 		}
 
 		return { created: true };

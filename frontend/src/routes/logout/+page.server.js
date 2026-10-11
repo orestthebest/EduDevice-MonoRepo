@@ -1,20 +1,14 @@
 import { redirect } from '@sveltejs/kit';
-import { invalidateSession } from '$lib/server/auth.js';
 
 export function load() {
-    redirect(303, '/');
+	redirect(303, '/');
 }
 
 export const actions = {
-    // Loggt den User aus: löscht die Session in der DB und das Cookie.
-    logout: async ({ cookies, url }) => {
-        const sessionId = cookies.get('session');
-
-        if (sessionId) {
-            await invalidateSession(sessionId);
-            cookies.delete('session', { path: '/', secure: url.protocol === 'https:' });
-        }
-
-        redirect(303, '/');
-    }
+	// JWT ist "zustandslos": Die API speichert keine Sessions.
+	// Ausloggen = Token-Cookie löschen.
+	logout: async ({ cookies, url }) => {
+		cookies.delete('token', { path: '/', secure: url.protocol === 'https:' });
+		redirect(303, '/');
+	}
 };
