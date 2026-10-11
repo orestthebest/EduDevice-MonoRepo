@@ -16,7 +16,7 @@ module.exports = {
 				HOST: '0.0.0.0', // im Schulnetz/VPN erreichbar
 				ORIGIN: 'http://172.20.1.115:3000', // sonst lehnt SvelteKit Formulare (Login) ab
 				BODY_SIZE_LIMIT: '50M', // Standard 512 KB ist zu klein für Uploads
-				UPLOAD_DIR: '/srv/edudevice/uploads' // Lernmaterialien am Server
+				API_URL: 'http://127.0.0.1:8000' // REST-API auf derselben VM
 			}
 		}
 	]
