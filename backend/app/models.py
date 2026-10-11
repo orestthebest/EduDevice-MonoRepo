@@ -1,5 +1,5 @@
 """
-EduDevice REST-API - Datenbankmodelle (Schema V4.2)
+EduDevice REST-API - Datenbankmodelle (ORM), Schema V4.3
 Bildet die Tabellen aus Joriks Schema V4 ab, die von der API benutzt werden.
 Die Tabellen werden NICHT von der API erzeugt - das macht das SQL-Schema.
 """
@@ -9,7 +9,7 @@ from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Date, Time, Boolean,
     DECIMAL, ForeignKey, Enum, TIMESTAMP, func, UniqueConstraint,
 )
-from database import Base
+from app.core.database import Base
 
 
 class RoleEnum(str, enum.Enum):
@@ -57,6 +57,7 @@ class SchoolClass(Base):
 
 class StudentClass(Base):
     __tablename__ = "student_classes"
+    __table_args__ = (UniqueConstraint("student_id", "class_id", name="uq_student_class"),)
     id = Column(Integer, primary_key=True, autoincrement=True)
     student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
@@ -71,10 +72,34 @@ class Subject(Base):
 class ClassSubject(Base):
     """Welche Lehrkraft unterrichtet welches Fach in welcher Klasse."""
     __tablename__ = "class_subjects"
+    __table_args__ = (UniqueConstraint("class_id", "subject_id", name="uq_class_subject"),)
     id = Column(Integer, primary_key=True, autoincrement=True)
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
     subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=False)
     teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+
+class ClassSubjectStudent(Base):
+    """V4.3: welche SchuelerInnen in einem Fach eingetragen sind (WebApp von Orest)."""
+    __tablename__ = "class_subject_students"
+    __table_args__ = (UniqueConstraint("class_subject_id", "student_id", name="uq_cs_student"),)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    class_subject_id = Column(Integer, ForeignKey("class_subjects.id", ondelete="CASCADE"), nullable=False)
+    student_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+
+class Material(Base):
+    """V4.3: Lernmaterialien. Die Datei liegt im Upload-Ordner, hier nur die Metadaten."""
+    __tablename__ = "materials"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    class_subject_id = Column(Integer, ForeignKey("class_subjects.id", ondelete="CASCADE"), nullable=False)
+    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String(150), nullable=False)
+    original_name = Column(String(255), nullable=False)
+    stored_name = Column(String(100), nullable=False, unique=True)
+    mime_type = Column(String(100), nullable=False)
+    size_bytes = Column(Integer, nullable=False)
+    uploaded_at = Column(DateTime, server_default=func.now())
 
 
 # ---------------- Stundenplan / Anwesenheit ----------------

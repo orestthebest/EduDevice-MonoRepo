@@ -1,8 +1,8 @@
 """
-EduDevice - Testdaten fuer Schema V4.2
+EduDevice - Testdaten fuer Schema V4.3
 Legt Beispieldaten an, damit das Frontend (Orest) echte Antworten von der API bekommt.
 Kann mehrmals ausgefuehrt werden - legt nichts doppelt an.
-Ausfuehren:  python seed_v4.py
+Ausfuehren (im backend-Ordner):  python -m scripts.seed
 
 Test-Logins (NUR fuer Entwicklung) - Username oder E-Mail:
   admin     / admin@edudevice.at    / admin123
@@ -12,9 +12,9 @@ Test-Logins (NUR fuer Entwicklung) - Username oder E-Mail:
 
 from datetime import date, datetime, time, timedelta
 
-from database import SessionLocal
-from auth import hash_password
-import models as m
+from app.core.database import SessionLocal
+from app.core.security import hash_password
+from app import models as m
 
 
 def get_or_create(db, model, lookup: dict, extra: dict | None = None):
@@ -48,6 +48,9 @@ def seed():
         mathe_4a = get_or_create(db, m.ClassSubject,
                                  {"class_id": klasse.id, "subject_id": mathe.id},
                                  {"teacher_id": lehrer.id})
+
+        # V4.3: SchuelerIn ist im Fach eingetragen (sonst sieht er/sie es in der WebApp nicht)
+        get_or_create(db, m.ClassSubjectStudent, {"class_subject_id": mathe_4a.id, "student_id": schueler.id})
 
         stunde = get_or_create(db, m.TimetableEntry,
                                {"class_subject_id": mathe_4a.id, "weekday": "Mo",
