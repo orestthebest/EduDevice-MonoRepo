@@ -134,3 +134,6 @@ Beide hängen mit `ON DELETE CASCADE` an `class_subjects`. Noten, Quizzes und `p
 `tests/test_api.py` – 15 automatische Tests (eigene SQLite-Testdatenbank, MySQL wird nicht angefasst):
 Login, Rechte pro Rolle, alle Ziel-M-4-Endpunkte, Klassenzuteilung, Fach anlegen/löschen, Upload
 (erlaubt/verboten/zu wenig Rechte), Download, Rate-Limit-IP.
+
+`postman/` – Postman-Collection mit 66 Requests und 162 Prüfungen (davon 29 Negativtests) gegen die laufende API,
+plus Rate-Limit-Test. Details: [postman/POSTMAN.md](postman/POSTMAN.md).

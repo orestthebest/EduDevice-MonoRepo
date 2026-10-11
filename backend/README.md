@@ -18,6 +18,7 @@ backend/
 ├── sql/                     schema_v4_2.sql · migration_v4_3.sql
 ├── scripts/seed.py          Testdaten
 ├── tests/                   automatische Tests (pytest)
+├── postman/                 Postman-Collections + Anleitung (POSTMAN.md)
 ├── deploy/                  systemd-Service + Vorlage für api.env
 ├── docs/                    Anleitung + Beispielcode für die WebApp
 ├── requirements.txt
@@ -45,6 +46,8 @@ pip install -r requirements-dev.txt
 python -m pytest -v
 ```
 Die Tests benutzen eine eigene SQLite-Datei, die echte Datenbank wird nicht verändert.
+
+Zusätzlich gibt es Postman-Tests (66 Requests, 162 Prüfungen): siehe [postman/POSTMAN.md](postman/POSTMAN.md).
 
 ## Server
 

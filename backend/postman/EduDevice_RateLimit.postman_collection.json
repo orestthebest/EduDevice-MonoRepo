@@ -1,0 +1,76 @@
+{
+  "info": {
+    "_postman_id": "805e9111-b12c-4d95-883e-f3b7acee7ff9",
+    "name": "EduDevice Rate-Limit-Test",
+    "description": "Zeigt den Brute-Force-Schutz am Login. Danach 1 Minute warten, bevor die Haupt-Collection laeuft.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Falsches Passwort bis 429",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const n = Number(pm.collectionVariables.get(\"versuch\"));",
+              "if (pm.response.code === 401 && n < 15) {",
+              "    postman.setNextRequest(\"Falsches Passwort bis 429\");   // nochmal",
+              "} else {",
+              "    pm.test(\"Nach \" + n + \" Versuchen gesperrt (429)\", () => pm.response.to.have.status(429));",
+              "    pm.test(\"Sperre spaetestens beim 11. Versuch\", () => pm.expect(n).to.be.at.most(11));",
+              "    pm.collectionVariables.set(\"versuch\", 0);",
+              "}",
+              "pm.test(\"Antwortzeit < 1000 ms\", () => pm.expect(pm.response.responseTime).to.be.below(1000));"
+            ]
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const n = Number(pm.collectionVariables.get(\"versuch\") || 0) + 1;",
+              "pm.collectionVariables.set(\"versuch\", n);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Schickt so lange falsche Passwoerter, bis die API mit 429 Too Many Requests sperrt (Limit 10/min).",
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "username",
+              "value": "{{lehrer_user}}"
+            },
+            {
+              "key": "password",
+              "value": "falsch-{{$randomInt}}"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "versuch",
+      "value": "0"
+    }
+  ]
+}
