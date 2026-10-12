@@ -41,7 +41,7 @@ export const actions = {
 			httpOnly: true,
 			sameSite: 'lax',
 			secure: url.protocol === 'https:',
-			maxAge: 60 * 60
+			maxAge: 60 * 60 * 8 // 8 Stunden, so lange wie das Token
 		});
 
 		redirect(303, '/');
