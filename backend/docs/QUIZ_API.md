@@ -1,6 +1,8 @@
 # Quiz-API – Vertrag zwischen WebApp und REST-API
 
-Stand: 13.10.2026 · Status: **festgelegt, API wird gebaut** (Schema V4.4, `sql/migration_v4_4_quiz.sql`)
+Stand: 13.10.2026 · Status: **API gebaut und getestet (31/31 Tests)**, Deployment auf den Server folgt (Schema V4.4, `sql/migration_v4_4_quiz.sql`)
+
+**Änderungen nach Orests Feedback (13.10.):** `question_text` pro Frage im Ergebnis (9. und 10.); Schüler sehen in der Liste (1.) auch ausgeblendete Quizzes, die sie schon abgegeben haben.
 Diese Formate gelten. Die WebApp kann damit sofort mit Testdaten (Mock) arbeiten.
 
 Alle Requests mit `Authorization: Bearer <token>`. Rollen wie bisher: `schueler`, `lehrkraft`, `admin`.
@@ -51,7 +53,7 @@ Lehrkraft (alle Quizzes ihres Fachs):
   }
 ]
 ```
-Schüler (nur veröffentlichte, mit eigenem Ergebnis oder `null`):
+Schüler (veröffentlichte **und** solche, die er schon abgegeben hat – damit sein Ergebnis sichtbar bleibt, auch wenn die Lehrkraft das Quiz später ausblendet; `my_result` ist das eigene Ergebnis oder `null`):
 ```json
 [
   {
@@ -189,9 +191,9 @@ Nicht beantwortete Fragen dürfen fehlen (zählen 0 Punkte).
   "max_score": 4,
   "submitted_at": "2026-10-13T11:02:41",
   "questions": [
-    { "question_id": 10, "correct": true, "points_awarded": 2 },
-    { "question_id": 11, "correct": true, "points_awarded": 1 },
-    { "question_id": 12, "correct": true, "points_awarded": 1 }
+    { "question_id": 10, "question_text": "Welche Brüche sind gleich 1/2?", "correct": true, "points_awarded": 2 },
+    { "question_id": 11, "question_text": "1/3 ist größer als 1/4.", "correct": true, "points_awarded": 1 },
+    { "question_id": 12, "question_text": "3/4 als Dezimalzahl ist {{0}}.", "correct": true, "points_awarded": 1 }
   ]
 }
 ```
@@ -199,7 +201,8 @@ Die richtigen Lösungen werden auch hier **nicht** mitgeschickt, nur richtig/fal
 Zweite Abgabe → `409` · `question_id` gehört nicht zum Quiz / Option gehört nicht zur Frage → `400`
 
 ### 10. `GET /quizzes/{id}/my-result` – Eigenes Ergebnis (Schüler)
-→ `200`, gleiches Format wie die Antwort von **9.** · noch nicht abgegeben → `404`
+→ `200`, gleiches Format wie die Antwort von **9.** (inkl. `question_text`) · noch nicht abgegeben → `404`
+Funktioniert auch, wenn die Lehrkraft das Quiz inzwischen ausgeblendet hat.
 
 ### 11. `GET /quizzes/{id}/attempts` – Ergebnisse aller Schüler (Lehrkraft)
 ```json
@@ -214,8 +217,13 @@ Zweite Abgabe → `409` · `question_id` gehört nicht zum Quiz / Option gehört
 ## Hinweis zum alten Endpunkt
 
 `POST /quiz/submit` (Ziel-M-4) nimmt den Score vom Client an – ein Schüler könnte sich damit selbst Punkte geben.
-Die WebApp verwendet **nur noch Endpunkt 9**. Der alte Endpunkt wird für Quizzes mit Fragen gesperrt.
+Die WebApp verwendet **nur noch Endpunkt 9**. Der alte Endpunkt antwortet bei Quizzes mit Fragen mit `409`.
 
 ## Fehlercodes
 `400` ungültige Eingabe · `401` nicht eingeloggt · `403` falsche Rolle · `404` nicht gefunden / kein Zugriff ·
 `409` gesperrt (Abgaben vorhanden) oder schon abgegeben · `422` Feld fehlt / falscher Typ
+
+## Zusätzlich (nicht im ursprünglichen Vertrag)
+- Admin darf alle Lehrkraft-Endpunkte für jedes Fach verwenden.
+- Wird die letzte Frage eines veröffentlichten Quiz gelöscht, wird es automatisch wieder auf `is_published: false` gesetzt.
+- Lückentext: Lücken müssen bei `{{0}}` beginnen und fortlaufend sein (`{{0}}`, `{{1}}`, …), sonst `400`.

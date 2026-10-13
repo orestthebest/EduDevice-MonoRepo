@@ -1,4 +1,5 @@
-"""Quiz (Ziel-M-4): POST /quiz/submit"""
+"""Quiz (Ziel-M-4): POST /quiz/submit  -  alt, nur fuer Quizzes ohne Fragen.
+Neues Quiz-System mit Bewertung in der API: routers/quizzes.py"""
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -18,6 +19,11 @@ def submit_quiz(data: QuizSubmitIn, db: Session = Depends(get_db),
     quiz = db.get(m.Quiz, data.quiz_id)
     if quiz is None:
         raise HTTPException(status_code=404, detail="Quiz nicht gefunden")
+    # Quizzes mit Fragen werden von der API bewertet (POST /quizzes/{id}/submit).
+    # Hier wuerde sonst der Client den Score selbst bestimmen.
+    if db.query(m.QuizQuestion).filter(m.QuizQuestion.quiz_id == quiz.id).first():
+        raise HTTPException(status_code=409,
+                            detail="Dieses Quiz hat Fragen - bitte POST /quizzes/{id}/submit verwenden")
     cs = get_class_subject_or_404(db, quiz.class_subject_id)
     if cs.class_id not in student_class_ids(db, current.id):
         raise HTTPException(status_code=403, detail="Dieses Quiz gehoert nicht zu Ihrer Klasse")

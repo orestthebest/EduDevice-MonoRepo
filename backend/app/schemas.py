@@ -172,3 +172,144 @@ class UploadConfigOut(BaseModel):
 class StatusOut(BaseModel):
     status: str
     detail: Optional[dict] = None
+
+
+# =====================================================================
+# Quiz (V4.4) - Formate wie in docs/QUIZ_API.md
+# =====================================================================
+class QuizCreateIn(BaseModel):
+    title: str = Field(min_length=1, max_length=150)
+    description: Optional[str] = None
+
+
+class QuizUpdateIn(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=150)
+    description: Optional[str] = None
+    is_published: Optional[bool] = None
+
+
+class OptionIn(BaseModel):
+    option_text: str = Field(min_length=1, max_length=500)
+    is_correct: bool = False
+
+
+class QuestionIn(BaseModel):
+    """mc: options · tf: correct · gap: gaps (akzeptierte Antworten pro {{n}})"""
+    type: Literal["mc", "tf", "gap"]
+    question_text: str = Field(min_length=1, max_length=5000)
+    points: int = Field(default=1, ge=1, le=100)
+    options: Optional[list[OptionIn]] = None
+    correct: Optional[bool] = None
+    gaps: Optional[list[list[str]]] = None
+
+
+class OptionTeacherOut(BaseModel):
+    id: int
+    option_text: str
+    is_correct: bool
+    gap_index: Optional[int]
+    position: int
+
+
+class QuestionTeacherOut(BaseModel):
+    id: int
+    position: int
+    type: str
+    points: int
+    question_text: str
+    options: list[OptionTeacherOut]
+
+
+class QuizTeacherOut(BaseModel):
+    id: int
+    class_subject_id: int
+    title: str
+    description: Optional[str]
+    is_published: bool
+    locked: bool
+    max_score: int
+    questions: list[QuestionTeacherOut]
+
+
+class QuizListTeacherOut(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    is_published: bool
+    locked: bool
+    question_count: int
+    max_score: int
+    attempt_count: int
+    created_at: Optional[datetime]
+
+
+class MyResultShortOut(BaseModel):
+    score: int
+    max_score: int
+    submitted_at: Optional[datetime]
+
+
+class QuizListStudentOut(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    question_count: int
+    max_score: int
+    my_result: Optional[MyResultShortOut]
+
+
+class OptionStudentOut(BaseModel):
+    id: int
+    option_text: str
+
+
+class QuestionStudentOut(BaseModel):
+    id: int
+    position: int
+    type: str
+    points: int
+    question_text: str
+    options: Optional[list[OptionStudentOut]] = None
+    gap_count: Optional[int] = None
+
+
+class QuizTakeOut(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    max_score: int
+    questions: list[QuestionStudentOut]
+
+
+class AnswerIn(BaseModel):
+    question_id: int
+    option_ids: Optional[list[int]] = None
+    gaps: Optional[list[str]] = None
+
+
+class QuizSubmitAnswersIn(BaseModel):
+    answers: list[AnswerIn] = Field(default_factory=list)
+
+
+class QuestionResultOut(BaseModel):
+    question_id: int
+    question_text: str
+    correct: bool
+    points_awarded: int
+
+
+class QuizResultOut(BaseModel):
+    score: int
+    max_score: int
+    submitted_at: Optional[datetime]
+    questions: list[QuestionResultOut]
+
+
+class AttemptOut(BaseModel):
+    student_id: int
+    first_name: str
+    last_name: str
+    username: str
+    score: int
+    max_score: Optional[int]
+    submitted_at: Optional[datetime]

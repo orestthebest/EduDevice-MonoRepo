@@ -1,5 +1,5 @@
 """
-EduDevice REST-API (Ziel-M-4), Schema V4.3
+EduDevice REST-API (Ziel-M-4), Schema V4.4
 Start:  uvicorn app.main:app --host 0.0.0.0 --port 8000
 Doku:   http://<server>:8000/docs  (Swagger)
 
@@ -19,9 +19,9 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import CORS_ORIGINS
 from app.core.security import limiter
 from app.routers import (attendance, auth, classes, grades, homework, materials,
-                         quiz, subjects, timetable)
+                         quiz, quizzes, subjects, timetable)
 
-app = FastAPI(title="EduDevice REST-API", version="2.3 (Schema V4.3)")
+app = FastAPI(title="EduDevice REST-API", version="2.4 (Schema V4.4)")
 
 # Rate-Limiting (Login 10/min, Register 5/min)
 app.state.limiter = limiter
@@ -42,6 +42,8 @@ app.include_router(quiz.router)
 app.include_router(classes.router)
 app.include_router(subjects.router)
 app.include_router(materials.router)
+# Quiz-System mit Bewertung in der API (V4.4, docs/QUIZ_API.md)
+app.include_router(quizzes.router)
 
 
 @app.get("/", tags=["Info"])

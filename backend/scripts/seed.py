@@ -66,7 +66,8 @@ def seed():
             db.add(m.Grade(student_id=schueler.id, class_subject_id=mathe_4a.id,
                            category="mini_test", value=9, weight=1.0, date=date(2026, 9, 21)))
 
-        quiz = get_or_create(db, m.Quiz, {"title": "Bruchrechnen", "class_subject_id": mathe_4a.id})
+        quiz = get_or_create(db, m.Quiz, {"title": "Bruchrechnen", "class_subject_id": mathe_4a.id},
+                             {"created_by": lehrer.id, "is_published": False})
 
         db.commit()
         print("Testdaten bereit:")

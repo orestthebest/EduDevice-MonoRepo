@@ -1,6 +1,6 @@
 # EduDevice – Architektur Backend (REST-API)
 
-Verantwortlich: Gridi Bushati · Stand: 11.10.2026 · API-Version 2.3 · Schema V4.3
+Verantwortlich: Gridi Bushati · Stand: 13.10.2026 · API-Version 2.4 · Schema V4.4
 
 ## 1. Gesamtsystem
 
@@ -57,7 +57,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    R["routers/<br/>auth · grades · homework · attendance · timetable · quiz<br/>classes · subjects · materials"]
+    R["routers/<br/>auth · grades · homework · attendance · timetable · quiz<br/>classes · subjects · materials · quizzes"]
     S["services/<br/>access.py (Zugriffsregeln) · files.py (Upload)"]
     SC["schemas.py<br/>Pydantic: Eingaben prüfen, Ausgaben festlegen"]
     M["models.py<br/>SQLAlchemy: Tabellen als Klassen"]
@@ -105,10 +105,14 @@ Schema V4.2 (Jorik/Gridi) + Migration V4.3 (`sql/migration_v4_3.sql`):
 - `class_subject_students` – welche Schüler in welchem Fach eingetragen sind
 - `materials` – Metadaten der Lernmaterialien (Datei liegt im Upload-Ordner)
 
-Beide hängen mit `ON DELETE CASCADE` an `class_subjects`. Noten, Quizzes und `period_grades` hängen
+Migration V4.4 (`sql/migration_v4_4_quiz.sql`): `quizzes` erweitert (Beschreibung, Ersteller, veröffentlicht),
+neu `quiz_questions`, `quiz_options`, `quiz_answers`; `quiz_results` bekommt `max_score`. Die API bewertet die Abgaben,
+richtige Antworten werden nie an SchülerInnen geschickt.
+
+`class_subject_students` und `materials` hängen mit `ON DELETE CASCADE` an `class_subjects`. Noten, Quizzes und `period_grades` hängen
 **ohne** CASCADE dran, damit beim Löschen eines Fachs keine Noten verloren gehen (API antwortet dann 409).
 
-## 6. Endpunkte (32)
+## 6. Endpunkte (44)
 
 | Bereich | Methode + Pfad | Rolle |
 |---|---|---|
@@ -127,9 +131,14 @@ Beide hängen mit `ON DELETE CASCADE` an `class_subjects`. Noten, Quizzes und `p
 |  | `GET/POST /subjects/{id}/students` · `DELETE /subjects/{id}/students/{sid}` · `GET /subjects/{id}/addable-students` | lehrkraft des Fachs |
 | **Materialien** | `GET /subjects/{id}/materials` · `GET /materials/recent` · `GET /materials/{id}/download` · `GET /materials/config` | alle mit Zugriff |
 |  | `POST /subjects/{id}/materials` · `DELETE /subjects/{id}/materials/{mid}` | lehrkraft des Fachs |
+| **Quiz (V4.4)** | `GET/POST /subjects/{id}/quizzes` · `GET/PUT/DELETE /quizzes/{id}` · `POST /quizzes/{id}/questions` · `PUT/DELETE /questions/{id}` · `GET /quizzes/{id}/attempts` | Lehrkraft des Fachs (Liste auch SchülerIn) |
+|  | `GET /quizzes/{id}/take` · `POST /quizzes/{id}/submit` · `GET /quizzes/{id}/my-result` | SchülerIn im Fach |
 | **Info** | `GET /` · `GET /health` · `GET /docs` | öffentlich |
 
 ## 7. Tests
+
+`tests/test_quizzes.py` – 16 Tests für das Quiz-System (Bewertung, keine Lösungen an SchülerInnen, Sperre nach Abgabe).
+Alle 31 Tests laufen zusätzlich gegen MariaDB mit echten Fremdschlüsseln (gleiches Verhalten wie MySQL am Server).
 
 `tests/test_api.py` – 15 automatische Tests (eigene SQLite-Testdatenbank, MySQL wird nicht angefasst):
 Login, Rechte pro Rolle, alle Ziel-M-4-Endpunkte, Klassenzuteilung, Fach anlegen/löschen, Upload

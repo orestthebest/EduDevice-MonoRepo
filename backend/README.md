@@ -14,13 +14,13 @@ backend/
 │   ├── core/                config.py · database.py · security.py
 │   ├── services/            access.py (Zugriffsregeln) · files.py (Uploads)
 │   └── routers/             auth · grades · homework · attendance · timetable · quiz
-│                            classes · subjects · materials
-├── sql/                     schema_v4_2.sql · migration_v4_3.sql
+│                            classes · subjects · materials · quizzes
+├── sql/                     schema_v4_2.sql · migration_v4_3.sql · migration_v4_4_quiz.sql
 ├── scripts/seed.py          Testdaten
 ├── tests/                   automatische Tests (pytest)
 ├── postman/                 Postman-Collections + Anleitung (POSTMAN.md)
 ├── deploy/                  systemd-Service + Vorlage für api.env
-├── docs/                    Anleitung + Beispielcode für die WebApp
+├── docs/                    Anleitung + Beispielcode für die WebApp, QUIZ_API.md
 ├── requirements.txt
 └── requirements-dev.txt     nur für Tests
 ```
@@ -64,5 +64,5 @@ curl http://127.0.0.1:8000/health
 
 ## Datenbank
 
-Neue Installation: `sql/schema_v4_2.sql`, danach `sql/migration_v4_3.sql`.
-Bestehende V4.2-Datenbank: nur `sql/migration_v4_3.sql`.
+Neue Installation: `sql/schema_v4_2.sql`, danach `sql/migration_v4_3.sql`, danach `sql/migration_v4_4_quiz.sql`.
+Server (hat V4.3 schon): nur `sql/migration_v4_4_quiz.sql` – vorher Backup!

@@ -1,5 +1,5 @@
 """
-EduDevice REST-API - Datenbankmodelle (ORM), Schema V4.3
+EduDevice REST-API - Datenbankmodelle (ORM), Schema V4.4
 Bildet die Tabellen aus Joriks Schema V4 ab, die von der API benutzt werden.
 Die Tabellen werden NICHT von der API erzeugt - das macht das SQL-Schema.
 """
@@ -165,20 +165,61 @@ class Grade(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
-# ---------------- Quiz ----------------
+# ---------------- Quiz (V4.4) ----------------
+QUESTION_TYPES = ("mc", "tf", "gap")   # Multiple Choice, Wahr/Falsch, Lueckentext
+
+
 class Quiz(Base):
     __tablename__ = "quizzes"
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(150), nullable=False)
+    description = Column(Text, nullable=True)
     class_subject_id = Column(Integer, ForeignKey("class_subjects.id"), nullable=False)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    is_published = Column(Boolean, nullable=False, default=False)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 
+class QuizQuestion(Base):
+    __tablename__ = "quiz_questions"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    quiz_id = Column(Integer, ForeignKey("quizzes.id", ondelete="CASCADE"), nullable=False)
+    position = Column(Integer, nullable=False, default=0)
+    type = Column(Enum(*QUESTION_TYPES, name="question_type"), nullable=False)
+    question_text = Column(Text, nullable=False)
+    points = Column(Integer, nullable=False, default=1)
+
+
+class QuizOption(Base):
+    """mc/tf: Antwortmoeglichkeit. gap: akzeptierte Antwort fuer Luecke gap_index."""
+    __tablename__ = "quiz_options"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    question_id = Column(Integer, ForeignKey("quiz_questions.id", ondelete="CASCADE"), nullable=False)
+    option_text = Column(String(500), nullable=False)
+    is_correct = Column(Boolean, nullable=False, default=False)
+    gap_index = Column(Integer, nullable=True)
+    position = Column(Integer, nullable=False, default=0)
+
+
 class QuizResult(Base):
+    """Eine Abgabe pro SchuelerIn und Quiz (wird von Joriks Pipeline gelesen)."""
     __tablename__ = "quiz_results"
     __table_args__ = (UniqueConstraint("quiz_id", "student_id", name="uq_quiz_result"),)
     id = Column(Integer, primary_key=True, autoincrement=True)
     quiz_id = Column(Integer, ForeignKey("quizzes.id"), nullable=False)
     student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     score = Column(Integer, nullable=False)
+    max_score = Column(Integer, nullable=True)
     submitted_at = Column(TIMESTAMP, server_default=func.now())
+
+
+class QuizAnswer(Base):
+    """Einzelne Antwort einer Abgabe (mc/tf: gewaehlte Option, gap: Text pro Luecke)."""
+    __tablename__ = "quiz_answers"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    result_id = Column(Integer, ForeignKey("quiz_results.id", ondelete="CASCADE"), nullable=False)
+    question_id = Column(Integer, ForeignKey("quiz_questions.id", ondelete="CASCADE"), nullable=False)
+    option_id = Column(Integer, ForeignKey("quiz_options.id", ondelete="SET NULL"), nullable=True)
+    gap_index = Column(Integer, nullable=True)
+    text_answer = Column(String(500), nullable=True)
+    is_correct = Column(Boolean, nullable=False)

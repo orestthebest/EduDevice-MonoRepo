@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "62502202-e5d4-41aa-8f29-d09a9a1ecb2f",
+    "_postman_id": "8698f29b-2b79-4995-819c-a90536b969b5",
     "name": "EduDevice REST-API v2.3",
     "description": "Automatische Tests fuer die EduDevice REST-API (Ziel-M-4 + WebApp-Endpunkte).\nReihenfolge ist wichtig: als Ganzes mit dem Collection Runner ausfuehren.\nEnvironment waehlen: 'EduDevice lokal' oder 'EduDevice Server'.\nAutor: Gridi Bushati",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -19,7 +19,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"Version 2.3\", () => pm.expect(pm.response.json().version).to.include(\"2.3\"));",
+                  "pm.test(\"Version 2.x\", () => pm.expect(pm.response.json().version).to.match(/^2\\./));",
                   "pm.test(\"Antwortzeit < 1000 ms\", () => pm.expect(pm.response.responseTime).to.be.below(1000));"
                 ]
               }
