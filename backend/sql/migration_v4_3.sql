@@ -4,6 +4,7 @@
 -- Grund: Die WebApp (Orest) braucht Lernmaterialien und eine
 --        SchuelerInnen-Liste pro Fach. Der Zugriff laeuft ueber die REST-API.
 -- "IF NOT EXISTS": falls die Tabellen schon existieren, passiert nichts.
+-- Stand 12.10.2026: entspricht 1:1 den Tabellen auf dem Server (von Orest angelegt).
 -- ============================================================
 
 USE edudevice_db;
@@ -13,10 +14,10 @@ CREATE TABLE IF NOT EXISTS class_subject_students (
     id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     class_subject_id    INT UNSIGNED NOT NULL,
     student_id          INT UNSIGNED NOT NULL,
+    added_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_cs_student (class_subject_id, student_id),
     FOREIGN KEY (class_subject_id) REFERENCES class_subjects(id) ON DELETE CASCADE,
-    FOREIGN KEY (student_id)       REFERENCES users(id)          ON DELETE CASCADE,
-    INDEX idx_css_student (student_id)
+    FOREIGN KEY (student_id)       REFERENCES users(id)          ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- Lernmaterialien: die Datei liegt in /srv/edudevice/uploads,
@@ -33,10 +34,12 @@ CREATE TABLE IF NOT EXISTS materials (
     uploaded_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (class_subject_id) REFERENCES class_subjects(id) ON DELETE CASCADE,
     FOREIGN KEY (uploaded_by)      REFERENCES users(id),           -- kein CASCADE: Lehrkraft loeschen darf Material nicht loeschen
-    INDEX idx_materials_uploaded_at (uploaded_at)
+    INDEX idx_materials_cs_date (class_subject_id, uploaded_at)   -- Liste pro Fach, neueste zuerst
 ) ENGINE=InnoDB;
 
--- Bestehende SchuelerInnen automatisch in die Faecher ihrer Klasse eintragen
+-- Bestehende SchuelerInnen automatisch in die Faecher ihrer Klasse eintragen.
+-- NUR bei einer neuen Datenbank ausfuehren! Auf einer laufenden DB wuerde es
+-- SchuelerInnen wieder eintragen, die eine Lehrkraft absichtlich entfernt hat.
 INSERT IGNORE INTO class_subject_students (class_subject_id, student_id)
 SELECT cs.id, sc.student_id
 FROM class_subjects cs

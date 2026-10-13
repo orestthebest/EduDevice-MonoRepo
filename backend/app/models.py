@@ -86,6 +86,7 @@ class ClassSubjectStudent(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     class_subject_id = Column(Integer, ForeignKey("class_subjects.id", ondelete="CASCADE"), nullable=False)
     student_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    added_at = Column(DateTime, server_default=func.now())
 
 
 class Material(Base):
