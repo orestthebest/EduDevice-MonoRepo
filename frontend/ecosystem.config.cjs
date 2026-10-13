@@ -14,7 +14,7 @@ module.exports = {
 				NODE_ENV: 'production',
 				PORT: 3000, // 8000 ist für die REST-API reserviert
 				HOST: '0.0.0.0', // im Schulnetz/VPN erreichbar
-				ORIGIN: 'http://172.20.1.115:3000', // sonst lehnt SvelteKit Formulare (Login) ab
+				ORIGIN: 'https://edudevice.htl-cloud.com', // // öffentliche Adresse – sonst lehnt SvelteKit Formulare (Login) ab
 				BODY_SIZE_LIMIT: '50M', // Standard 512 KB ist zu klein für Uploads
 				API_URL: 'http://127.0.0.1:8000' // REST-API auf derselben VM
 			}
