@@ -69,6 +69,12 @@
 </svelte:head>
 
 <PageHeader title={s.subject_name} {subtitle} back="/subjects">
+	{#if canEdit || data.user.role === 'schueler'}
+		<a href="/subjects/{s.id}/quizzes"
+			class="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-sm font-medium text-white transition hover:bg-accent-dark">
+			<Icon name="check" /> Quizzes
+		</a>
+	{/if}
 	{#if canEdit}
 		<button
 			type="button"
