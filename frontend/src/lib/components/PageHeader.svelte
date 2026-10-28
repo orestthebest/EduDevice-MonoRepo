@@ -14,8 +14,8 @@
 			</a>
 		{/if}
 		<div>
-			<h1 class="text-2xl font-bold">{title}</h1>
-			{#if subtitle}<p class="text-sm text-subtle">{subtitle}</p>{/if}
+			<h1 class="text-2xl leading-tight font-bold">{title}</h1>
+			{#if subtitle}<p class="mt-1 text-sm text-subtle">{subtitle}</p>{/if}
 		</div>
 	</div>
 

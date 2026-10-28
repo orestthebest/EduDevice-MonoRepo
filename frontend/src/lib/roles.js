@@ -29,3 +29,9 @@ export const NAV = {
 		]
 	}
 };
+
+// Für alle Rollen gleich (wie im Wireframe unter "Shared")
+export const SHARED_NAV = {
+	section: 'Shared',
+	items: [{ href: '/profile', label: 'Profile', icon: 'user' }]
+};

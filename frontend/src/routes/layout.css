@@ -81,6 +81,7 @@
 	h2,
 	h3 {
 		font-family: var(--font-heading);
+		font-variant-ligatures: no-common-ligatures;
 	}
 }
 

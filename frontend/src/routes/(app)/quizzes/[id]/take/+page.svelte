@@ -43,14 +43,14 @@
 		<h2 class="mb-4 text-lg font-semibold">Questions</h2>
 		<ol class="divide-y divide-divider">
 			{#each result.questions as r, i (r.question_id)}
-				{@const q = questions.find((x) => x.id === r.question_id)}
+				{@const text = r.question_text ?? questions.find((x) => x.id === r.question_id)?.question_text}
 				<li class="flex items-center gap-3 py-3">
 					<span class="grid size-7 shrink-0 place-items-center rounded-lg text-xs font-bold {r.correct ? 'bg-success/12 text-success-dark' : 'bg-error/10 text-error'}">
 						{r.correct ? '✓' : '✗'}
 					</span>
 					<p class="min-w-0 flex-1 truncate">
 						<span class="font-medium">Question {i + 1}</span>
-						{#if q}<span class="text-subtle"> · {q.question_text.replace(/\{\{\d+\}\}/g, '___')}</span>{/if}
+								{#if text}<span class="text-subtle"> · {text.replace(/\{\{\d+\}\}/g, '___')}</span>{/if}
 					</p>
 					<span class="shrink-0 text-sm font-medium {r.correct ? 'text-success-dark' : 'text-subtle'}">
 						{r.points_awarded} {r.points_awarded === 1 ? 'point' : 'points'}
