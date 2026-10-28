@@ -1,8 +1,10 @@
 <script>
+	import { enhance } from '$app/forms';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { ROLE_LABEL } from '$lib/roles.js';
 
-	let { data } = $props();
+	let { data, form } = $props();
+    let saving = $state(false);
 	const p = $derived(data.profile);
 	const initials = $derived((p.first_name[0] + p.last_name[0]).toUpperCase());
 
@@ -11,7 +13,6 @@
 		{ label: 'First name', value: p.first_name },
 		{ label: 'Last name', value: p.last_name },
 		{ label: 'Username', value: p.username },
-		{ label: 'Email', value: p.email },
 		{ label: 'Role', value: ROLE_LABEL[p.role] }
 	]);
 </script>
@@ -49,4 +50,38 @@
 			</div>
 		{/each}
 	</dl>
+</section>
+
+<!-- E-Mail ändern -->
+<section class="mt-6 rounded-2xl border border-line bg-white p-6">
+	<h2 class="text-lg font-semibold">Email address</h2>
+	<p class="text-sm text-subtle">Used for notifications from your school.</p>
+
+	<form
+		method="POST"
+		action="?/updateEmail"
+		class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"
+		use:enhance={() => {
+			saving = true;
+			return async ({ update }) => {
+				await update({ reset: false });
+				saving = false;
+			};
+		}}
+	>
+		<div class="flex-1">
+			<label for="email" class="label">Email</label>
+			<input id="email" name="email" type="email" required maxlength="255"
+				class="input" value={form?.email ?? p.email} />
+		</div>
+		<button type="submit" class="btn-primary sm:w-auto sm:px-6" disabled={saving}>
+			{saving ? 'Saving…' : 'Save'}
+		</button>
+	</form>
+
+	{#if form?.error}
+		<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.error}</p>
+	{:else if form?.success}
+		<p class="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-dark">Your email has been updated.</p>
+	{/if}
 </section>
