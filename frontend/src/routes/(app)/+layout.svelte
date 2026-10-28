@@ -3,6 +3,7 @@
 	import { afterNavigate } from '$app/navigation';
 	import Icon from '$lib/components/Icon.svelte';
 	import { NAV, SHARED_NAV, ROLE_LABEL } from '$lib/roles.js';
+	import Avatar from '$lib/components/Avatar.svelte';
 
 	let { data, children } = $props();
 
@@ -11,7 +12,6 @@
 	afterNavigate(() => (menuOpen = false));
 
 	const nav = $derived(NAV[data.user.role]);
-	const initials = $derived((data.user.first_name[0] + data.user.last_name[0]).toUpperCase());
 
 	// "/" nur exakt aktiv, andere auch für Unterseiten (z.B. /subjects/3)
 	const isActive = (href) =>
@@ -69,9 +69,7 @@
 
 		<!-- User-Karte unten -->
 				<div class="flex items-center gap-3 rounded-xl border border-white/60 bg-white/55 p-3">
-			<span class="bg-brand-gradient grid size-10 shrink-0 place-items-center rounded-full text-sm font-semibold text-white">
-				{initials}
-			</span>
+			<Avatar user={data.user} />
 			<div class="min-w-0">
 				<p class="truncate text-sm font-semibold">{data.user.first_name} {data.user.last_name}</p>
 				<p class="truncate text-xs text-subtle">{ROLE_LABEL[data.user.role]}</p>
