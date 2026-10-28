@@ -1,4 +1,4 @@
-# EduDevice REST-API V2.3 – Anleitung für die WebApp
+# EduDevice REST-API V2.5 – Anleitung für die WebApp
 
 Basis-URL am Server (nur intern): `http://127.0.0.1:8000`  ·  Swagger: `http://172.20.1.115:8000/docs`
 Alle Endpunkte außer Login/Register brauchen den Header `Authorization: Bearer <token>`.
@@ -85,4 +85,36 @@ export async function handle({ event, resolve }) {
 const form = await request.formData();           // enthält title + file
 const res = await api(`/subjects/${params.id}/materials`, { method: 'POST', token: locals.token, form });
 if (!res.ok) return fail(res.status, { error: (await res.json()).detail });
+```
+
+## Benutzerprofil (V2.5, Schema V4.5)
+
+Die User-ID kommt immer aus dem JWT, nie aus dem Request. `GET /auth/me` liefert jetzt zusätzlich
+`profile_image` (Dateiname oder `null`).
+
+| Methode + Pfad | Body | Antwort |
+|---|---|---|
+| `PATCH /users/me` | JSON `{ "email": "..." }` | `200` UserOut · `409` E-Mail vergeben · `422` ungültig |
+| `POST /users/me/avatar` | multipart, Feld `file` (jpg/png/webp, max. 2 MB) | `200 { "profile_image": "8-1761680000000.webp" }` · `413` zu groß · `400` falscher Typ / kaputtes Bild |
+| `DELETE /users/me/avatar` | – | `204` (auch wenn kein Bild da war) |
+| `GET /users/avatar/{filename}` | – | Bild (`image/webp`), nur mit Token · `404` |
+
+- Bei `PATCH /users/me` werden andere Felder (`role`, `username` …) ignoriert, nur die E-Mail wird geändert.
+  Die E-Mail wird kleingeschrieben gespeichert; Leerzeichen am Rand → `422` (wie bei Register), also im Frontend `trim()`.
+- Der Typ wird am echten Bildinhalt geprüft, nicht an der Endung. Das Bild wird mittig quadratisch
+  auf 256×256 zugeschnitten und als WebP gespeichert; das alte Bild wird gelöscht.
+- Jeder Upload bekommt einen neuen Dateinamen → kein Browser-Cache-Problem nach einem neuen Bild.
+- `GET /users/avatar/...` braucht den Bearer-Token. Ein `<img src>` direkt auf die API schickt keinen
+  Token mit → das Bild über eine SvelteKit-Route weiterreichen:
+
+```js
+// src/routes/avatar/[file]/+server.js
+import { api } from '$lib/server/api.js';
+import { error } from '@sveltejs/kit';
+export async function GET({ params, locals }) {
+  if (!locals.token) error(401, 'Nicht eingeloggt');
+  const res = await api(`/users/avatar/${encodeURIComponent(params.file)}`, { token: locals.token });
+  if (!res.ok) error(res.status, 'Bild nicht gefunden');
+  return new Response(res.body, { headers: { 'Content-Type': 'image/webp', 'Cache-Control': 'private, max-age=86400' } });
+}
 ```

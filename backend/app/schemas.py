@@ -29,15 +29,29 @@ class UserOut(BaseModel):
     last_name: str
     email: str
     role: str
+    profile_image: str | None = None   # V4.5, Bild unter GET /users/avatar/{profile_image}
+
+
+EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
 
 class RegisterIn(BaseModel):
     first_name: str = Field(min_length=1, max_length=100)
     last_name: str = Field(min_length=1, max_length=100)
     username: str = Field(min_length=3, max_length=50)
-    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$", max_length=255)
+    email: str = Field(pattern=EMAIL_PATTERN, max_length=255)
     password: str = Field(min_length=8, max_length=72)   # bcrypt nutzt max. 72 Bytes
     role: Literal["schueler", "lehrkraft"]               # admin kann man sich nicht selbst geben
+
+
+class ProfileUpdateIn(BaseModel):
+    """PATCH /users/me: nur die E-Mail darf geaendert werden."""
+    # andere Felder im Body (z. B. "role") werden ignoriert, nie uebernommen
+    email: str = Field(pattern=EMAIL_PATTERN, max_length=255)
+
+
+class AvatarOut(BaseModel):
+    profile_image: str
 
 
 # ---------------- Noten ----------------

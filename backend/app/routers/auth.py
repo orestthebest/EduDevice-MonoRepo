@@ -18,7 +18,8 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 def user_out(u: m.User) -> UserOut:
     return UserOut(id=u.id, username=u.username, first_name=u.first_name,
-                   last_name=u.last_name, email=u.email, role=role_of(u))
+                   last_name=u.last_name, email=u.email, role=role_of(u),
+                   profile_image=u.profile_image)
 
 
 @router.post("/login", response_model=TokenOut)

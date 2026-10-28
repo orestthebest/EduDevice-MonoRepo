@@ -36,6 +36,7 @@ class User(Base):
     role = Column(Enum(RoleEnum), nullable=False)
     email = Column(String(255), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
+    profile_image = Column(String(255), nullable=True)   # V4.5: Dateiname im Ordner uploads/avatars
     created_at = Column(DateTime, server_default=func.now())
 
 

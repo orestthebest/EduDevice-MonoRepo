@@ -27,3 +27,8 @@ MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
 # Rate-Limits
 LOGIN_LIMIT = "10/minute"
 REGISTER_LIMIT = "5/minute"
+
+# Profilbilder (V4.5): Unterordner im Upload-Ordner, max. 2 MB, gespeichert als 256x256 WebP
+AVATAR_DIR = UPLOAD_DIR / "avatars"
+AVATAR_MAX_BYTES = 2 * 1024 * 1024
+AVATAR_SIZE = 256
