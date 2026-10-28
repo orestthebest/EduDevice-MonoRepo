@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { afterNavigate } from '$app/navigation';
 	import Icon from '$lib/components/Icon.svelte';
-	import { NAV, ROLE_LABEL } from '$lib/roles.js';
+	import { NAV, SHARED_NAV, ROLE_LABEL } from '$lib/roles.js';
 
 	let { data, children } = $props();
 
@@ -44,23 +44,27 @@
 		</div>
 
 		<nav class="mt-10 flex-1">
-			<p class="mb-2 px-3 text-[11px] font-semibold tracking-wider text-subtle uppercase">{nav.section}</p>
-			<ul class="space-y-1">
-				{#each nav.items as item (item.href)}
-					<li>
-						<a
-							href={item.href}
-							class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
-							{isActive(item.href)
-								? 'bg-white text-accent-dark shadow-[0_2px_8px_rgb(67_56_150/0.12)]'
-								: 'text-navy hover:bg-white/55'}"
-						>
-							<Icon name={item.icon} />
-							{item.label}
-						</a>
-					</li>
-				{/each}
-			</ul>
+			{#each [nav, SHARED_NAV] as group (group.section)}
+				<p class="mb-2 px-3 text-[11px] font-semibold tracking-wider text-subtle uppercase {group === SHARED_NAV ? 'mt-6' : ''}">
+					{group.section}
+				</p>
+				<ul class="space-y-1">
+					{#each group.items as item (item.href)}
+						<li>
+							<a
+								href={item.href}
+								class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+								{isActive(item.href)
+									? 'bg-white text-accent-dark shadow-[0_2px_8px_rgb(67_56_150/0.12)]'
+									: 'text-navy hover:bg-white/55'}"
+							>
+								<Icon name={item.icon} />
+								{item.label}
+							</a>
+						</li>
+					{/each}
+				</ul>
+			{/each}
 		</nav>
 
 		<!-- User-Karte unten -->
