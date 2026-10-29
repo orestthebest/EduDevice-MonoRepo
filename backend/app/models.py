@@ -1,5 +1,5 @@
 """
-EduDevice REST-API - Datenbankmodelle (ORM), Schema V4.4
+EduDevice REST-API - Datenbankmodelle (ORM), Schema V4.6
 Bildet die Tabellen aus Joriks Schema V4 ab, die von der API benutzt werden.
 Die Tabellen werden NICHT von der API erzeugt - das macht das SQL-Schema.
 """
@@ -23,6 +23,8 @@ GRADE_CATEGORIES = (
     "participation", "behaviour", "schularbeit", "project",
 )
 ATTENDANCE_STATUS = ("anwesend", "abwesend", "verspaetet")
+ABSENCE_STATUS = ("abwesend", "verspaetet")              # zaehlt als Fehlstunde, kann entschuldigt werden
+EXCUSE_STATUS = ("pending", "accepted", "rejected")
 WEEKDAYS = ("Mo", "Di", "Mi", "Do", "Fr")
 
 
@@ -54,6 +56,7 @@ class SchoolClass(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     school_year_id = Column(Integer, ForeignKey("school_years.id"), nullable=False)
     name = Column(String(20), nullable=False)
+    class_teacher_id = Column(Integer, ForeignKey("users.id"), nullable=True)   # V4.6: Klassenvorstand
 
 
 class StudentClass(Base):
@@ -129,7 +132,23 @@ class Attendance(Base):
     student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=False)
     status = Column(Enum(*ATTENDANCE_STATUS, name="attendance_status"), nullable=False)
-    excuse_id = Column(Integer, nullable=True)
+    excuse_id = Column(Integer, ForeignKey("excuses.id"), nullable=True)
+
+
+class Excuse(Base):
+    """Entschuldigung (Schema V4.2, Pruefung durch den Klassenvorstand seit V4.6).
+    Welche Fehlstunden dazugehoeren, steht in attendance.excuse_id."""
+    __tablename__ = "excuses"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    date_from = Column(Date, nullable=False)
+    date_to = Column(Date, nullable=False)
+    reason = Column(Text)
+    status = Column(Enum(*EXCUSE_STATUS, name="excuse_status"), nullable=False, default="pending")
+    submitted_at = Column(DateTime, nullable=False, server_default=func.now())
+    teacher_comment = Column(Text, nullable=True)                              # V4.6
+    reviewed_by = Column(Integer, ForeignKey("users.id"), nullable=True)       # V4.6
+    reviewed_at = Column(DateTime, nullable=True)                              # V4.6
 
 
 # ---------------- Hausaufgaben ----------------

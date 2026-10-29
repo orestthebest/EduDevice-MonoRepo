@@ -1,5 +1,5 @@
 """
-EduDevice - Testdaten fuer Schema V4.3
+EduDevice - Testdaten fuer Schema V4.6
 Legt Beispieldaten an, damit das Frontend (Orest) echte Antworten von der API bekommt.
 Kann mehrmals ausgefuehrt werden - legt nichts doppelt an.
 Ausfuehren (im backend-Ordner):  python -m scripts.seed
@@ -29,14 +29,14 @@ def get_or_create(db, model, lookup: dict, extra: dict | None = None):
 def seed():
     db = SessionLocal()
     try:
-        admin = get_or_create(db, m.User, {"email": "admin@edudevice.at"},
-                              {"first_name": "Admin", "last_name": "EduDevice", "username": "admin", "role": "admin",
+        admin = get_or_create(db, m.User, {"username": "admin"},
+                              {"first_name": "Admin", "last_name": "EduDevice", "email": "admin@edudevice.at", "role": "admin",
                                "password_hash": hash_password("admin123")})
-        lehrer = get_or_create(db, m.User, {"email": "lehrer@edudevice.at"},
-                               {"first_name": "Anna", "last_name": "Lehrer", "username": "alehrer", "role": "lehrkraft",
+        lehrer = get_or_create(db, m.User, {"username": "alehrer"},
+                               {"first_name": "Anna", "last_name": "Lehrer", "email": "lehrer@edudevice.at", "role": "lehrkraft",
                                 "password_hash": hash_password("lehrer123")})
-        schueler = get_or_create(db, m.User, {"email": "schueler@edudevice.at"},
-                                 {"first_name": "Test", "last_name": "Schueler", "username": "tschueler", "role": "schueler",
+        schueler = get_or_create(db, m.User, {"username": "tschueler"},
+                                 {"first_name": "Test", "last_name": "Schueler", "email": "schueler@edudevice.at", "role": "schueler",
                                   "password_hash": hash_password("schueler123")})
 
         jahr = get_or_create(db, m.SchoolYear, {"label": "2026/27"},
@@ -58,6 +58,15 @@ def seed():
                                {"end_time": time(8, 50), "room": "A101"})
         lesson = get_or_create(db, m.Lesson, {"timetable_id": stunde.id, "date": date(2026, 9, 28)})
 
+        # V4.6: Klassenvorstand der 4A + ein paar Fehlstunden zum Entschuldigen
+        if klasse.class_teacher_id is None:
+            klasse.class_teacher_id = lehrer.id
+        for tag, status in ((date(2026, 10, 5), "abwesend"), (date(2026, 10, 12), "verspaetet"),
+                            (date(2026, 10, 19), "abwesend")):
+            stunde_x = get_or_create(db, m.Lesson, {"timetable_id": stunde.id, "date": tag})
+            get_or_create(db, m.Attendance, {"student_id": schueler.id, "lesson_id": stunde_x.id},
+                          {"status": status})
+
         hw = get_or_create(db, m.Homework,
                            {"class_subject_id": mathe_4a.id, "description": "Buch S. 12, Aufgaben 1-5"},
                            {"due_date": datetime(2026, 10, 5, 8, 0)})
@@ -77,6 +86,7 @@ def seed():
         print(f"  Klasse 4A (class_id={klasse.id}), Mathematik (subject_id={mathe.id}), "
               f"class_subject_id={mathe_4a.id}")
         print(f"  Stunde lesson_id={lesson.id} am 28.09.2026, Hausaufgabe id={hw.id}, Quiz id={quiz.id}")
+        print("  Klassenvorstand 4A = alehrer, tschueler hat 3 Fehlstunden (05.10., 12.10., 19.10.)")
     except Exception:
         db.rollback()
         raise

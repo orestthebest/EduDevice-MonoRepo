@@ -14,8 +14,8 @@ backend/
 │   ├── core/                config.py · database.py · security.py
 │   ├── services/            access.py (Zugriffsregeln) · files.py (Uploads)
 │   └── routers/             auth · grades · homework · attendance · timetable · quiz
-│                            classes · subjects · materials · quizzes · users
-├── sql/                     schema_v4_2.sql · migration_v4_3 · v4_4_quiz · v4_5_profile · v4_6_pipeline
+│                            classes · subjects · materials · quizzes · users · excuses
+├── sql/                     schema_v4_2.sql · migration_v4_3 · v4_4_quiz · v4_5_profile · v4_6_excuses · v4_7_pipeline
 ├── scripts/seed.py          Testdaten
 ├── tests/                   automatische Tests (pytest)
 ├── postman/                 Postman-Collections + Anleitung (POSTMAN.md)
@@ -65,5 +65,5 @@ curl http://127.0.0.1:8000/health
 ## Datenbank
 
 Neue Installation: `sql/schema_v4_2.sql`, danach der Reihe nach `migration_v4_3.sql`, `migration_v4_4_quiz.sql`,
-`migration_v4_5_profile.sql`, `migration_v4_6_pipeline.sql`.
-Server (hat V4.4): `migration_v4_5_profile.sql`; `migration_v4_6_pipeline.sql` erst nach Absprache mit Jorik – vorher immer Backup!
+`migration_v4_5_profile.sql`, `migration_v4_6_excuses.sql`, `migration_v4_7_pipeline.sql`.
+Server (hat V4.5): `migration_v4_6_excuses.sql`; `migration_v4_7_pipeline.sql` erst nach Absprache mit Jorik – vorher immer Backup!
