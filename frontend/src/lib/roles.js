@@ -18,7 +18,8 @@ export const NAV = {
 		section: 'Teaching',
 		items: [
 			{ href: '/', label: 'Dashboard', icon: 'home' },
-			{ href: '/subjects', label: 'Subjects & materials', icon: 'folder' }
+			{ href: '/subjects', label: 'Subjects & materials', icon: 'folder' },
+			{ href: '/excuses/review', label: 'Excuse review', icon: 'clipboard' }
 		]
 	},
 	admin: {
