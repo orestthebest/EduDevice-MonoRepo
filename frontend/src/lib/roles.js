@@ -10,7 +10,8 @@ export const NAV = {
 		section: 'My learning',
 		items: [
 			{ href: '/', label: 'Dashboard', icon: 'home' },
-			{ href: '/subjects', label: 'Subjects & materials', icon: 'book' }
+			{ href: '/subjects', label: 'Subjects & materials', icon: 'book' },
+			{ href: '/excuses', label: 'Excuses', icon: 'clipboard' }
 		]
 	},
 	lehrkraft: {
