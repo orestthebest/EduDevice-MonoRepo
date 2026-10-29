@@ -1,5 +1,6 @@
 <script>
 	import Icon from '$lib/components/Icon.svelte';
+	import { EXCUSE_STATUS, formatRange } from '$lib/excuses.js';
 
 	// data.user kommt aus +layout.server.js
 	let { data } = $props();
@@ -57,6 +58,55 @@
 		Open subjects <Icon name="arrow" />
 	</a>
 </section>
+<!-- Entschuldigungen: Schüler sehen offene Fehlstunden, Klassenvorstände offene Anträge -->
+{#if data.excuses}
+	{@const ex = data.excuses}
+	<section class="mt-6 rounded-2xl border border-line bg-white p-6">
+		<div class="mb-4 flex items-center justify-between">
+			<h2 class="text-lg font-semibold">{data.user.role === 'schueler' ? 'Excuses' : 'Pending excuses'}</h2>
+			<a href={data.user.role === 'schueler' ? '/excuses' : '/excuses/review'}
+				class="rounded-lg border border-ghost px-3 py-1.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+				{data.user.role === 'schueler' ? 'Open excuses' : 'View all'}
+			</a>
+		</div>
+
+		{#if data.user.role === 'schueler'}
+			<div class="grid gap-3 sm:grid-cols-3">
+				<div class="rounded-xl bg-surface p-4">
+					<p class="text-2xl font-bold {ex.unexcused > 0 ? 'text-[#b4730f]' : ''}">{ex.unexcused}</p>
+					<p class="text-xs text-subtle">Unexcused {ex.unexcused === 1 ? 'lesson' : 'lessons'}</p>
+				</div>
+				<div class="rounded-xl bg-surface p-4">
+					<p class="text-2xl font-bold">{ex.pending}</p>
+					<p class="text-xs text-subtle">Waiting for review</p>
+				</div>
+				<div class="rounded-xl bg-surface p-4">
+					{#if ex.latest}
+						<span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {EXCUSE_STATUS[ex.latest.status].class}">
+							{EXCUSE_STATUS[ex.latest.status].label}
+						</span>
+						<p class="mt-2 text-xs text-subtle">Latest: {formatRange(ex.latest.date_from, ex.latest.date_to)}</p>
+					{:else}
+						<p class="text-sm font-medium">–</p>
+						<p class="text-xs text-subtle">No excuses yet</p>
+					{/if}
+				</div>
+			</div>
+		{:else if ex.pending === 0}
+			<p class="rounded-xl bg-surface px-4 py-6 text-center text-sm text-subtle">No excuses waiting for review.</p>
+		{:else}
+			<p class="mb-2 text-sm text-subtle">{ex.pending} waiting</p>
+			<ul class="divide-y divide-divider">
+				{#each ex.latest as e (e.id)}
+					<li class="flex items-center justify-between gap-3 py-2.5 text-sm">
+						<span class="font-medium">{e.first_name} {e.last_name} <span class="font-normal text-subtle">· {e.class_name}</span></span>
+						<span class="text-xs text-subtle">{formatRange(e.date_from, e.date_to)}</span>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
+{/if}
 
 <!-- Zuletzt hochgeladene Materialien -->
 <section class="mt-6 rounded-2xl border border-line bg-white p-6">
