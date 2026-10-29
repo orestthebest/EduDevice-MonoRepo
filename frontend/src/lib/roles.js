@@ -10,14 +10,16 @@ export const NAV = {
 		section: 'My learning',
 		items: [
 			{ href: '/', label: 'Dashboard', icon: 'home' },
-			{ href: '/subjects', label: 'Subjects & materials', icon: 'book' }
+			{ href: '/subjects', label: 'Subjects & materials', icon: 'book' },
+			{ href: '/excuses', label: 'Excuses', icon: 'clipboard' }
 		]
 	},
 	lehrkraft: {
 		section: 'Teaching',
 		items: [
 			{ href: '/', label: 'Dashboard', icon: 'home' },
-			{ href: '/subjects', label: 'Subjects & materials', icon: 'folder' }
+			{ href: '/subjects', label: 'Subjects & materials', icon: 'folder' },
+			{ href: '/excuses/review', label: 'Excuse review', icon: 'clipboard' }
 		]
 	},
 	admin: {
