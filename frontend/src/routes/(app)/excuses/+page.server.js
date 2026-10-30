@@ -35,6 +35,11 @@ export const actions = {
 			method: 'POST',
 			json: { reason, attendance_ids: ids }
 		});
+
+		if (res.status === 400) {
+			return fail(400, { reason, error: 'One of the selected lessons is already excused – please reload the page' });
+		}
+
 		if (!res.ok) return fail(res.status, { reason, error: await errorText(res, 'Could not submit your excuse') });
 
 		return { success: true };

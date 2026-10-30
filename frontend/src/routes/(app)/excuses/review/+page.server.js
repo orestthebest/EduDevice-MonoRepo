@@ -35,10 +35,6 @@ export const actions = {
 			json: { status, teacher_comment: comment || null }
 		});
 
-		if (res.status === 400) {
-		return fail(400, { reason, error: 'One of the selected lessons is already excused – please reload the page' });
-		}
-
 		if (res.status === 409) return fail(409, { id, comment, error: 'This excuse has already been reviewed' });
 		if (res.status === 404) return fail(404, { id, comment, error: 'This excuse is not from a student of your class' });
 
