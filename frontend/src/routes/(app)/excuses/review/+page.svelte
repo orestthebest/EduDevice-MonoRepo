@@ -48,7 +48,7 @@
 					<!-- Kopf: Schüler, Klasse, Zeitraum -->
 					<div class="flex flex-wrap items-start justify-between gap-2">
 						<div>
-							<h2 class="text-lg font-semibold">{e.first_name} {e.last_name}</h2>
+							<h2 class="text-lg font-semibold">{e.student_name}</h2>
 							<p class="text-sm text-subtle">
 								Class {e.class_name} · {formatRange(e.date_from, e.date_to)} · submitted {formatDate(e.submitted_at)}
 							</p>
@@ -60,11 +60,11 @@
 
 					<!-- Betroffene Stunden -->
 					<ul class="mt-4 divide-y divide-divider rounded-xl border border-line">
-						{#each e.absences as a (a.id)}
+						{#each e.absences as a (a.attendance_id)}
 							<li class="flex items-center gap-3 px-4 py-2.5 text-sm">
 								<span class="w-28 text-subtle">{formatDay(a.date)}</span>
 								<span class="w-12 text-subtle tabular-nums">{formatTime(a.start_time)}</span>
-								<span class="flex-1 font-medium">{a.subject}</span>
+								<span class="flex-1 font-medium">{a.subject_name}</span>
 								<span class="rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-subtle">
 									{ABSENCE_LABEL[a.status] ?? a.status}
 								</span>
@@ -125,7 +125,7 @@
 					<li class="py-4 first:pt-0 last:pb-0">
 						<div class="flex flex-wrap items-center justify-between gap-2">
 							<p class="font-semibold">
-								{e.first_name} {e.last_name}
+								{e.student_name}
 								<span class="font-normal text-subtle">· {e.class_name}</span>
 							</p>
 							<span class="rounded-full px-3 py-1 text-xs font-semibold {EXCUSE_STATUS[e.status].class}">

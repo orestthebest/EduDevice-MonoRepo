@@ -13,7 +13,7 @@
 
 	// "Whole day": alle Stunden eines Tages an- bzw. abwählen
 	function toggleDay(items) {
-		const ids = items.map((a) => a.id);
+		const ids = items.map((a) => a.attendance_id);
 		const all = ids.every((id) => selected.includes(id));
 		selected = all ? selected.filter((id) => !ids.includes(id)) : [...new Set([...selected, ...ids])];
 	}
@@ -57,18 +57,18 @@
 							<p class="text-sm font-semibold">{formatDay(day.date)}</p>
 							<button type="button" class="cursor-pointer text-xs font-medium text-accent hover:text-accent-darker"
 								onclick={() => toggleDay(day.items)}>
-								{day.items.every((a) => selected.includes(a.id)) ? 'Deselect day' : 'Whole day'}
+								{day.items.every((a) => selected.includes(a.attendance_id)) ? 'Deselect day' : 'Whole day'}
 							</button>
 						</div>
 
 						<ul class="divide-y divide-divider">
-							{#each day.items as a (a.id)}
+							{#each day.items as a (a.attendance_id)}
 								<li>
 									<label class="flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-surface">
-										<input type="checkbox" name="attendance_ids" value={a.id} bind:group={selected}
+										<input type="checkbox" name="attendance_ids" value={a.attendance_id} bind:group={selected}
 											class="size-4 rounded border-input text-accent focus:ring-accent/30" />
 										<span class="w-12 text-sm text-subtle tabular-nums">{formatTime(a.start_time)}</span>
-										<span class="flex-1 text-sm font-medium">{a.subject}</span>
+										<span class="flex-1 text-sm font-medium">{a.subject_name}</span>
 										<span class="rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-subtle">
 											{ABSENCE_LABEL[a.status] ?? a.status}
 										</span>
@@ -126,7 +126,7 @@
 					</div>
 					<p class="mt-1 text-xs text-subtle">
 						{e.absences.length} {e.absences.length === 1 ? 'lesson' : 'lessons'}:
-						{e.absences.map((a) => a.subject).join(', ')}
+						{e.absences.map((a) => a.subject_name).join(', ')}
 					</p>
 					<p class="mt-2 text-sm">{e.reason}</p>
 
