@@ -1,4 +1,4 @@
-# EduDevice REST-API V2.5 – Anleitung für die WebApp
+# EduDevice REST-API V2.6 – Anleitung für die WebApp
 
 Basis-URL am Server (nur intern): `http://127.0.0.1:8000`  ·  Swagger: `http://172.20.1.115:8000/docs`
 Alle Endpunkte außer Login/Register brauchen den Header `Authorization: Bearer <token>`.
@@ -118,3 +118,38 @@ export async function GET({ params, locals }) {
   return new Response(res.body, { headers: { 'Content-Type': 'image/webp', 'Cache-Control': 'private, max-age=86400' } });
 }
 ```
+
+## Entschuldigungssystem (V2.6, Schema V4.6)
+
+Fehlstunde = `attendance`-Zeile mit `status` `abwesend` oder `verspaetet`. Die Verbindung zur Entschuldigung
+steht in `attendance.excuse_id` (keine Extra-Tabelle). **Unentschuldigt** = keine Entschuldigung oder abgelehnt;
+abgelehnte Stunden können neu eingereicht werden. Stunden mit `lessons.cancelled = true` zählen nicht.
+Klassenvorstand = `classes.class_teacher_id`, Klasse der SchülerIn über `student_classes`.
+
+| Methode + Pfad | Rolle | Body / Query | Antwort |
+|---|---|---|---|
+| `GET /attendance/me?unexcused=true` | schueler | ohne `unexcused` → alle eigenen Fehlstunden | `[AbsenceOut]`, neueste zuerst |
+| `POST /excuses` | schueler | `{ "reason": "...", "attendance_ids": [4, 5] }` | `201 ExcuseOut` · `400` fremde / schon entschuldigte Stunde |
+| `GET /excuses/me` | schueler | – | `[ExcuseOut]`, neueste zuerst |
+| `GET /excuses/class-teacher?status=pending` | lehrkraft (Klassenvorstand), admin (alle) | `status` optional | `[ExcuseOut]` mit `class_name` |
+| `PATCH /excuses/{id}` | Klassenvorstand der SchülerIn, admin | `{ "status": "accepted" \| "rejected", "teacher_comment": "..." }` | `200 ExcuseOut` · `404` nicht mein Schüler · `409` schon bearbeitet |
+
+```json
+// AbsenceOut
+{ "attendance_id": 4, "date": "2026-10-05", "start_time": "08:00:00", "end_time": "08:50:00",
+  "subject_name": "Mathematik", "status": "abwesend", "excuse_id": 2, "excuse_status": "pending" }
+
+// ExcuseOut
+{ "id": 2, "student_id": 3, "student_name": "Test Schueler", "class_name": "4A",
+  "date_from": "2026-10-05", "date_to": "2026-10-12", "reason": "Krank", "status": "rejected",
+  "teacher_comment": "Bitte Arztbestätigung", "reviewed_by": 2, "reviewed_by_name": "Anna Lehrer",
+  "reviewed_at": "2026-10-29T21:30:00", "submitted_at": "2026-10-29T20:00:00", "absences": [ AbsenceOut, ... ] }
+```
+
+- `date_from` / `date_to` setzt die API selbst (erste und letzte Stunde).
+- `class_name` ist bei `/excuses/me` `null` (nur beim Klassenvorstand gefüllt).
+- Wird eine abgelehnte Stunde neu eingereicht, wandert sie zur neuen Entschuldigung; die alte, abgelehnte
+  zeigt dann weniger (oder keine) Stunden.
+- Bearbeiten geht nur einmal (`pending` → `accepted`/`rejected`), danach `409`.
+- Testdaten (`python -m scripts.seed`): Klassenvorstand der 4A ist `alehrer`, `tschueler` hat 3 Fehlstunden
+  (05.10. abwesend, 12.10. verspätet, 19.10. abwesend).

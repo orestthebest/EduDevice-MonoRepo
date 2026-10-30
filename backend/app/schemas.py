@@ -4,6 +4,7 @@ und welche sie zurueckgibt (…Out). Falsche Eingaben -> automatisch 422.
 """
 
 from datetime import date, datetime
+from datetime import time as time_type
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -103,6 +104,45 @@ class AttendanceOut(BaseModel):
     lesson_id: int
     status: str
     excuse_id: Optional[int] = None
+
+
+# ---------------- Fehlstunden und Entschuldigungen (V4.6) ----------------
+class AbsenceOut(BaseModel):
+    attendance_id: int
+    date: date
+    start_time: time_type
+    end_time: time_type
+    subject_name: str
+    status: str                       # abwesend / verspaetet
+    excuse_id: Optional[int] = None
+    excuse_status: Optional[str] = None   # null, pending, accepted, rejected
+
+
+class ExcuseIn(BaseModel):
+    reason: str = Field(min_length=1, max_length=2000)
+    attendance_ids: list[int] = Field(min_length=1, max_length=200)
+
+
+class ExcuseReviewIn(BaseModel):
+    status: Literal["accepted", "rejected"]
+    teacher_comment: Optional[str] = Field(default=None, max_length=2000)
+
+
+class ExcuseOut(BaseModel):
+    id: int
+    student_id: int
+    student_name: str
+    class_name: Optional[str] = None
+    date_from: date
+    date_to: date
+    reason: Optional[str] = None
+    status: str
+    teacher_comment: Optional[str] = None
+    reviewed_by: Optional[int] = None
+    reviewed_by_name: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    submitted_at: datetime
+    absences: list[AbsenceOut]
 
 
 # ---------------- Stundenplan ----------------

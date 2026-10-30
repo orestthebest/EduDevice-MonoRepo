@@ -1,5 +1,5 @@
 -- ============================================================
--- EduDevice Schema V4.6 (Migration von V4.5)
+-- EduDevice Schema V4.7 (Migration von V4.6)
 -- Tabellen fuer Joriks Prognose-Modell:
 --   pipeline_runs   ein Eintrag pro Lauf der Pipeline
 --   grade_forecasts vorhergesagte Note pro SchuelerIn, Fach und Trimester
