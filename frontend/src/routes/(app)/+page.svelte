@@ -99,7 +99,7 @@
 			<ul class="divide-y divide-divider">
 				{#each ex.latest as e (e.id)}
 					<li class="flex items-center justify-between gap-3 py-2.5 text-sm">
-						<span class="font-medium">{e.first_name} {e.last_name} <span class="font-normal text-subtle">· {e.class_name}</span></span>
+						<span class="font-medium">{e.student_name} <span class="font-normal text-subtle">· {e.class_name}</span></span>
 						<span class="text-xs text-subtle">{formatRange(e.date_from, e.date_to)}</span>
 					</li>
 				{/each}

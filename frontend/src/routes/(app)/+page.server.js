@@ -28,7 +28,7 @@ async function excuseSummary(locals) {
 				latest: excuses[0] ?? null // neueste zuerst
 			};
 		}
-		if (locals.user.role === 'lehrkraft') {
+		if (locals.user.role !== 'schueler') {
 			const res = await excuseApi('/excuses/class-teacher?status=pending', locals);
 			if (!res.ok) return null;
 			const pending = await res.json();

@@ -34,6 +34,10 @@ export const actions = {
 			method: 'PATCH',
 			json: { status, teacher_comment: comment || null }
 		});
+
+		if (res.status === 409) return fail(409, { id, comment, error: 'This excuse has already been reviewed' });
+		if (res.status === 404) return fail(404, { id, comment, error: 'This excuse is not from a student of your class' });
+
 		if (!res.ok) return fail(res.status, { id, comment, error: await errorText(res, 'Could not save your decision') });
 
 		return { id, success: status === 'accepted' ? 'Excuse accepted.' : 'Excuse rejected.' };
