@@ -15,9 +15,9 @@ from sqlalchemy.orm import Session
 from app import models as m
 from app.core.config import AVATAR_DIR, AVATAR_MAX_BYTES, AVATAR_SIZE
 from app.core.database import get_db
-from app.core.security import get_current_user
-from app.routers.auth import user_out
-from app.schemas import AvatarOut, ProfileUpdateIn, UserOut
+from app.core.security import get_current_user, require_roles
+from app.routers.auth import create_user, user_out
+from app.schemas import AvatarOut, ProfileUpdateIn, UserCreateIn, UserOut
 
 router = APIRouter(prefix="/users", tags=["Benutzerprofil"])
 
@@ -56,6 +56,13 @@ def make_avatar(data: bytes) -> Image.Image:
         raise HTTPException(status_code=400, detail="Datei ist kein gueltiges Bild")
     img = img.convert("RGBA" if img.mode in ("RGBA", "LA", "P") else "RGB")
     return ImageOps.fit(img, (AVATAR_SIZE, AVATAR_SIZE), method=Image.LANCZOS, centering=(0.5, 0.5))
+
+
+@router.post("", response_model=UserOut, status_code=201)
+def admin_create_user(data: UserCreateIn, db: Session = Depends(get_db),
+                      current: m.User = Depends(require_roles("admin"))):
+    """Nur Admin: Konto fuer Lehrkraft (oder SchuelerIn) anlegen. Admins nur direkt in der DB."""
+    return user_out(create_user(db, data, data.role))
 
 
 @router.patch("/me", response_model=UserOut)

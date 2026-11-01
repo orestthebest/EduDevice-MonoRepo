@@ -1,4 +1,4 @@
-# EduDevice REST-API V2.6 – Anleitung für die WebApp
+# EduDevice REST-API V2.7 – Anleitung für die WebApp
 
 Basis-URL am Server (nur intern): `http://127.0.0.1:8000`  ·  Swagger: `http://172.20.1.115:8000/docs`
 Alle Endpunkte außer Login/Register brauchen den Header `Authorization: Bearer <token>`.
@@ -153,3 +153,16 @@ Klassenvorstand = `classes.class_teacher_id`, Klasse der SchülerIn über `stude
 - Bearbeiten geht nur einmal (`pending` → `accepted`/`rejected`), danach `409`.
 - Testdaten (`python -m scripts.seed`): Klassenvorstand der 4A ist `alehrer`, `tschueler` hat 3 Fehlstunden
   (05.10. abwesend, 12.10. verspätet, 19.10. abwesend).
+
+## Registrierung nur für SchülerInnen (V2.7)
+
+Vorher konnte sich jeder mit `"role": "lehrkraft"` selbst ein Lehrer-Konto anlegen und damit Noten eintragen.
+Jetzt gilt:
+
+| Methode + Pfad | Wer | Antwort |
+|---|---|---|
+| `POST /auth/register` | alle | nur SchülerIn. `role` darf fehlen (= `schueler`) · `"lehrkraft"` → `403` · `"admin"` → `422` |
+| `POST /users` | nur admin | Body wie Register, `role`: `"schueler"` oder `"lehrkraft"` → `201` UserOut · `409` doppelt |
+
+→ Auf der Registrierungsseite die Auswahl „Lehrkraft“ bitte entfernen (oder einfach kein `role` mitschicken).
+Lehrkräfte legt der Admin an, z. B. über eine eigene Admin-Seite mit `POST /users`.

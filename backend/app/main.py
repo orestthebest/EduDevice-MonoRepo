@@ -21,7 +21,7 @@ from app.core.security import limiter
 from app.routers import (attendance, auth, classes, excuses, grades, homework, materials,
                          quiz, quizzes, subjects, timetable, users)
 
-app = FastAPI(title="EduDevice REST-API", version="2.6 (Schema V4.6)")
+app = FastAPI(title="EduDevice REST-API", version="2.7 (Schema V4.6)")
 
 # Rate-Limiting (Login 10/min, Register 5/min)
 app.state.limiter = limiter

@@ -89,6 +89,7 @@ flowchart TB
 | Passwörter | nur als bcrypt-Hash gespeichert |
 | Authentifizierung | JWT (HS256), 60 min gültig, Schlüssel nur in `api.env` |
 | Autorisierung | Rollen `schueler` / `lehrkraft` / `admin`; Lehrkraft nur eigene Fächer; Schüler nur eigene Daten |
+| Registrierung | selbst nur als SchülerIn; Lehrkraft-Konten nur durch Admin (`POST /users`), Admins nur direkt in der DB |
 | Kein Informationsleck | fremdes Fach → 404 statt 403; gleiche Fehlermeldung bei falschem User und falschem Passwort |
 | Brute-Force | Login 10/min, Register 5/min pro IP; echte IP wird von der WebApp weitergegeben, Header nur von localhost akzeptiert |
 | Uploads | Whitelist der Endungen, max. 50 MB, zufälliger UUID-Name, Ordner außerhalb des Web-Roots, MIME aus der Endung |

@@ -35,13 +35,11 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), db: Ses
                     username=user.username, first_name=user.first_name, last_name=user.last_name)
 
 
-@router.post("/register", response_model=UserOut, status_code=201)
-@limiter.limit(REGISTER_LIMIT)
-def register(request: Request, data: RegisterIn, db: Session = Depends(get_db)):
-    """Neues Konto (schueler oder lehrkraft). Admin kann man sich nicht selbst geben."""
+def create_user(db: Session, data: RegisterIn, role: str) -> m.User:
+    """Legt einen Benutzer an (Register und POST /users). 409 bei doppeltem Username/E-Mail."""
     user = m.User(first_name=data.first_name.strip(), last_name=data.last_name.strip(),
                   username=data.username.strip(), email=data.email.strip().lower(),
-                  role=data.role, password_hash=hash_password(data.password))
+                  role=role, password_hash=hash_password(data.password))
     db.add(user)
     try:
         db.commit()
@@ -51,7 +49,17 @@ def register(request: Request, data: RegisterIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=409, detail="E-Mail ist bereits registriert" if "email" in msg
                             else "Username ist bereits vergeben")
     db.refresh(user)
-    return user_out(user)
+    return user
+
+
+@router.post("/register", response_model=UserOut, status_code=201)
+@limiter.limit(REGISTER_LIMIT)
+def register(request: Request, data: RegisterIn, db: Session = Depends(get_db)):
+    """Neues Konto, nur fuer SchuelerInnen. Lehrkraft-Konten legt der Admin an (POST /users),
+    sonst koennte sich jeder Lehrer-Rechte geben."""
+    if data.role != "schueler":
+        raise HTTPException(status_code=403, detail="Lehrkraft-Konten werden vom Admin angelegt")
+    return user_out(create_user(db, data, "schueler"))
 
 
 @router.get("/me", response_model=UserOut)

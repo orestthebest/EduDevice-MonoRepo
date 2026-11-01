@@ -42,7 +42,14 @@ class RegisterIn(BaseModel):
     username: str = Field(min_length=3, max_length=50)
     email: str = Field(pattern=EMAIL_PATTERN, max_length=255)
     password: str = Field(min_length=8, max_length=72)   # bcrypt nutzt max. 72 Bytes
-    role: Literal["schueler", "lehrkraft"]               # admin kann man sich nicht selbst geben
+    # Selbst registrieren duerfen sich nur SchuelerInnen. "lehrkraft" -> 403 (legt der Admin an),
+    # "admin" -> 422. Feld darf fehlen (= schueler).
+    role: Literal["schueler", "lehrkraft"] = "schueler"
+
+
+class UserCreateIn(RegisterIn):
+    """POST /users (nur admin): Konto fuer SchuelerIn oder Lehrkraft anlegen."""
+    role: Literal["schueler", "lehrkraft"]
 
 
 class ProfileUpdateIn(BaseModel):
