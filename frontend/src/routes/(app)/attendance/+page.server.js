@@ -1,12 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 import { api, apiJson } from '$lib/server/api.js';
 import { errorText } from '$lib/server/quiz.js';
-
-// Heute als "YYYY-MM-DD" (lokale Zeit, nicht UTC)
-function today() {
-	const d = new Date();
-	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+import { todayISO } from '$lib/format.js';
 
 // Lehrerseite: Anwesenheit pro Stunde erfassen (Vertrag: backend/docs/API_FUER_OREST.md, V2.8)
 // Auswahl steht in der URL: ?subject=<class_subject_id>&date=YYYY-MM-DD&time=HH:MM
@@ -19,7 +14,7 @@ export async function load({ locals, url }) {
 	if (locals.user.role === 'lehrkraft') subjects = subjects.filter((s) => s.teacher_id === locals.user.id);
 
 	const subjectId = Number(url.searchParams.get('subject')) || subjects[0]?.id || null;
-	const date = url.searchParams.get('date') || today();
+	const date = url.searchParams.get('date') || todayISO();
 	let time = url.searchParams.get('time') || '';
 
 	if (!subjectId) {

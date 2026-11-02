@@ -4,14 +4,14 @@
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { formatDay, formatTime } from '$lib/excuses.js';
+    import { todayISO } from '$lib/format.js';
 
 	let { data, form } = $props();
 
 	let saving = $state(false);
 
 	// Heute (lokal) -> keine Zukunftsdaten im Datumsfeld
-	const now = new Date();
-	const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+	const todayStr = todayISO();
 
 	// Status pro Schüler (student_id -> 'anwesend' | 'abwesend').
 	// Noch nicht erfasst = standardmäßig anwesend. Wird neu gesetzt, sobald andere Daten geladen werden.
