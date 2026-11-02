@@ -113,6 +113,59 @@ class AttendanceOut(BaseModel):
     excuse_id: Optional[int] = None
 
 
+# ---------------- Anwesenheit pro Stunde (V2.8) ----------------
+# Eine "Stunde" = timetable-Eintrag (Fach + Wochentag + Beginn) + Datum -> Zeile in lessons
+class LessonSlotOut(BaseModel):
+    timetable_id: int
+    weekday: str
+    start_time: time_type
+    end_time: time_type
+    room: Optional[str] = None
+
+
+class LessonStudentOut(BaseModel):
+    student_id: int
+    first_name: str
+    last_name: str
+    username: str
+    status: Optional[str] = None          # None = noch nicht erfasst
+    excuse_id: Optional[int] = None
+    enrolled: bool = True                 # False = nicht mehr im Fach, hat aber einen Eintrag
+
+
+class LessonAttendanceOut(BaseModel):
+    class_subject_id: int
+    date: date
+    start_time: time_type
+    end_time: time_type
+    room: Optional[str] = None
+    lesson_id: Optional[int] = None       # None = fuer diese Stunde wurde noch nichts erfasst
+    cancelled: bool = False
+    students: list[LessonStudentOut]
+
+
+class AttendanceEntryIn(BaseModel):
+    student_id: int
+    status: Literal[models.ATTENDANCE_STATUS]  # type: ignore[valid-type]
+
+
+class LessonAttendanceIn(BaseModel):
+    class_subject_id: int
+    date: date
+    start_time: time_type
+    entries: list[AttendanceEntryIn] = Field(min_length=1, max_length=200)
+
+
+class LessonHistoryOut(BaseModel):
+    lesson_id: int
+    date: date
+    start_time: time_type
+    end_time: time_type
+    present_count: int
+    absent_count: int
+    late_count: int
+
+
 # ---------------- Fehlstunden und Entschuldigungen (V4.6) ----------------
 class AbsenceOut(BaseModel):
     attendance_id: int

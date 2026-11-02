@@ -58,6 +58,44 @@
 		Open subjects <Icon name="arrow" />
 	</a>
 </section>
+
+<!-- Anwesenheit: heutige Stunden der Lehrkraft laut Stundenplan -->
+{#if data.attendance}
+	{@const open = data.attendance.lessons.filter((l) => !l.recorded).length}
+	<section class="mt-6 rounded-2xl border border-line bg-white p-6">
+		<div class="mb-4 flex items-center justify-between">
+			<h2 class="text-lg font-semibold">Today's attendance</h2>
+			<a href="/attendance"
+				class="rounded-lg border border-ghost px-3 py-1.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+				Take attendance
+			</a>
+		</div>
+
+		{#if data.attendance.lessons.length === 0}
+			<p class="rounded-xl bg-surface px-4 py-6 text-center text-sm text-subtle">No lessons today.</p>
+		{:else}
+			<p class="mb-2 text-sm text-subtle">{open === 0 ? 'All lessons recorded' : `${open} not recorded yet`}</p>
+			<ul class="divide-y divide-divider">
+				{#each data.attendance.lessons as l (`${l.subjectId}-${l.start}`)}
+					<li>
+						<a href="/attendance?subject={l.subjectId}&date={data.attendance.date}&time={l.start}"
+							class="flex items-center gap-3 py-2.5 text-sm transition hover:text-accent-dark">
+							<span class="w-12 text-subtle tabular-nums">{l.start}</span>
+							<span class="flex-1 font-medium">
+								{l.subject}
+								<span class="font-normal text-subtle">· {l.className}{l.room ? ` · ${l.room}` : ''}</span>
+							</span>
+							<span class="rounded-full px-2.5 py-0.5 text-xs font-semibold
+								{l.recorded ? 'bg-success/12 text-success-dark' : 'bg-warning/15 text-[#b4730f]'}">
+								{l.recorded ? 'Recorded' : 'Open'}
+							</span>
+						</a>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
+{/if}
 <!-- Entschuldigungen: Schüler sehen offene Fehlstunden, Klassenvorstände offene Anträge -->
 {#if data.excuses}
 	{@const ex = data.excuses}

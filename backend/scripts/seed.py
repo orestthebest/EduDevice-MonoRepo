@@ -66,6 +66,11 @@ def seed():
             stunde_x = get_or_create(db, m.Lesson, {"timetable_id": stunde.id, "date": tag})
             get_or_create(db, m.Attendance, {"student_id": schueler.id, "lesson_id": stunde_x.id},
                           {"status": status})
+        # V2.8: zwei Stunden mit Anwesenheit fuer die Verlaufsansicht
+        for tag in (date(2026, 10, 26), date(2026, 11, 2)):
+            stunde_x = get_or_create(db, m.Lesson, {"timetable_id": stunde.id, "date": tag})
+            get_or_create(db, m.Attendance, {"student_id": schueler.id, "lesson_id": stunde_x.id},
+                          {"status": "anwesend"})
 
         hw = get_or_create(db, m.Homework,
                            {"class_subject_id": mathe_4a.id, "description": "Buch S. 12, Aufgaben 1-5"},
@@ -87,6 +92,7 @@ def seed():
               f"class_subject_id={mathe_4a.id}")
         print(f"  Stunde lesson_id={lesson.id} am 28.09.2026, Hausaufgabe id={hw.id}, Quiz id={quiz.id}")
         print("  Klassenvorstand 4A = alehrer, tschueler hat 3 Fehlstunden (05.10., 12.10., 19.10.)")
+        print("  Mathe 4A: Montag 08:00, Anwesenheit erfasst am 05.10., 12.10., 19.10., 26.10., 02.11.")
     except Exception:
         db.rollback()
         raise
