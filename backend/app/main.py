@@ -19,7 +19,7 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import CORS_ORIGINS
 from app.core.security import limiter
 from app.routers import (attendance, auth, classes, excuses, grades, homework, materials,
-                         quiz, quizzes, subjects, timetable, users)
+                         quiz, quizzes, statistics, subjects, timetable, users)
 
 app = FastAPI(title="EduDevice REST-API", version="2.7 (Schema V4.6)")
 
@@ -34,6 +34,7 @@ app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials
 # Endpunkte laut Ziel-Dokument (M-4)
 app.include_router(auth.router)
 app.include_router(grades.router)
+app.include_router(statistics.router)
 app.include_router(homework.router)
 app.include_router(attendance.router)
 app.include_router(timetable.router)
