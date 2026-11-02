@@ -1,4 +1,4 @@
-# EduDevice REST-API V2.7 – Anleitung für die WebApp
+# EduDevice REST-API V2.8 – Anleitung für die WebApp
 
 Basis-URL am Server (nur intern): `http://127.0.0.1:8000`  ·  Swagger: `http://172.20.1.115:8000/docs`
 Alle Endpunkte außer Login/Register brauchen den Header `Authorization: Bearer <token>`.
@@ -166,3 +166,38 @@ Jetzt gilt:
 
 → Auf der Registrierungsseite die Auswahl „Lehrkraft“ bitte entfernen (oder einfach kein `role` mitschicken).
 Lehrkräfte legt der Admin an, z. B. über eine eigene Admin-Seite mit `POST /users`.
+
+## Anwesenheit pro Stunde (V2.8)
+
+**Wie eine Stunde im Schema aussieht** (keine Änderung nötig, gibt es seit V4.2):
+`timetable` (class_subject_id + weekday `Mo`–`Fr` + start_time/end_time) + Datum = Zeile in `lessons`.
+`attendance` hängt an `lessons.id` (`UNIQUE (student_id, lesson_id)`), nicht direkt an class_subject/date/start_time.
+Die API rechnet `class_subject_id + date + start_time` selbst in die richtige Stunde um.
+**Voraussetzung:** Das Fach muss an diesem Wochentag zu dieser Uhrzeit einen Eintrag im Stundenplan (`timetable`) haben.
+
+| Methode + Pfad | Rolle | Antwort |
+|---|---|---|
+| `GET /attendance/slots?class_subject_id=1&date=2026-10-05` | Lehrkraft des Fachs, admin | Stunden laut Stundenplan an dem Tag: `[{timetable_id, weekday, start_time, end_time, room}]` (für die Auswahl von `start_time`) |
+| `GET /attendance?class_subject_id=1&date=2026-10-05&start_time=08:00` | Lehrkraft des Fachs, admin | `LessonAttendanceOut` · `404` keine Stunde laut Stundenplan · `400` Wochenende |
+| `PUT /attendance` | Lehrkraft des Fachs, admin | Body unten → `200 LessonAttendanceOut` (neuer Stand) |
+| `GET /attendance/history?class_subject_id=1` | Lehrkraft des Fachs, admin | `[{lesson_id, date, start_time, end_time, present_count, absent_count, late_count}]`, neueste zuerst |
+
+```json
+// PUT /attendance
+{ "class_subject_id": 1, "date": "2026-10-05", "start_time": "08:00",
+  "entries": [ { "student_id": 3, "status": "abwesend" }, { "student_id": 9, "status": "anwesend" } ] }
+
+// LessonAttendanceOut
+{ "class_subject_id": 1, "date": "2026-10-05", "start_time": "08:00:00", "end_time": "08:50:00", "room": "A101",
+  "lesson_id": 2, "cancelled": false,
+  "students": [ { "student_id": 3, "first_name": "Test", "last_name": "Schueler", "username": "tschueler",
+                  "status": "abwesend", "excuse_id": null, "enrolled": true } ] }
+```
+
+- `status` in `students`: `null` = noch nicht erfasst. `lesson_id: null` = für die Stunde gibt es noch gar nichts.
+- Erlaubte Status: `anwesend`, `abwesend` und zusätzlich `verspaetet` (gibt es im Schema schon).
+- Upsert: nur die mitgeschickten SchülerInnen werden angelegt/geändert, die anderen bleiben, wie sie sind.
+- Wird jemand auf `anwesend` gesetzt, wird `excuse_id` auf `null` gesetzt (gilt auch für das alte `POST /attendance`).
+- Fehler: `400` SchülerIn nicht im Fach / doppelt in der Liste / Datum in der Zukunft · `403` nicht mein Fach · `422` falscher Status oder leere Liste.
+- Wer aus dem Fach ausgetragen wurde, aber für die Stunde schon einen Eintrag hat, kommt mit `"enrolled": false` mit.
+- Testdaten: Mathe 4A (class_subject 1 lokal) hat Montag 08:00, erfasst am 05.10., 12.10., 19.10., 26.10. und 02.11.
