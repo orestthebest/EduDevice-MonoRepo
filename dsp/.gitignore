@@ -1,0 +1,30 @@
+# Data
+data/raw/
+data/processed/
+*.parquet
+
+# Trained models - reproducible from the seed, and binary blobs bloat the repo.
+# Quote card.json in the write-up instead of committing the .joblib.
+models/
+
+# Generated seed artefacts
+sim_seed_edudevice.sql
+sim_trimesters.sql
+sim_preview.csv
+payload.json
+
+# Never commit credentials
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
