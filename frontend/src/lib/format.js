@@ -24,3 +24,9 @@ export function typeColor(ext) {
 	if (['xls', 'xlsx', 'csv'].includes(ext)) return 'bg-success/12 text-success-dark';
 	return 'bg-surface text-subtle';
 }
+
+// Heute als "YYYY-MM-DD" (lokale Zeit, nicht UTC wie toISOString)
+export function todayISO() {
+	const d = new Date();
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}

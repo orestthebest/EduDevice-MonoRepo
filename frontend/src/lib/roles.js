@@ -10,6 +10,7 @@ export const NAV = {
 		section: 'My learning',
 		items: [
 			{ href: '/', label: 'Dashboard', icon: 'home' },
+			{ href: '/grades', label: 'My grades', icon: 'grid' },
 			{ href: '/subjects', label: 'Subjects & materials', icon: 'book' },
 			{ href: '/excuses', label: 'Excuses', icon: 'clipboard' }
 		]
@@ -19,7 +20,8 @@ export const NAV = {
 		items: [
 			{ href: '/', label: 'Dashboard', icon: 'home' },
 			{ href: '/subjects', label: 'Subjects & materials', icon: 'folder' },
-			{ href: '/excuses/review', label: 'Excuse review', icon: 'clipboard' }
+			{ href: '/excuses/review', label: 'Excuse review', icon: 'clipboard' },
+			{ href: '/attendance', label: 'Attendance', icon: 'calendar' },
 		]
 	},
 	admin: {
