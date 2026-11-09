@@ -7,7 +7,7 @@ from datetime import date, datetime
 from datetime import time as time_type
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app import models
 
@@ -98,7 +98,20 @@ class HomeworkConfirmIn(BaseModel):
 
 
 # ---------------- Anwesenheit ----------------
-class AttendanceIn(BaseModel):
+class MinutesMissedMixin(BaseModel):
+    """V4.8: versaeumte Minuten. Nur bei 'verspaetet' von der Lehrkraft anzugeben;
+    bei 'anwesend' (0) und 'abwesend' (ganze Stunde) setzt die API den Wert selbst.
+    Fehlt die Angabe bei 'verspaetet', wird NULL gespeichert (= Minuten unbekannt)."""
+    minutes_missed: Optional[int] = Field(default=None, ge=1, le=600)
+
+    @model_validator(mode="after")
+    def _only_for_late(self):
+        if self.status != "verspaetet":
+            self.minutes_missed = None      # wird in der API aus dem Status abgeleitet
+        return self
+
+
+class AttendanceIn(MinutesMissedMixin):
     student_id: int
     lesson_id: int
     status: Literal[models.ATTENDANCE_STATUS]  # type: ignore[valid-type]
@@ -110,6 +123,7 @@ class AttendanceOut(BaseModel):
     student_id: int
     lesson_id: int
     status: str
+    minutes_missed: Optional[int] = None      # V4.8
     excuse_id: Optional[int] = None
 
 
@@ -129,6 +143,7 @@ class LessonStudentOut(BaseModel):
     last_name: str
     username: str
     status: Optional[str] = None          # None = noch nicht erfasst
+    minutes_missed: Optional[int] = None  # V4.8
     excuse_id: Optional[int] = None
     enrolled: bool = True                 # False = nicht mehr im Fach, hat aber einen Eintrag
 
@@ -144,7 +159,7 @@ class LessonAttendanceOut(BaseModel):
     students: list[LessonStudentOut]
 
 
-class AttendanceEntryIn(BaseModel):
+class AttendanceEntryIn(MinutesMissedMixin):
     student_id: int
     status: Literal[models.ATTENDANCE_STATUS]  # type: ignore[valid-type]
 

@@ -1,6 +1,7 @@
 """Anwesenheit.
 Ziel-M-4: GET /attendance/{class_id}/{date}, POST /attendance
-V2.8 (WebApp): GET/PUT /attendance (eine Stunde), GET /attendance/slots, GET /attendance/history"""
+V2.8 (WebApp): GET/PUT /attendance (eine Stunde), GET /attendance/slots, GET /attendance/history
+V4.8: versaeumte Minuten (minutes_missed) und Schulkalender (Feiertage, getauschter Stundenplan)"""
 
 from datetime import date as date_type
 
@@ -45,11 +46,34 @@ def add_attendance(entry: AttendanceIn, db: Session = Depends(get_db),
         record = m.Attendance(student_id=entry.student_id, lesson_id=entry.lesson_id)
         db.add(record)
     record.status = entry.status
+    record.minutes_missed = minutes_missed(entry.status, entry.minutes_missed, tt)
     if entry.status == "anwesend":
         record.excuse_id = None          # keine veraltete Entschuldigung an einer Anwesenheit
     db.commit()
     db.refresh(record)
     return record
+
+
+# ================= Versaeumte Minuten (V4.8) =================
+# Die 20-%/30-%-Grenze zaehlt Minuten, nicht Stunden: 5 Minuten zu spaet sind 5 Minuten.
+def lesson_minutes(slot: m.TimetableEntry) -> int:
+    """Laenge einer Stunde laut Stundenplan in Minuten."""
+    return ((slot.end_time.hour * 60 + slot.end_time.minute)
+            - (slot.start_time.hour * 60 + slot.start_time.minute))
+
+
+def minutes_missed(status: str, given: int | None, slot: m.TimetableEntry) -> int | None:
+    """anwesend -> 0, abwesend -> ganze Stunde, verspaetet -> angegebene Minuten
+    (ohne Angabe NULL = unbekannt). Verspaetung ab Stundenlaenge ist eine Abwesenheit."""
+    if status == "anwesend":
+        return 0
+    full = lesson_minutes(slot)
+    if status == "abwesend":
+        return full
+    if given is not None and given >= full:
+        raise HTTPException(status_code=400,
+                            detail=f"{given} Minuten Verspaetung bei einer {full}-Minuten-Stunde - bitte 'abwesend' waehlen")
+    return given
 
 
 # ================= Anwesenheit pro Stunde fuer die WebApp (V2.8) =================
@@ -71,14 +95,22 @@ def teacher_subject(db: Session, cs_id: int, user: m.User) -> m.ClassSubject:
     return cs
 
 
-def weekday_of(day: date_type) -> str:
+def weekday_of(db: Session, day: date_type) -> str:
+    """Nach welchem Wochentags-Stundenplan an diesem Datum unterrichtet wird (V4.8: mit Schulkalender).
+    Feiertage, Ferien und schulautonome Tage -> 400; Tage mit getauschtem Stundenplan -> anderer Wochentag."""
     if day.weekday() > 4:
         raise HTTPException(status_code=400, detail="Am Wochenende gibt es keinen Unterricht")
+    cal = db.get(m.SchoolCalendarDay, day)
+    if cal is not None and not cal.has_lessons:
+        raise HTTPException(status_code=400,
+                            detail=f"Am {day:%d.%m.%Y} ist kein Unterricht ({cal.note or cal.day_type})")
+    if cal is not None and cal.timetable_weekday:
+        return cal.timetable_weekday
     return m.WEEKDAYS[day.weekday()]
 
 
 def find_slot(db: Session, cs: m.ClassSubject, day: date_type, start: time_type) -> m.TimetableEntry:
-    wd = weekday_of(day)
+    wd = weekday_of(db, day)
     slot = (db.query(m.TimetableEntry)
             .filter_by(class_subject_id=cs.id, weekday=wd, start_time=start).first())
     if slot is None:
@@ -102,6 +134,7 @@ def lesson_attendance(db: Session, cs: m.ClassSubject, slot: m.TimetableEntry, d
         rec = records.get(u.id)
         students.append(LessonStudentOut(student_id=u.id, first_name=u.first_name, last_name=u.last_name,
                                          username=u.username, status=rec.status if rec else None,
+                                         minutes_missed=rec.minutes_missed if rec else None,
                                          excuse_id=rec.excuse_id if rec else None,
                                          enrolled=u.id in enrolled_ids))
     return LessonAttendanceOut(class_subject_id=cs.id, date=day, start_time=slot.start_time,
@@ -115,7 +148,7 @@ def lesson_slots(class_subject_id: int, date: date_type, db: Session = Depends(g
                  current: m.User = Depends(require_roles("lehrkraft", "admin"))):
     """Welche Stunden hat das Fach an diesem Tag laut Stundenplan? (fuer die Auswahl von start_time)"""
     cs = teacher_subject(db, class_subject_id, current)
-    slots = (db.query(m.TimetableEntry).filter_by(class_subject_id=cs.id, weekday=weekday_of(date))
+    slots = (db.query(m.TimetableEntry).filter_by(class_subject_id=cs.id, weekday=weekday_of(db, date))
              .order_by(m.TimetableEntry.start_time).all())
     return [LessonSlotOut(timetable_id=s.id, weekday=s.weekday, start_time=s.start_time,
                           end_time=s.end_time, room=s.room) for s in slots]
@@ -183,11 +216,14 @@ def save_lesson_attendance(data: LessonAttendanceIn, db: Session = Depends(get_d
 
     existing = {a.student_id: a for a in db.query(m.Attendance).filter_by(lesson_id=lesson.id)}
     for e in data.entries:
+        minutes = minutes_missed(e.status, e.minutes_missed, slot)
         rec = existing.get(e.student_id)
         if rec is None:
-            db.add(m.Attendance(student_id=e.student_id, lesson_id=lesson.id, status=e.status))
+            db.add(m.Attendance(student_id=e.student_id, lesson_id=lesson.id, status=e.status,
+                                minutes_missed=minutes))
             continue
         rec.status = e.status
+        rec.minutes_missed = minutes
         if e.status == "anwesend":
             rec.excuse_id = None        # keine veraltete Entschuldigung an einer Anwesenheit
     db.commit()

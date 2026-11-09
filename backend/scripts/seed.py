@@ -61,16 +61,17 @@ def seed():
         # V4.6: Klassenvorstand der 4A + ein paar Fehlstunden zum Entschuldigen
         if klasse.class_teacher_id is None:
             klasse.class_teacher_id = lehrer.id
-        for tag, status in ((date(2026, 10, 5), "abwesend"), (date(2026, 10, 12), "verspaetet"),
-                            (date(2026, 10, 19), "abwesend")):
+        # V4.8: mit versaeumten Minuten (Stunde 8:00-8:50 -> abwesend = 50, einmal 10 Minuten zu spaet)
+        for tag, status, minuten in ((date(2026, 10, 5), "abwesend", 50), (date(2026, 10, 12), "verspaetet", 10),
+                                     (date(2026, 10, 19), "abwesend", 50)):
             stunde_x = get_or_create(db, m.Lesson, {"timetable_id": stunde.id, "date": tag})
             get_or_create(db, m.Attendance, {"student_id": schueler.id, "lesson_id": stunde_x.id},
-                          {"status": status})
+                          {"status": status, "minutes_missed": minuten})
         # V2.8: zwei Stunden mit Anwesenheit fuer die Verlaufsansicht
         for tag in (date(2026, 10, 26), date(2026, 11, 2)):
             stunde_x = get_or_create(db, m.Lesson, {"timetable_id": stunde.id, "date": tag})
             get_or_create(db, m.Attendance, {"student_id": schueler.id, "lesson_id": stunde_x.id},
-                          {"status": "anwesend"})
+                          {"status": "anwesend", "minutes_missed": 0})
 
         hw = get_or_create(db, m.Homework,
                            {"class_subject_id": mathe_4a.id, "description": "Buch S. 12, Aufgaben 1-5"},

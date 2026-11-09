@@ -1,12 +1,12 @@
 """
-EduDevice REST-API - Datenbankmodelle (ORM), Schema V4.6
+EduDevice REST-API - Datenbankmodelle (ORM), Schema V4.8
 Bildet die Tabellen aus Joriks Schema V4 ab, die von der API benutzt werden.
 Die Tabellen werden NICHT von der API erzeugt - das macht das SQL-Schema.
 """
 
 import enum
 from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, Date, Time, Boolean,
+    Column, Integer, SmallInteger, String, Text, DateTime, Date, Time, Boolean,
     DECIMAL, ForeignKey, Enum, TIMESTAMP, func, UniqueConstraint,
 )
 from app.core.database import Base
@@ -26,6 +26,8 @@ ATTENDANCE_STATUS = ("anwesend", "abwesend", "verspaetet")
 ABSENCE_STATUS = ("abwesend", "verspaetet")              # zaehlt als Fehlstunde, kann entschuldigt werden
 EXCUSE_STATUS = ("pending", "accepted", "rejected")
 WEEKDAYS = ("Mo", "Di", "Mi", "Do", "Fr")
+# V4.8: Arten von Kalendertagen (nur Tage, die vom normalen Wochenplan abweichen)
+CALENDAR_DAY_TYPES = ("holiday", "autonomous_day", "break", "swapped_timetable", "info")
 
 
 # ---------------- Benutzer ----------------
@@ -49,6 +51,20 @@ class SchoolYear(Base):
     label = Column(String(20), nullable=False, unique=True)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
+    first_lesson_day = Column(Date, nullable=True)   # V4.8: erster Unterrichtstag
+    last_lesson_day = Column(Date, nullable=True)    # V4.8: letzter Unterrichtstag
+
+
+class SchoolCalendarDay(Base):
+    """V4.8: Tag, der vom normalen Wochenplan abweicht (Feiertag, Ferien, getauschter Stundenplan ...).
+    Ein Datum, das hier nicht steht, ist ein normaler Unterrichtstag."""
+    __tablename__ = "school_calendar"
+    date = Column(Date, primary_key=True)
+    school_year_id = Column(Integer, ForeignKey("school_years.id"), nullable=False)
+    day_type = Column(Enum(*CALENDAR_DAY_TYPES, name="calendar_day_type"), nullable=False)
+    has_lessons = Column(Boolean, nullable=False)
+    timetable_weekday = Column(Enum(*WEEKDAYS, name="calendar_weekday"), nullable=True)  # nur bei swapped_timetable
+    note = Column(String(100), nullable=True)
 
 
 class SchoolClass(Base):
@@ -132,6 +148,9 @@ class Attendance(Base):
     student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=False)
     status = Column(Enum(*ATTENDANCE_STATUS, name="attendance_status"), nullable=False)
+    # V4.8: versaeumte Minuten (anwesend 0, abwesend ganze Stunde, verspaetet tatsaechliche Minuten,
+    # NULL = verspaetet, Minuten unbekannt)
+    minutes_missed = Column(SmallInteger, nullable=True)
     excuse_id = Column(Integer, ForeignKey("excuses.id"), nullable=True)
 
 
