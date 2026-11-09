@@ -32,3 +32,8 @@ REGISTER_LIMIT = "5/minute"
 AVATAR_DIR = UPLOAD_DIR / "avatars"
 AVATAR_MAX_BYTES = 2 * 1024 * 1024
 AVATAR_SIZE = 256
+
+# Anhaenge zu Entschuldigungen (V4.9): eigener Ordner, max. 5 MB, max. 3 pro Entschuldigung
+EXCUSE_DIR = UPLOAD_DIR / "excuses"
+EXCUSE_MAX_BYTES = 5 * 1024 * 1024
+EXCUSE_MAX_FILES = 3

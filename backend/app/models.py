@@ -1,5 +1,5 @@
 """
-EduDevice REST-API - Datenbankmodelle (ORM), Schema V4.8
+EduDevice REST-API - Datenbankmodelle (ORM), Schema V4.9
 Bildet die Tabellen aus Joriks Schema V4 ab, die von der API benutzt werden.
 Die Tabellen werden NICHT von der API erzeugt - das macht das SQL-Schema.
 """
@@ -168,6 +168,18 @@ class Excuse(Base):
     teacher_comment = Column(Text, nullable=True)                              # V4.6
     reviewed_by = Column(Integer, ForeignKey("users.id"), nullable=True)       # V4.6
     reviewed_at = Column(DateTime, nullable=True)                              # V4.6
+
+
+class ExcuseAttachment(Base):
+    """V4.9: Anhang zu einer Entschuldigung (Datei in UPLOAD_DIR/excuses)."""
+    __tablename__ = "excuse_attachments"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    excuse_id = Column(Integer, ForeignKey("excuses.id", ondelete="CASCADE"), nullable=False)
+    original_name = Column(String(255), nullable=False)
+    stored_name = Column(String(100), nullable=False, unique=True)
+    mime_type = Column(String(100), nullable=False)
+    size_bytes = Column(Integer, nullable=False)
+    uploaded_at = Column(DateTime, nullable=False, server_default=func.now())
 
 
 # ---------------- Hausaufgaben ----------------

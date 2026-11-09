@@ -6,17 +6,21 @@ attendance.excuse_id (keine Extra-Tabelle).
 "Unentschuldigt" = attendance.status abwesend/verspaetet UND (keine Entschuldigung ODER abgelehnt).
 Abgelehnte Fehlstunden koennen neu eingereicht werden (excuse_id wird ueberschrieben)."""
 
+import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, aliased
 
 from app import models as m
+from app.core.config import EXCUSE_DIR, EXCUSE_MAX_BYTES, EXCUSE_MAX_FILES
 from app.core.database import get_db
-from app.core.security import require_roles, role_of
-from app.schemas import AbsenceOut, ExcuseIn, ExcuseOut, ExcuseReviewIn
+from app.core.security import get_current_user, require_roles, role_of
+from app.schemas import AbsenceOut, ExcuseAttachmentOut, ExcuseIn, ExcuseOut, ExcuseReviewIn
 
 router = APIRouter(tags=["Entschuldigungen"])
 
@@ -57,7 +61,11 @@ def excuse_out(db: Session, exc: m.Excuse, class_name: Optional[str] = None) -> 
                      teacher_comment=exc.teacher_comment, reviewed_by=exc.reviewed_by,
                      reviewed_by_name=f"{reviewer.first_name} {reviewer.last_name}" if reviewer else None,
                      reviewed_at=exc.reviewed_at, submitted_at=exc.submitted_at,
-                     absences=[to_absence_out(r) for r in rows])
+                     absences=[to_absence_out(r) for r in rows],
+                     attachments=[ExcuseAttachmentOut(id=a.id, original_name=a.original_name,
+                                                      size_bytes=a.size_bytes)
+                                  for a in db.query(m.ExcuseAttachment).filter_by(excuse_id=exc.id)
+                                  .order_by(m.ExcuseAttachment.id)])
 
 
 def class_teacher_class_name(db: Session, student_id: int, teacher: m.User) -> Optional[str]:
@@ -160,3 +168,99 @@ def review_excuse(excuse_id: int, data: ExcuseReviewIn, db: Session = Depends(ge
     db.commit()
     db.refresh(exc)
     return excuse_out(db, exc, class_name)
+
+
+# ---------------- Anhaenge (V4.9) ----------------
+# Oft Arztbestaetigungen = Gesundheitsdaten. Deshalb: eigener Ordner, Typ wird am INHALT geprueft,
+# sehen duerfen nur die SchuelerIn selbst, ihr Klassenvorstand und der Admin.
+ATTACHMENT_TYPES = {                 # Endung -> (MIME-Typ, Anfang der Datei)
+    "pdf": ("application/pdf", (b"%PDF-",)),
+    "png": ("image/png", (b"\x89PNG\r\n\x1a\n",)),
+    "jpg": ("image/jpeg", (b"\xff\xd8\xff",)),
+    "jpeg": ("image/jpeg", (b"\xff\xd8\xff",)),
+}
+
+
+def attachment_path(stored_name: str) -> Path:
+    return EXCUSE_DIR / Path(stored_name).name          # .name: kein "../"
+
+
+def own_pending_excuse(db: Session, excuse_id: int, student: m.User) -> m.Excuse:
+    exc = db.get(m.Excuse, excuse_id)
+    if exc is None or exc.student_id != student.id:
+        raise HTTPException(status_code=404, detail="Entschuldigung nicht gefunden")
+    if exc.status != "pending":
+        raise HTTPException(status_code=409, detail="Die Entschuldigung wurde schon bearbeitet")
+    return exc
+
+
+@router.post("/excuses/{excuse_id}/attachments", response_model=ExcuseAttachmentOut, status_code=201)
+def upload_attachment(excuse_id: int, file: UploadFile = File(...), db: Session = Depends(get_db),
+                      current: m.User = Depends(require_roles("schueler"))):
+    """Anhang hochladen: PDF/JPG/PNG, max. 5 MB, max. 3 pro Entschuldigung, nur solange offen."""
+    exc = own_pending_excuse(db, excuse_id, current)
+    if db.query(m.ExcuseAttachment).filter_by(excuse_id=exc.id).count() >= EXCUSE_MAX_FILES:
+        raise HTTPException(status_code=409, detail=f"Hoechstens {EXCUSE_MAX_FILES} Anhaenge pro Entschuldigung")
+
+    original = Path(file.filename or "").name.strip()[:255] or "anhang"
+    ext = Path(original).suffix.lstrip(".").lower()
+    if ext not in ATTACHMENT_TYPES:
+        raise HTTPException(status_code=400, detail="Nur PDF, JPG oder PNG erlaubt")
+    data = file.file.read(EXCUSE_MAX_BYTES + 1)          # nie mehr als 5 MB + 1 Byte in den Speicher
+    if len(data) > EXCUSE_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Datei ist zu gross (max. 5 MB)")
+    if not data:
+        raise HTTPException(status_code=400, detail="Bitte eine Datei auswaehlen")
+    mime, magic = ATTACHMENT_TYPES[ext]
+    if not data.startswith(magic):                        # z. B. umbenannte .exe oder .html
+        raise HTTPException(status_code=400, detail="Der Inhalt passt nicht zur Dateiendung")
+
+    stored = f"{uuid.uuid4()}.{'jpg' if ext == 'jpeg' else ext}"
+    EXCUSE_DIR.mkdir(parents=True, exist_ok=True)
+    attachment_path(stored).write_bytes(data)
+    att = m.ExcuseAttachment(excuse_id=exc.id, original_name=original, stored_name=stored,
+                             mime_type=mime, size_bytes=len(data))
+    db.add(att)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        attachment_path(stored).unlink(missing_ok=True)
+        raise
+    db.refresh(att)
+    return ExcuseAttachmentOut(id=att.id, original_name=att.original_name, size_bytes=att.size_bytes)
+
+
+@router.get("/excuses/{excuse_id}/attachments/{att_id}/download")
+def download_attachment(excuse_id: int, att_id: int, db: Session = Depends(get_db),
+                        current: m.User = Depends(get_current_user)):
+    """Nur die SchuelerIn selbst, ihr Klassenvorstand und der Admin. Alle anderen -> 404."""
+    exc = db.get(m.Excuse, excuse_id)
+    att = db.get(m.ExcuseAttachment, att_id)
+    if exc is None or att is None or att.excuse_id != exc.id:
+        raise HTTPException(status_code=404, detail="Anhang nicht gefunden")
+    role = role_of(current)
+    allowed = (exc.student_id == current.id or role == "admin"
+               or (role == "lehrkraft" and class_teacher_class_name(db, exc.student_id, current)))
+    if not allowed:
+        raise HTTPException(status_code=404, detail="Anhang nicht gefunden")
+    path = attachment_path(att.stored_name)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Datei fehlt am Server")
+    return FileResponse(path, media_type=att.mime_type, filename=att.original_name,
+                        headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store"})
+
+
+@router.delete("/excuses/{excuse_id}/attachments/{att_id}", status_code=204)
+def delete_attachment(excuse_id: int, att_id: int, db: Session = Depends(get_db),
+                      current: m.User = Depends(require_roles("schueler"))):
+    """Falschen Anhang wieder entfernen - nur die SchuelerIn selbst und nur solange offen."""
+    exc = own_pending_excuse(db, excuse_id, current)
+    att = db.get(m.ExcuseAttachment, att_id)
+    if att is None or att.excuse_id != exc.id:
+        raise HTTPException(status_code=404, detail="Anhang nicht gefunden")
+    stored = att.stored_name
+    db.delete(att)
+    db.commit()
+    attachment_path(stored).unlink(missing_ok=True)
+    return Response(status_code=204)

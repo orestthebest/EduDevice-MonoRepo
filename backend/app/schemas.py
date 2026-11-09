@@ -216,6 +216,12 @@ class ExcuseReviewIn(BaseModel):
     teacher_comment: Optional[str] = Field(default=None, max_length=2000)
 
 
+class ExcuseAttachmentOut(BaseModel):
+    id: int
+    original_name: str
+    size_bytes: int
+
+
 class ExcuseOut(BaseModel):
     id: int
     student_id: int
@@ -231,6 +237,7 @@ class ExcuseOut(BaseModel):
     reviewed_at: Optional[datetime] = None
     submitted_at: datetime
     absences: list[AbsenceOut]
+    attachments: list[ExcuseAttachmentOut] = []      # V4.9
 
 
 # ---------------- Stundenplan ----------------

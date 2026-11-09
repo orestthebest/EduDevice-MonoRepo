@@ -1,4 +1,4 @@
-# EduDevice REST-API V2.10 – Anleitung für die WebApp
+# EduDevice REST-API V2.11 – Anleitung für die WebApp
 
 Basis-URL am Server (nur intern): `http://127.0.0.1:8000`  ·  Swagger: `http://172.20.1.115:8000/docs`
 Alle Endpunkte außer Login/Register brauchen den Header `Authorization: Bearer <token>`.
@@ -212,3 +212,17 @@ Die API rechnet `class_subject_id + date + start_time` selbst in die richtige St
 - Username: 3–50 Zeichen, Leerzeichen am Rand werden entfernt (wie bei Register).
 - Der Login-Token bleibt nach einem Username-Wechsel gültig (er enthält die User-ID).
 - Nach einer Passwortänderung bleiben schon ausgestellte Tokens bis zu ihrem Ablauf gültig (JWT kann man nicht einzeln sperren).
+
+## Anhänge zu Entschuldigungen (V2.11, Schema V4.9)
+
+| Methode + Pfad | Wer | Antwort |
+|---|---|---|
+| `POST /excuses/{id}/attachments` (multipart, Feld `file`) | SchülerIn, der die Entschuldigung gehört | `201 {id, original_name, size_bytes}` · `400` Typ/Inhalt falsch oder leer · `413` über 5 MB · `409` schon bearbeitet oder schon 3 Anhänge · `404` nicht deine |
+| `GET /excuses/{id}/attachments/{att_id}/download` | SchülerIn selbst, Klassenvorstand, admin | Datei (attachment, Originalname) · `404` sonst |
+| `DELETE /excuses/{id}/attachments/{att_id}` | SchülerIn selbst, nur solange `pending` | `204` · `409` schon bearbeitet |
+
+- Erlaubt: PDF, JPG, PNG. Geprüft wird die Endung **und** der Dateiinhalt (eine umbenannte .exe als .pdf → `400`).
+- `ExcuseOut` hat jetzt `"attachments": [{id, original_name, size_bytes}]` (bei `/excuses/me` und `/excuses/class-teacher`).
+- Ablauf in der WebApp: zuerst `POST /excuses` (liefert die `id`), dann die Dateien einzeln an `/excuses/{id}/attachments`.
+- Download wie beim Profilbild über eine SvelteKit-Route weiterreichen (braucht den Token).
+- DELETE ist zusätzlich dazugekommen, damit SchülerInnen eine falsche Datei wieder entfernen können.
