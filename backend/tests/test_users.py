@@ -36,7 +36,8 @@ def test_email_ungueltig_422(client, teacher):
 
 
 def test_nur_email_wird_geaendert(client, student):
-    r = client.patch("/users/me", json={"email": "ts@edudevice.at", "role": "admin", "username": "x"},
+    # role (und andere unbekannte Felder) werden ignoriert
+    r = client.patch("/users/me", json={"email": "ts@edudevice.at", "role": "admin", "id": 1},
                      headers=student)
     assert r.status_code == 200
     assert r.json()["role"] == "schueler" and r.json()["username"] == "tschueler"
@@ -97,3 +98,51 @@ def test_avatar_pfad_tricks_404(client, student):
     assert client.get("/users/avatar/..%2F..%2Fapi.env", headers=student).status_code == 404
     assert client.get("/users/avatar/gibtsnicht.webp", headers=student).status_code == 404
     assert client.get("/users/avatar/1-123.webp", headers=student).status_code == 404
+
+
+# ---------------- Username und Passwort (V2.10) ----------------
+def _eigener_user(username):
+    """Eigener Testbenutzer mit Token (ohne Login -> kein Rate-Limit)."""
+    from app import models as m
+    from app.core.database import SessionLocal
+    from app.core.security import create_access_token, hash_password
+    with SessionLocal() as db:
+        u = m.User(first_name="Pro", last_name="Fil", username=username, role="schueler",
+                   email=f"{username}@edudevice.at", password_hash=hash_password("altesPW123"))
+        db.add(u)
+        db.commit()
+        return u.id, {"Authorization": f"Bearer {create_access_token(u)}"}
+
+
+def test_username_aendern(client):
+    uid, h = _eigener_user("profil1")
+    r = client.patch("/users/me", json={"username": "  profil1neu "}, headers=h)
+    assert r.status_code == 200 and r.json()["username"] == "profil1neu"
+    # Token bleibt gueltig (enthaelt die ID, nicht den Username)
+    assert client.get("/auth/me", headers=h).json()["username"] == "profil1neu"
+    # beides auf einmal
+    r = client.patch("/users/me", json={"username": "profil1b", "email": "p1b@edudevice.at"}, headers=h)
+    assert r.status_code == 200 and r.json()["email"] == "p1b@edudevice.at"
+
+
+def test_username_fehler(client):
+    _, h = _eigener_user("profil2")
+    assert client.patch("/users/me", json={"username": "tschueler"}, headers=h).status_code == 409
+    assert client.patch("/users/me", json={"username": "ab"}, headers=h).status_code == 422
+    assert client.patch("/users/me", json={"username": "  a  "}, headers=h).status_code == 422
+    assert client.patch("/users/me", json={}, headers=h).status_code == 422
+
+
+def test_passwort_aendern(client):
+    _, h = _eigener_user("profil3")
+    falsch = {"current_password": "falsch123", "new_password": "neuesPW123"}
+    assert client.post("/users/me/password", json=falsch, headers=h).status_code == 400
+    kurz = {"current_password": "altesPW123", "new_password": "kurz"}
+    assert client.post("/users/me/password", json=kurz, headers=h).status_code == 422
+    ok = {"current_password": "altesPW123", "new_password": "neuesPW123"}
+    assert client.post("/users/me/password", json=ok, headers=h).status_code == 204
+    # nur noch das neue Passwort funktioniert
+    assert client.post("/users/me/password", json=ok, headers=h).status_code == 400
+    login = client.post("/auth/login", data={"username": "profil3", "password": "neuesPW123"})
+    assert login.status_code == 200
+    assert client.post("/users/me/password", json=ok).status_code == 401

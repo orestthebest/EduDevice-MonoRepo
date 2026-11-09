@@ -53,9 +53,22 @@ class UserCreateIn(RegisterIn):
 
 
 class ProfileUpdateIn(BaseModel):
-    """PATCH /users/me: nur die E-Mail darf geaendert werden."""
-    # andere Felder im Body (z. B. "role") werden ignoriert, nie uebernommen
-    email: str = Field(pattern=EMAIL_PATTERN, max_length=255)
+    """PATCH /users/me: E-Mail und/oder Username aendern (gleiche Regeln wie bei Register).
+    Andere Felder im Body (z. B. "role") werden ignoriert, nie uebernommen."""
+    email: Optional[str] = Field(default=None, pattern=EMAIL_PATTERN, max_length=255)
+    username: Optional[str] = Field(default=None, min_length=3, max_length=50)
+
+    @model_validator(mode="after")
+    def _mindestens_ein_feld(self):
+        if self.email is None and self.username is None:
+            raise ValueError("email oder username angeben")
+        return self
+
+
+class PasswordChangeIn(BaseModel):
+    """POST /users/me/password"""
+    current_password: str = Field(min_length=1, max_length=72)
+    new_password: str = Field(min_length=8, max_length=72)   # wie bei Register
 
 
 class AvatarOut(BaseModel):

@@ -1,4 +1,4 @@
-# EduDevice REST-API V2.8 – Anleitung für die WebApp
+# EduDevice REST-API V2.10 – Anleitung für die WebApp
 
 Basis-URL am Server (nur intern): `http://127.0.0.1:8000`  ·  Swagger: `http://172.20.1.115:8000/docs`
 Alle Endpunkte außer Login/Register brauchen den Header `Authorization: Bearer <token>`.
@@ -201,3 +201,14 @@ Die API rechnet `class_subject_id + date + start_time` selbst in die richtige St
 - Fehler: `400` SchülerIn nicht im Fach / doppelt in der Liste / Datum in der Zukunft · `403` nicht mein Fach · `422` falscher Status oder leere Liste.
 - Wer aus dem Fach ausgetragen wurde, aber für die Stunde schon einen Eintrag hat, kommt mit `"enrolled": false` mit.
 - Testdaten: Mathe 4A (class_subject 1 lokal) hat Montag 08:00, erfasst am 05.10., 12.10., 19.10., 26.10. und 02.11.
+
+## Username und Passwort ändern (V2.10)
+
+| Methode + Pfad | Body | Antwort |
+|---|---|---|
+| `PATCH /users/me` | `{ "email": "..." }`, `{ "username": "..." }` oder beides | `200` UserOut · `409` E-Mail/Username vergeben · `422` ungültig oder leerer Body |
+| `POST /users/me/password` | `{ "current_password": "...", "new_password": "..." }` | `204` · `400` aktuelles Passwort falsch · `422` neues Passwort unter 8 Zeichen · `429` zu viele Versuche (10/min) |
+
+- Username: 3–50 Zeichen, Leerzeichen am Rand werden entfernt (wie bei Register).
+- Der Login-Token bleibt nach einem Username-Wechsel gültig (er enthält die User-ID).
+- Nach einer Passwortänderung bleiben schon ausgestellte Tokens bis zu ihrem Ablauf gültig (JWT kann man nicht einzeln sperren).

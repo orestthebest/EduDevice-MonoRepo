@@ -6,18 +6,18 @@ import re
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import models as m
-from app.core.config import AVATAR_DIR, AVATAR_MAX_BYTES, AVATAR_SIZE
+from app.core.config import AVATAR_DIR, AVATAR_MAX_BYTES, AVATAR_SIZE, LOGIN_LIMIT
 from app.core.database import get_db
-from app.core.security import get_current_user, require_roles
+from app.core.security import get_current_user, hash_password, limiter, require_roles, verify_password
 from app.routers.auth import create_user, user_out
-from app.schemas import AvatarOut, ProfileUpdateIn, UserCreateIn, UserOut
+from app.schemas import AvatarOut, PasswordChangeIn, ProfileUpdateIn, UserCreateIn, UserOut
 
 router = APIRouter(prefix="/users", tags=["Benutzerprofil"])
 
@@ -67,19 +67,39 @@ def admin_create_user(data: UserCreateIn, db: Session = Depends(get_db),
 
 @router.patch("/me", response_model=UserOut)
 def update_me(data: ProfileUpdateIn, db: Session = Depends(get_db), current: m.User = Depends(get_current_user)):
-    """Eigene E-Mail aendern (sonst nichts). 409 wenn die E-Mail schon jemand anderer hat."""
-    email = data.email.strip().lower()
-    taken = db.query(m.User).filter(m.User.email == email, m.User.id != current.id).first()
-    if taken:
-        raise HTTPException(status_code=409, detail="E-Mail ist bereits vergeben")
-    current.email = email
+    """Eigene E-Mail und/oder Username aendern (sonst nichts). 409, wenn schon jemand anderer sie hat.
+    Der Login-Token bleibt gueltig, weil er die User-ID enthaelt, nicht den Username."""
+    if data.email is not None:
+        email = data.email.strip().lower()
+        if db.query(m.User).filter(m.User.email == email, m.User.id != current.id).first():
+            raise HTTPException(status_code=409, detail="E-Mail ist bereits vergeben")
+        current.email = email
+    if data.username is not None:
+        username = data.username.strip()
+        if len(username) < 3:
+            raise HTTPException(status_code=422, detail="Username muss mindestens 3 Zeichen haben")
+        if db.query(m.User).filter(m.User.username == username, m.User.id != current.id).first():
+            raise HTTPException(status_code=409, detail="Username ist bereits vergeben")
+        current.username = username
     try:
         db.commit()
-    except IntegrityError:                          # gleichzeitige Anfrage mit derselben E-Mail
+    except IntegrityError:                          # gleichzeitige Anfrage mit denselben Daten
         db.rollback()
-        raise HTTPException(status_code=409, detail="E-Mail ist bereits vergeben")
+        raise HTTPException(status_code=409, detail="E-Mail oder Username ist bereits vergeben")
     db.refresh(current)
     return user_out(current)
+
+
+@router.post("/me/password", status_code=204)
+@limiter.limit(LOGIN_LIMIT)                         # sonst koennte man mit einem Token das Passwort erraten
+def change_password(request: Request, data: PasswordChangeIn, db: Session = Depends(get_db),
+                    current: m.User = Depends(get_current_user)):
+    """Eigenes Passwort aendern. 400 wenn das aktuelle Passwort falsch ist."""
+    if not verify_password(data.current_password, current.password_hash):
+        raise HTTPException(status_code=400, detail="Aktuelles Passwort ist falsch")
+    current.password_hash = hash_password(data.new_password)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.post("/me/avatar", response_model=AvatarOut)
