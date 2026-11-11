@@ -55,6 +55,13 @@ export function fmtGrade(value, digits = 2) {
 	return value.toFixed(digits).replace(/\.?0+$/, (m) => (m.includes('.') ? '' : m));
 }
 
+/** Veränderung mit Vorzeichen: 0.88 -> "+0.88", -0.21 -> "−0.21" (echtes Minuszeichen) */
+export function fmtSigned(value, digits = 2) {
+	if (value == null) return '–';
+	const text = fmtGrade(Math.abs(value), digits);
+	return value > 0 ? `+${text}` : value < 0 ? `−${text}` : '±0';
+}
+
 /** Kategorie aus der Datenbank -> lesbarer Name */
 export const CATEGORY_LABEL = {
 	homework: 'Homework',
