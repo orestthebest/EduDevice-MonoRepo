@@ -1,6 +1,12 @@
 import { error, fail } from '@sveltejs/kit';
 import { excuseApi } from '$lib/server/excuses.js';
 import { errorText } from '$lib/server/quiz.js';
+import { api } from '$lib/server/api.js';
+
+// Anhänge: gleiche Regeln wie in der API (V2.11)
+const ATTACH_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+const ATTACH_MAX = 5 * 1024 * 1024;
+const ATTACH_COUNT = 3;
 
 // GET-Aufruf, wirft bei Fehlern direkt eine Fehlerseite
 async function getJson(path, locals) {
@@ -31,6 +37,16 @@ export const actions = {
 		if (reason.length < 5) return fail(400, { reason, error: 'Please give a reason (at least 5 characters)' });
 		if (reason.length > 1000) return fail(400, { reason, error: 'Reason is too long (max. 1000 characters)' });
 
+		// Leere Einträge entfernen (Browser schickt ohne Auswahl eine leere Datei mit)
+		const files = form.getAll('files').filter((f) => f instanceof File && f.size > 0);
+		if (files.length > ATTACH_COUNT) {
+			return fail(400, { reason, error: `You can attach max. ${ATTACH_COUNT} files` });
+		}
+		for (const f of files) {
+			if (!ATTACH_TYPES.includes(f.type)) return fail(400, { reason, error: `${f.name}: only PDF, JPG or PNG allowed` });
+			if (f.size > ATTACH_MAX) return fail(400, { reason, error: `${f.name} is too big (max. 5 MB)` });
+		}
+
 		const res = await excuseApi('/excuses', locals, {
 			method: 'POST',
 			json: { reason, attendance_ids: ids }
@@ -42,6 +58,16 @@ export const actions = {
 
 		if (!res.ok) return fail(res.status, { reason, error: await errorText(res, 'Could not submit your excuse') });
 
-		return { success: true };
+		// Entschuldigung ist angelegt -> jetzt die Dateien einzeln hochladen
+		const excuse = await res.json();
+		const failedFiles = [];
+		for (const f of files) {
+			const body = new FormData();
+			body.append('file', f);
+			const up = await api(`/excuses/${excuse.id}/attachments`, { method: 'POST', token: locals.token, form: body });
+			if (!up.ok) failedFiles.push(f.name);
+		}
+
+		return { success: true, failedFiles };
 	}
 };

@@ -3,11 +3,30 @@
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { EXCUSE_STATUS, ABSENCE_LABEL, formatDay, formatTime, formatRange, groupByDate } from '$lib/excuses.js';
+	import { formatSize } from '$lib/format.js';
 
 	let { data, form } = $props();
 
 	let selected = $state([]); // ausgewählte attendance-IDs
 	let sending = $state(false);
+
+	// Anhänge (max. 3) – die Liste wird ins <input> zurückgeschrieben, dort liest das Formular sie aus
+	let fileInput = $state();
+	let files = $state([]);
+
+	function syncInput() {
+		const dt = new DataTransfer();
+		files.forEach((f) => dt.items.add(f));
+		fileInput.files = dt.files;
+	}
+	function addFiles(list) {
+		files = [...files, ...list].slice(0, 3);
+		syncInput();
+	}
+	function removeFile(i) {
+		files = files.filter((_, j) => j !== i);
+		syncInput();
+	}
 
 	const days = $derived(groupByDate(data.absences));
 
@@ -39,12 +58,15 @@
 		<form
 			method="POST"
 			action="?/submit"
+			enctype="multipart/form-data"
 			class="mt-5"
 			use:enhance={() => {
 				sending = true;
 				return async ({ result, update }) => {
-					await update({ reset: result.type === 'success' });
-					if (result.type === 'success') selected = [];
+					if (result.type === 'success') {
+						selected = [];
+						files = [];
+					}
 					sending = false;
 				};
 			}}
@@ -88,6 +110,41 @@
 					value={form?.reason ?? ''}></textarea>
 			</div>
 
+			<div class="mt-5">
+				<p class="label">Attachments <span class="font-normal text-subtle">(optional)</span></p>
+				<p class="text-xs text-subtle">e.g. a doctor's note · PDF, JPG or PNG · max. 5 MB each · up to 3 files</p>
+
+				<!-- immer da (auch bei 3 Dateien), sonst fehlen die Dateien beim Abschicken -->
+				<input id="excuse-files" bind:this={fileInput} type="file" name="files" multiple
+					accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" class="sr-only"
+					onchange={(e) => addFiles(e.currentTarget.files)} />
+
+				{#if files.length > 0}
+					<ul class="mt-3 space-y-2">
+						{#each files as f, i (f.name + f.size + i)}
+							<li class="flex items-center gap-3 rounded-xl border border-line px-4 py-2.5">
+								<Icon name="file" class="size-4 text-subtle" />
+								<span class="min-w-0 flex-1 truncate text-sm font-medium">{f.name}</span>
+								<span class="text-xs {f.size > 5 * 1024 * 1024 ? 'font-semibold text-error' : 'text-subtle'}">
+									{formatSize(f.size)}
+								</span>
+								<button type="button" onclick={() => removeFile(i)} aria-label="Remove {f.name}"
+									class="cursor-pointer rounded-lg p-1 text-subtle transition hover:bg-surface hover:text-error">
+									<Icon name="x" class="size-4" />
+								</button>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+
+				{#if files.length < 3}
+					<label for="excuse-files"
+						class="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+						<Icon name="upload" /> Add file
+					</label>
+				{/if}
+			</div>
+
 			<div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<p class="text-sm text-subtle">
 					{selected.length} {selected.length === 1 ? 'lesson' : 'lessons'} selected
@@ -105,6 +162,11 @@
 		<p class="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-dark">
 			Your excuse has been sent to your class teacher.
 		</p>
+		{#if form.failedFiles?.length}
+			<p class="mt-2 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+				These files could not be uploaded: {form.failedFiles.join(', ')}. You can add them under "My excuses".
+			</p>
+		{/if}
 	{/if}
 </section>
 
