@@ -8,6 +8,7 @@
 	let { data, form } = $props();
     let saving = $state(false);
     let savingUsername = $state(false);
+	let savingPassword = $state(false);
     let uploading = $state(false);
 	const p = $derived(data.profile);
 
@@ -159,5 +160,51 @@
 		<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.error}</p>
 	{:else if form?.success}
 		<p class="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-dark">Your email has been updated.</p>
+	{/if}
+</section>
+
+<!-- Passwort ändern -->
+<section class="mt-6 rounded-2xl border border-line bg-white p-6">
+	<h2 class="text-lg font-semibold">Password</h2>
+	<p class="text-sm text-subtle">At least 8 characters.</p>
+
+	<form
+		method="POST"
+		action="?/updatePassword"
+		class="mt-5 grid gap-4 sm:grid-cols-3"
+		use:enhance={() => {
+			savingPassword = true;
+			return async ({ update }) => {
+				await update(); // leert die Felder nach Erfolg
+				savingPassword = false;
+			};
+		}}
+	>
+		<div>
+			<label for="current_password" class="label">Current password</label>
+			<input id="current_password" name="current_password" type="password" required
+				autocomplete="current-password" class="input" />
+		</div>
+		<div>
+			<label for="new_password" class="label">New password</label>
+			<input id="new_password" name="new_password" type="password" required minlength="8" maxlength="72"
+				autocomplete="new-password" class="input" />
+		</div>
+		<div>
+			<label for="confirm_password" class="label">Repeat new password</label>
+			<input id="confirm_password" name="confirm_password" type="password" required minlength="8" maxlength="72"
+				autocomplete="new-password" class="input" />
+		</div>
+		<div class="sm:col-span-3 sm:flex sm:justify-end">
+			<button type="submit" class="btn-primary sm:w-auto sm:px-6" disabled={savingPassword}>
+				{savingPassword ? 'Saving…' : 'Change password'}
+			</button>
+		</div>
+	</form>
+
+	{#if form?.passwordError}
+		<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.passwordError}</p>
+	{:else if form?.passwordSuccess}
+		<p class="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-dark">Your password has been changed.</p>
 	{/if}
 </section>

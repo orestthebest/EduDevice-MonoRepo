@@ -9,6 +9,42 @@ export function load({ locals }) {
 }
 
 export const actions = {
+	
+	// Eigenes Passwort ändern – das aktuelle Passwort prüft die API
+	updatePassword: async ({ request, locals }) => {
+		const form = await request.formData();
+		const current_password = form.get('current_password')?.toString() ?? '';
+		const new_password = form.get('new_password')?.toString() ?? '';
+		const confirm_password = form.get('confirm_password')?.toString() ?? '';
+
+		// Passwörter nie zurück an die Seite schicken, nur die Fehlermeldung
+		if (!current_password || !new_password) {
+			return fail(400, { passwordError: 'Please fill in all fields' });
+		}
+		if (new_password.length < 8 || new_password.length > 72) {
+			return fail(400, { passwordError: 'The new password must be 8–72 characters long' });
+		}
+		if (new_password !== confirm_password) {
+			return fail(400, { passwordError: 'The new passwords do not match' });
+		}
+		if (new_password === current_password) {
+			return fail(400, { passwordError: 'The new password must be different from the current one' });
+		}
+
+		const res = await api('/users/me/password', {
+			method: 'POST',
+			token: locals.token,
+			json: { current_password, new_password }
+		});
+
+		if (res.status === 400) return fail(400, { passwordError: 'Your current password is wrong' });
+		if (res.status === 422) return fail(400, { passwordError: 'The new password must be 8–72 characters long' });
+		if (res.status === 429) return fail(429, { passwordError: 'Too many attempts, please wait a minute' });
+		if (!res.ok) return fail(res.status, { passwordError: 'Could not change your password' });
+
+		return { passwordSuccess: true };
+	},
+
 	// Eigenen Username ändern – gleiche Regeln wie bei Register (3–50 Zeichen)
 	updateUsername: async ({ request, locals }) => {
 		const form = await request.formData();
