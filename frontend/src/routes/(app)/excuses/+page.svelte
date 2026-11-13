@@ -4,6 +4,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { EXCUSE_STATUS, ABSENCE_LABEL, formatDay, formatTime, formatRange, groupByDate } from '$lib/excuses.js';
 	import { formatSize } from '$lib/format.js';
+	import Attachments from '$lib/components/Attachments.svelte';
 
 	let { data, form } = $props();
 
@@ -13,6 +14,7 @@
 	// Anhänge (max. 3) – die Liste wird ins <input> zurückgeschrieben, dort liest das Formular sie aus
 	let fileInput = $state();
 	let files = $state([]);
+	let uploadingId = $state(null); // Entschuldigung, zu der gerade eine Datei hochgeladen wird	
 
 	function syncInput() {
 		const dt = new DataTransfer();
@@ -62,7 +64,9 @@
 			class="mt-5"
 			use:enhance={() => {
 				sending = true;
-				return async ({ result, update }) => {
+
+					return async ({ result, update }) => {
+					await update({ reset: result.type === 'success' });
 					if (result.type === 'success') {
 						selected = [];
 						files = [];
@@ -191,6 +195,33 @@
 						{e.absences.map((a) => a.subject_name).join(', ')}
 					</p>
 					<p class="mt-2 text-sm">{e.reason}</p>
+					
+					
+					<Attachments excuseId={e.id} attachments={e.attachments ?? []} canRemove={e.status === 'pending'} />
+
+					{#if e.status === 'pending' && (e.attachments?.length ?? 0) < 3}
+						<form method="POST" action="?/addAttachment" enctype="multipart/form-data" class="mt-2"
+							use:enhance={() => {
+								uploadingId = e.id;
+								return async ({ update }) => {
+									await update();
+									uploadingId = null;
+								};
+							}}>
+							<input type="hidden" name="excuse_id" value={e.id} />
+							<label class="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-accent hover:text-accent-darker">
+								<Icon name="plus" class="size-3.5" />
+								{uploadingId === e.id ? 'Uploading…' : 'Add file'}
+								<input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+									class="sr-only" disabled={uploadingId === e.id}
+									onchange={(ev) => ev.currentTarget.form.requestSubmit()} />
+							</label>
+						</form>
+					{/if}
+
+					{#if form?.attachError && form?.attachId === e.id}
+						<p class="mt-2 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{form.attachError}</p>
+					{/if}
 
 					{#if e.teacher_comment}
 						<p class="mt-2 rounded-lg bg-surface px-3 py-2 text-sm">

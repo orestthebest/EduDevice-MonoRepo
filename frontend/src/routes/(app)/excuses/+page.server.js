@@ -69,5 +69,39 @@ export const actions = {
 		}
 
 		return { success: true, failedFiles };
+	},
+
+	// Anhang entfernen (nur eigene, nur solange pending – prüft die API)
+	removeAttachment: async ({ request, locals }) => {
+		const form = await request.formData();
+		const id = Number(form.get('excuse_id'));
+		const att = Number(form.get('attachment_id'));
+
+		const res = await api(`/excuses/${id}/attachments/${att}`, { method: 'DELETE', token: locals.token });
+
+		if (res.status === 409) return fail(409, { attachId: id, attachError: 'This excuse has already been reviewed' });
+		if (!res.ok) return fail(res.status, { attachId: id, attachError: 'Could not remove the file' });
+		return { attachId: id };
+	},
+
+	// Nachträglich eine Datei hinzufügen (z. B. Arztbestätigung kommt später)
+	addAttachment: async ({ request, locals }) => {
+		const form = await request.formData();
+		const id = Number(form.get('excuse_id'));
+		const file = form.get('file');
+
+		if (!(file instanceof File) || file.size === 0) return fail(400, { attachId: id, attachError: 'Please choose a file' });
+		if (!ATTACH_TYPES.includes(file.type)) return fail(400, { attachId: id, attachError: 'Only PDF, JPG or PNG allowed' });
+		if (file.size > ATTACH_MAX) return fail(400, { attachId: id, attachError: 'File is too big (max. 5 MB)' });
+
+		const body = new FormData();
+		body.append('file', file);
+		const res = await api(`/excuses/${id}/attachments`, { method: 'POST', token: locals.token, form: body });
+
+		if (res.status === 409) return fail(409, { attachId: id, attachError: 'Max. 3 files, or the excuse has already been reviewed' });
+		if (res.status === 413) return fail(400, { attachId: id, attachError: 'File is too big (max. 5 MB)' });
+		if (res.status === 400) return fail(400, { attachId: id, attachError: 'This file is not a valid PDF, JPG or PNG' });
+		if (!res.ok) return fail(res.status, { attachId: id, attachError: 'Upload failed, please try again' });
+		return { attachId: id };
 	}
 };

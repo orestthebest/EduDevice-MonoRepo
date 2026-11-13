@@ -4,6 +4,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { EXCUSE_STATUS, ABSENCE_LABEL, formatDay, formatTime, formatRange } from '$lib/excuses.js';
 	import { formatDate } from '$lib/format.js';
+	import Attachments from '$lib/components/Attachments.svelte';
 
 	let { data, form } = $props();
 
@@ -76,6 +77,13 @@
 					<p class="mt-4 text-xs font-semibold tracking-wider text-subtle uppercase">Reason</p>
 					<p class="mt-1 text-sm">{e.reason}</p>
 
+					
+					<!-- Anhänge des Schülers (z. B. Arztbestätigung) -->
+					{#if e.attachments?.length}
+						<p class="mt-4 text-xs font-semibold tracking-wider text-subtle uppercase">Attachments</p>
+						<Attachments excuseId={e.id} attachments={e.attachments} />
+					{/if}
+
 					<!-- Entscheidung -->
 					<form
 						method="POST"
@@ -137,6 +145,9 @@
 							{e.absences.length === 1 ? 'lesson' : 'lessons'} · reviewed {formatDate(e.reviewed_at)}
 						</p>
 						<p class="mt-2 text-sm">{e.reason}</p>
+
+						<Attachments excuseId={e.id} attachments={e.attachments ?? []} />
+
 						{#if e.teacher_comment}
 							<p class="mt-2 rounded-lg bg-surface px-3 py-2 text-sm">
 								<span class="font-medium">Your comment:</span> {e.teacher_comment}
