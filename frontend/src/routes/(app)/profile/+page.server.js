@@ -9,6 +9,27 @@ export function load({ locals }) {
 }
 
 export const actions = {
+	// Eigenen Username ändern – gleiche Regeln wie bei Register (3–50 Zeichen)
+	updateUsername: async ({ request, locals }) => {
+		const form = await request.formData();
+		const username = form.get('username')?.toString().trim() ?? '';
+
+		if (username.length < 3 || username.length > 50) {
+			return fail(400, { username, usernameError: 'Username must be 3–50 characters long' });
+		}
+		if (username === locals.user.username) {
+			return fail(400, { username, usernameError: 'This is already your username' });
+		}
+
+		const res = await api('/users/me', { method: 'PATCH', token: locals.token, json: { username } });
+
+		if (res.status === 409) return fail(409, { username, usernameError: 'This username is already taken' });
+		if (res.status === 422) return fail(400, { username, usernameError: 'Username must be 3–50 characters long' });
+		if (!res.ok) return fail(res.status, { username, usernameError: 'Could not save your username' });
+
+		// Token bleibt gültig (enthält die User-ID), /auth/me liefert danach den neuen Username
+		return { usernameSuccess: true };
+	},
 	// Eigene E-Mail ändern – die User-ID nimmt die API aus dem JWT
 	updateEmail: async ({ request, locals }) => {
 		const form = await request.formData();
