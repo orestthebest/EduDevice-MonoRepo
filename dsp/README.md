@@ -164,6 +164,31 @@ python src/school_adapter.py          # -> data/processed_school/
 Only needed to run the OULAD-side models on school data. The statistics in B2
 do not use it.
 
+**B4 — simulated attendance** (two SQL files for Gridi)
+
+```bash
+python src/seed_attendance.py         # -> sim_timetable.sql, sim_attendance.sql
+```
+
+On the server, in this order: `sim_timetable.sql` (only fills class_subjects
+without a timetable), then `python -m scripts.generate_lessons` in `backend/`,
+then `sim_attendance.sql` (only adds rows for lessons that have none yet - safe
+to run twice). Optional and deleting: `sql/sim_cut_grades_after_today.sql`
+removes sim grades dated after today, so the year looks "in progress".
+
+**B5 — the scoring job** (writes into the live database)
+
+```bash
+python src/score_job.py --dry-run     # compute and print, write nothing
+python src/score_job.py               # only if a grade came in since the last run
+python src/score_job.py --force       # always - the nightly run
+```
+
+Needs the trained model from B2 b) in `models/risk_school/` and the same
+`EDUDEVICE_DB_URL` as the API. Writes `risk_assessments`, `alerts`,
+`student_insights` and one row in `pipeline_runs` per run. It must run inside
+the monorepo: it imports the absence rules from `backend/`.
+
 ---
 
 ### Step 4 — inspect what you trained
@@ -257,11 +282,19 @@ src/
   snapshots.py              temporal cutoffs, so no model sees the future
   generate_school_data.py   the older standalone generator (pre-real-schema)
   seed_edudevice_real.py    the generator that writes SQL for the real schema
+  seed_attendance.py        simulated timetable + attendance as SQL (minutes, by archetype)
+  scoring.py                rules of the scoring job: possible range, alerts, weekly observations
+  score_job.py              the nightly scoring job: reads, computes, writes, logs the run
+
+sql/
+  sim_cut_grades_after_today.sql   OPTIONAL, deletes sim grades dated after today
 
 tests/
   test_grade_stats.py       the school's grading rules
   test_rules.py             the rule layer
   test_contract.py          both adapters produce the same shape
+  test_evaluation_fixes.py  EWMA eligibility, conformal calibration, tree counts
+  test_scoring.py           the scoring job's rules
 
 data/
   raw/                      OULAD CSVs from Kaggle (443 MB, not in Git)
@@ -274,7 +307,7 @@ data/
 python -m pytest -q
 ```
 
-74 pass. The contract tests skip unless `data/raw` has the OULAD CSVs and
+89 pass. The contract tests skip unless `data/raw` has the OULAD CSVs and
 `EDUDEVICE_DB_URL` is set — that is expected, not a failure.
 
 ---

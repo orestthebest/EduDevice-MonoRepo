@@ -37,7 +37,7 @@ the grade seed reproduces the same archetypes.
 
 Usage
 -----
-  python src/seed_attendance.py            (writes both files into dsp/sql/)
+  python src/seed_attendance.py            (writes both files into the dsp folder)
 """
 
 from __future__ import annotations
@@ -63,12 +63,9 @@ TENDENCY = {
     "steady":      (0.020, 0.005, 0.020),
 }
 
-# The school's fixed grid: 45-minute lessons. Periods 1-6 are the same for all
-# classes; after that 2nd year and up have their big break after period 6,
-# 9th grade and below before it (12:10-12:55). The sim classes (4A, 5B) only
-# use periods 1-4.
-PERIODS = {1: ("07:45", "08:30"), 2: ("08:35", "09:20"), 3: ("09:35", "10:20"),
-           4: ("10:25", "11:10"), 5: ("11:20", "12:05"), 6: ("12:10", "12:55")}
+# 50-minute periods (like Gridi's seed: 08:00-08:50)
+PERIODS = {1: ("08:00", "08:50"), 2: ("08:50", "09:40"), 3: ("09:55", "10:45"),
+           4: ("10:45", "11:35"), 5: ("11:45", "12:35"), 6: ("12:35", "13:25")}
 
 # class_subject_id -> [(weekday, period)], no clashes within a class
 #   5B: 3 Mathematics, 4 Software Development, 5 INSY      4A: 2 Mathematik, 6 SEW
@@ -184,8 +181,8 @@ GROUP BY a.status;
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--out", default=str(Path(__file__).resolve().parent.parent / "sql"),
-                    help="folder for the two SQL files (default: dsp/sql)")
+    ap.add_argument("--out", default=str(Path(__file__).resolve().parent.parent),
+                    help="folder for the two SQL files (default: the dsp folder)")
     ap.add_argument("--seed", type=int, default=GRADE_SEED + 1)
     args = ap.parse_args()
 

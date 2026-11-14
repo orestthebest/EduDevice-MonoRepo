@@ -121,6 +121,61 @@ rather than maintaining a parallel one.
 
 ---
 
+**Absence is counted in minutes against the whole year.** Five minutes late
+are five minutes, not a lesson. The base is every lesson of the subject in the
+year, up to the class's last teaching day (5th classes: 30 April). A cancelled
+lesson still counts in that base - as if it had taken place - but nobody can be
+absent in it. Excused or not does not matter for the limits (20 % exam, 30 %
+not assessable). The projection "at your current pace" only appears once 15 %
+of the year has passed; earlier, one missed lesson would project to 100 %.
+The rules live once, in `backend/app/services/attendance_stats.py`; the
+scoring job imports that file instead of copying it, and for all 125 sim
+student-subjects the job and the API give identical numbers.
+
+**The scoring job writes a range, not yet a forecast.** Until the prognosis
+model exists, `predicted_low/high` in `risk_assessments` is the exact envelope
+from the rules (missing parts all 4 / all 10) and `predicted_final` is today's
+average. The page calls it "still possible", not "expected". The fail
+probability is only computed where the rules leave the outcome open
+(`undecided`) and is shown to teachers only - never to students.
+
+**Observations need to beat the student's own noise.** A change is only
+mentioned when it is large compared with that student's normal spread in the
+subject (at least 1.5 grade points and 2 own standard deviations for a drop;
+0.5 points and z >= 1.5 between trimesters). Three per week at most, at most
+two warnings, at least one positive one when there is any. Messages describe
+marks ("your marks are rising"), never the person, and never contain the
+subject name - the page adds it.
+
+**Trend labels are checked against the sim's known student types.** The
+labels (rising / steady / falling / up and down / too early) come from a
+Theil-Sen slope with a Kendall confidence interval, live in the API
+(`backend/app/services/trend_stats.py`). Over the full simulated year:
+
+| true type | rising | steady | falling | up and down | too early |
+|---|---|---|---|---|---|
+| improving | 22 | 3 | 0 | 0 | 0 |
+| steady | 0 | 35 | 0 | 0 | 0 |
+| declining | 0 | 3 | 13 | 0 | 0 |
+| sudden_drop | 0 | 9 | 5 | 0 | 0 |
+| volatile | 3 | 8 | 2 | 0 | 0 |
+| failing | 0 | 13 | 0 | 0 | 0 |
+| incomplete | 0 | 9 | 0 | 0 | 0 |
+
+No subject ever gets the opposite direction. "Up and down" never fires: the
+generator's volatile students swing between trimesters, but their single marks
+scatter no more than a steady student's (robust spread median 0.78 vs 0.74), so
+no threshold separates them without mislabelling improving or declining ones.
+The threshold stays where it is; on real data it may fire, on the sim it
+cannot be validated. Mid-year (13 November) almost everything is "steady" or
+"too early" - after two months that is the honest answer. Same caveat as
+everywhere: the sim was generated with these types, so this checks that the
+method recovers a known pattern, not that it works on real students.
+
+**Alerts fire once.** Attendance limits once per school year, fail risk while
+an earlier one is unacknowledged, drops once per two weeks. A second run on
+the same data adds no new alert.
+
 ## Mistakes worth remembering
 
 **The 4.6 floating-point bug.** `round_final(4.6)` returned 4, because in
