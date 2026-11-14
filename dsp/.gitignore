@@ -8,8 +8,8 @@ data/processed/
 models/
 
 # Generated seed artefacts
-sim_seed_edudevice.sql
-sim_trimesters.sql
+sim_timetable.sql
+sim_attendance.sql
 sim_preview.csv
 payload.json
 

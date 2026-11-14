@@ -96,9 +96,12 @@ A1 must run before A2, and A2 before A3. These four need no database at all.
 
 **B0 — Gridi loads the two SQL files on the server**
 
+All SQL that was run on the server for the sim data lives in `sql/` and is
+committed, so it is always clear what the server contains.
+
 ```sql
-SOURCE sim_trimesters.sql;
-SOURCE sim_seed_edudevice.sql;
+SOURCE sql/sim_trimesters.sql;
+SOURCE sql/sim_seed_edudevice.sql;
 ```
 
 **The order of these two does not matter.** The seed file never touches the
@@ -114,7 +117,7 @@ windows, and the per-trimester figures and the trend come back empty.
 **B1 — regenerate the seed** (only if you change the generator)
 
 ```bash
-python src/seed_edudevice_real.py --per-class 25 --seed 20261025 --out .
+python src/seed_edudevice_real.py --per-class 25 --seed 20261025 --out sql
 ```
 
 | file | goes to | what it is |
@@ -167,13 +170,16 @@ do not use it.
 **B4 — simulated attendance** (two SQL files for Gridi)
 
 ```bash
-python src/seed_attendance.py         # -> sim_timetable.sql, sim_attendance.sql
+python src/seed_attendance.py         # -> sql/sim_timetable.sql, sql/sim_attendance.sql
 ```
 
 On the server, in this order: `sim_timetable.sql` (only fills class_subjects
 without a timetable), then `python -m scripts.generate_lessons` in `backend/`,
 then `sim_attendance.sql` (only adds rows for lessons that have none yet - safe
-to run twice). Optional and deleting: `sql/sim_cut_grades_after_today.sql`
+to run twice). The sim timetable uses the school's 45-minute grid (07:45-08:30,
+08:35-09:20, 09:35-10:20, 10:25-11:10); on a server where the first, 50-minute
+version ran, `sql/sim_grid_45min.sql` moves it onto the grid (deletes nothing).
+Optional and deleting: `sql/sim_cut_grades_after_today.sql`
 removes sim grades dated after today, so the year looks "in progress".
 
 **B5 — the scoring job** (writes into the live database)
@@ -286,7 +292,12 @@ src/
   scoring.py                rules of the scoring job: possible range, alerts, weekly observations
   score_job.py              the nightly scoring job: reads, computes, writes, logs the run
 
-sql/
+sql/                        everything that was run on the server for the sim data
+  sim_seed_edudevice.sql           sim students, enrolments, grades       (B0)
+  sim_trimesters.sql               the three trimester windows            (B0)
+  sim_timetable.sql                sim timetable on the 45-minute grid    (B4)
+  sim_attendance.sql               sim attendance with minutes            (B4)
+  sim_grid_45min.sql               moves a 50-minute sim timetable onto the grid
   sim_cut_grades_after_today.sql   OPTIONAL, deletes sim grades dated after today
 
 tests/
