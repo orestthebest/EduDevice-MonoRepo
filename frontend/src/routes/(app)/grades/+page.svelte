@@ -9,11 +9,19 @@
 	//   4. Die Fächer, schwächstes zuerst, aufklappbar
 	//   5. "How grades work" - die Regeln (Bestehensgrenze 4,6 usw.) als Info
 	//
+	// V3: Fehlzeiten je Fach (Budget bis 20 % / 30 % des Jahres) und
+	// Hinweise, wenn ein Fach die Grenzen erreicht oder im Tempo darauf zuläuft.
+	// Entwicklung je Fach (Rising / Steady / ...) und der noch mögliche Bereich
+	// der Endnote aus dem nächtlichen Lauf. Die Ausfallwahrscheinlichkeit des
+	// Modells liefert die API nur an Lehrkräfte - für Schüler fehlt das Feld.
+	//
 	// Gerechnet wird nichts: alle Zahlen und Hinweise kommen fertig aus der API.
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Sparkline from '$lib/components/Sparkline.svelte';
 	import TrendLine from '$lib/components/TrendLine.svelte';
 	import ComponentBars from '$lib/components/ComponentBars.svelte';
+	import AbsenceBudget from '$lib/components/AbsenceBudget.svelte';
+	import RangeBar from '$lib/components/RangeBar.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { fmtGrade, fmtSigned, standingOf, categoryLabel, shortDate } from '$lib/grades.js';
 
@@ -24,7 +32,36 @@
 	let notices = $derived(stats.notices ?? []);
 	let recent = $derived(stats.recent_overall ?? []);
 	let insights = $derived(stats.insights ?? []);
-	let serious = $derived(notices.some((n) => n.kind !== 'fragile'));
+	let serious = $derived(notices.some((n) => !['fragile', 'absence_trend'].includes(n.kind)));
+
+	// Kennzeichen der Hinweise: Notenstand oder Fehlzeiten
+	function noticeChip(kind) {
+		if (kind === 'absence_trend') return { label: 'Absence', chip: standingOf('fragile').chip };
+		if (kind.startsWith('absence')) return { label: 'Absence', chip: standingOf('failing').chip };
+		return standingOf(kind === 'unreachable' ? 'failing' : kind);
+	}
+	// Entwicklung der Noten: beschreibt die Noten, nicht den Menschen
+	const GROWTH = {
+		rising: { sign: '↗', label: 'Rising' },
+		steady: { sign: '→', label: 'Steady' },
+		falling: { sign: '↘', label: 'Falling' },
+		up_and_down: { sign: '↕', label: 'Up and down' },
+		too_early: { sign: '·', label: 'Too early to tell' }
+	};
+	let growthSummary = $derived(
+		Object.entries(overall.growth ?? {})
+			.filter(([key, n]) => n > 0 && key !== 'too_early')
+			.map(([key, n]) => `${n} ${GROWTH[key].label.toLowerCase()}`)
+			.join(' · ')
+	);
+	const when = (iso) =>
+		new Date(iso).toLocaleString('en-GB', {
+			day: 'numeric',
+			month: 'short',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	const pct = (rate, digits = 1) => `${(rate * 100).toFixed(digits).replace(/\.0$/, '')} %`;
 
 	// Offenes Fach: standardmäßig das schwächste (die API sortiert aufsteigend)
 	let open = $state(0);
@@ -76,6 +113,9 @@
 			</div>
 			<p class="mt-2 text-sm text-subtle">
 				Across {overall.n_subjects} subject{overall.n_subjects === 1 ? '' : 's'} ·
+				{#if overall.attendance}
+					{pct(overall.attendance.rate)} of lessons missed ·
+				{/if}
 				<a
 					href="#how-grades-work"
 					onclick={() => (rulesOpen = true)}
@@ -84,6 +124,9 @@
 					How grades work
 				</a>
 			</p>
+			{#if growthSummary}
+				<p class="mt-1 text-sm text-subtle">Your marks: {growthSummary}</p>
+			{/if}
 		</div>
 
 		<div class="grid grid-cols-3 gap-2 sm:gap-3">
@@ -108,15 +151,23 @@
 		>
 			<h2 class="text-lg font-semibold">Needs your attention</h2>
 			<ul class="mt-3 space-y-2.5">
-				{#each notices as n (n.class_subject_id)}
-					{@const st = standingOf(n.kind === 'unreachable' ? 'failing' : n.kind)}
+				{#each notices as n (`${n.kind}-${n.class_subject_id}`)}
+					{@const st = noticeChip(n.kind)}
 					<li class="flex items-start gap-3 text-sm">
 						<span class="mt-0.5 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold {st.chip}"
 							>{st.label}</span
 						>
 						<p class="flex-1">
 							<strong>{n.subject_name}</strong>
-							{#if n.kind === 'unreachable'}
+							{#if n.kind === 'absence_fail'}
+								— you have missed {pct(n.rate)} of this year's lessons. From 30 % the subject can no longer
+								be graded normally; talk to your teacher.
+							{:else if n.kind === 'absence_exam'}
+								— you have missed {pct(n.rate)} of this year's lessons. From 20 % an extra exam is required.
+							{:else if n.kind === 'absence_trend'}
+								— at your current pace you would miss about {pct(n.projected_rate, 0)} of this year's
+								lessons. From 20 % an extra exam is required.
+							{:else if n.kind === 'unreachable'}
 								— even a 10 on everything still open would not reach the pass mark. Talk to your
 								teacher about what can still be done.
 							{:else if n.kind === 'failing'}
@@ -255,6 +306,13 @@
 								<span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {st.chip}"
 									>{st.label}</span
 								>
+								{#if s.growth}
+									<span
+										class="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-navy"
+										title="How your marks in this subject have developed this year"
+										>{GROWTH[s.growth.label].sign} {GROWTH[s.growth.label].label}</span
+									>
+								{/if}
 								{#if s.current.provisional}
 									<span class="rounded-full bg-surface px-2 py-0.5 text-[11px] text-subtle">
 										provisional · {s.current.missing.join(', ')} missing
@@ -265,6 +323,9 @@
 								{s.class_name} · {s.n_marks} mark{s.n_marks === 1 ? '' : 's'}
 								{#if s.class_comparison}
 									· {fmtSigned(s.class_comparison.delta)} vs class average
+								{/if}
+								{#if s.attendance}
+									· {pct(s.attendance.rate)} absent
 								{/if}
 							</p>
 						</div>
@@ -308,6 +369,35 @@
 								</p>
 							{/if}
 
+							{#if s.forecast && s.forecast.low !== s.forecast.high}
+								<!-- Noch möglicher Bereich: Regeln, kein Modell (fehlende Teile 4 bis 10) -->
+								<div class="mb-6">
+									<h4 class="mb-2 text-xs font-medium tracking-wide text-subtle uppercase">
+										Final grade still possible
+									</h4>
+									<RangeBar
+										low={s.forecast.low}
+										high={s.forecast.high}
+										current={s.current.raw}
+										{passMark}
+									/>
+									<p class="mt-1 text-sm">
+										Between <strong>{fmtGrade(s.forecast.low)}</strong> (4s on everything still
+										open) and <strong>{fmtGrade(s.forecast.high)}</strong> (10s) — today
+										{fmtGrade(s.current.raw)}.
+										<span class="text-xs text-muted">Updated {when(s.forecast.computed_at)}</span>
+									</p>
+									{#if s.forecast.fail_probability != null}
+										<!-- nur Lehrkräfte/Admin: die API liefert das Feld Schülern nicht -->
+										<p class="mt-1 text-xs text-subtle">
+											Teacher view · model estimate:
+											<strong class="text-navy">{pct(s.forecast.fail_probability, 0)}</strong>
+											chance to fail ({s.forecast.model_version}, trained on simulated data).
+										</p>
+									{/if}
+								</div>
+							{/if}
+
 							<div class="grid gap-6 lg:grid-cols-2">
 								<div>
 									<h4 class="mb-3 text-xs font-medium tracking-wide text-subtle uppercase">
@@ -329,29 +419,41 @@
 								</div>
 							</div>
 
-							{#if s.recent.length}
-								<h4 class="mt-6 mb-2 text-xs font-medium tracking-wide text-subtle uppercase">
-									Latest marks
-								</h4>
-								<ul class="divide-y divide-divider text-sm">
-									{#each s.recent as r}
-										<li class="flex items-center justify-between py-2">
-											<span>
-												{categoryLabel(r.category)}
-												<span class="ml-1.5 text-[11px] text-muted">
-													{r.component}{r.weight !== 1 ? ` · weight ${r.weight}` : ''}
-												</span>
-											</span>
-											<span class="flex items-center gap-3">
-												<span class="text-xs text-muted">{shortDate(r.date)}</span>
-												<span class="w-8 text-right font-semibold tabular-nums"
-													>{fmtGrade(r.value, 1)}</span
-												>
-											</span>
-										</li>
-									{/each}
-								</ul>
-							{/if}
+							<div class="mt-6 grid gap-6 lg:grid-cols-2">
+								{#if s.attendance}
+									<div>
+										<h4 class="mb-3 text-xs font-medium tracking-wide text-subtle uppercase">
+											Attendance
+										</h4>
+										<AbsenceBudget absence={s.attendance} />
+									</div>
+								{/if}
+								{#if s.recent.length}
+									<div>
+										<h4 class="mb-2 text-xs font-medium tracking-wide text-subtle uppercase">
+											Latest marks
+										</h4>
+										<ul class="divide-y divide-divider text-sm">
+											{#each s.recent as r}
+												<li class="flex items-center justify-between py-2">
+													<span>
+														{categoryLabel(r.category)}
+														<span class="ml-1.5 text-[11px] text-muted">
+															{r.component}{r.weight !== 1 ? ` · weight ${r.weight}` : ''}
+														</span>
+													</span>
+													<span class="flex items-center gap-3">
+														<span class="text-xs text-muted">{shortDate(r.date)}</span>
+														<span class="w-8 text-right font-semibold tabular-nums"
+															>{fmtGrade(r.value, 1)}</span
+														>
+													</span>
+												</li>
+											{/each}
+										</ul>
+									</div>
+								{/if}
+							</div>
 						</div>
 					{/if}
 				</article>

@@ -29,6 +29,17 @@ V2 (November 2026):
                   im Frontend; spaeter kommen hier Anwesenheitshinweise dazu
   insights        die Beobachtungen der Woche aus student_insights (geschrieben
                   vom naechtlichen Auswertungslauf)
+
+V3 (November 2026):
+  attendance      Fehlzeiten je Fach in Minuten, gemessen am ganzen Jahr
+                  (Regeln in services/attendance_stats.py); dazu Hinweise ab
+                  20 % / 30 % und bei einer Hochrechnung ueber 20 %
+  growth          Entwicklung je Fach (rising / steady / falling / up_and_down /
+                  too_early), live berechnet (services/trend_stats.py)
+  forecast        letztes Ergebnis des naechtlichen Laufs je Fach (risk_assessments):
+                  noch moeglicher Bereich der Endnote; die Ausfallwahrscheinlichkeit
+                  NUR fuer Lehrkraefte und Admin, nie fuer Schueler
+  model           wann der naechtliche Lauf zuletzt erfolgreich war
 """
 
 from collections import defaultdict
@@ -42,7 +53,9 @@ from sqlalchemy.orm import Session
 from app import models as m
 from app.core.database import get_db
 from app.core.security import get_current_user, role_of
+from app.services import attendance_stats as att
 from app.services import grade_stats as gs
+from app.services import trend_stats as trend
 
 router = APIRouter(prefix="/statistics", tags=["Notenstatistiken"])
 
@@ -136,9 +149,22 @@ def _recent_overall(grades, meta: dict, today: date) -> list[dict]:
 def _notices(subjects: list[dict]) -> list[dict]:
     """Was oben auf der Seite stehen soll, wichtigstes zuerst.
     Nur Daten (Art + Zahlen); die Saetze stehen im Frontend."""
-    order = {"unreachable": 0, "failing": 1, "fragile": 2}
+    order = {"unreachable": 0, "absence_fail": 1, "failing": 2, "absence_exam": 3,
+             "absence_trend": 4, "fragile": 5}
     out = []
     for s in subjects:
+        a = s.get("attendance")
+        absence_kind = {"not_assessable": "absence_fail", "exam_required": "absence_exam",
+                        "trending": "absence_trend"}.get(a["status"]) if a else None
+        if absence_kind:
+            out.append({
+                "kind": absence_kind,
+                "class_subject_id": s["class_subject_id"],
+                "subject_name": s["subject_name"],
+                "current": s["current"]["raw"],
+                "rate": a["rate"],
+                "projected_rate": a["projected_rate"],
+            })
         if not s["reachable"]:
             kind = "unreachable"
         elif s["standing"] in ("failing", "fragile"):
@@ -176,7 +202,7 @@ def _insights(db: Session, student_id: int, visible_cs: set[int] | None, today: 
             LEFT JOIN class_subjects cs ON cs.id = i.class_subject_id
             LEFT JOIN subjects s ON s.id = cs.subject_id
             WHERE i.student_id = :sid
-              AND i.run_id = (SELECT MAX(run_id) FROM student_insights WHERE student_id = :sid)
+              AND i.run_id = (SELECT MAX(run_id) FROM pipeline_runs WHERE status = 'success')
             ORDER BY i.score DESC
         """), {"sid": student_id}).all()
     except Exception:
@@ -193,6 +219,109 @@ def _insights(db: Session, student_id: int, visible_cs: set[int] | None, today: 
         if len(out) == INSIGHTS_SHOWN:
             break
     return out
+
+
+def _minutes(start, end) -> int:
+    return (end.hour * 60 + end.minute) - (start.hour * 60 + start.minute)
+
+
+def _attendance(db: Session, student_id: int, cs_ids: list[int], today: date) -> dict[int, dict]:
+    """Fehlzeiten je Fach: {class_subject_id: absence_summary(...)}.
+
+    Grundlage ist die Tabelle lessons (alle Stunden des Jahres, im Voraus
+    angelegt). Gezaehlt wird bis zum letzten Unterrichtstag der Klasse
+    (classes.last_lesson_day, sonst der des Schuljahres). Faecher ohne
+    angelegte Stunden fehlen im Ergebnis - die Seite zeigt dort nichts an.
+    """
+    if not cs_ids:
+        return {}
+    last_day = {
+        cs_id: class_last or year_last
+        for cs_id, class_last, year_last in (
+            db.query(m.ClassSubject.id, m.SchoolClass.last_lesson_day, m.SchoolYear.last_lesson_day)
+            .join(m.SchoolClass, m.SchoolClass.id == m.ClassSubject.class_id)
+            .join(m.SchoolYear, m.SchoolYear.id == m.SchoolClass.school_year_id)
+            .filter(m.ClassSubject.id.in_(cs_ids))
+        )
+    }
+
+    total, held, n_lessons, length = defaultdict(int), defaultdict(int), defaultdict(int), {}
+    cancelled = set()
+    for lesson_id, day, is_cancelled, cs_id, start, end in (
+        db.query(m.Lesson.id, m.Lesson.date, m.Lesson.cancelled,
+                 m.TimetableEntry.class_subject_id, m.TimetableEntry.start_time, m.TimetableEntry.end_time)
+        .join(m.TimetableEntry, m.TimetableEntry.id == m.Lesson.timetable_id)
+        .filter(m.TimetableEntry.class_subject_id.in_(cs_ids))
+    ):
+        if last_day.get(cs_id) and day > last_day[cs_id]:
+            continue
+        minutes = _minutes(start, end)
+        length[lesson_id] = (cs_id, minutes, day)
+        total[cs_id] += minutes            # abgesagte zaehlen im Jahresgesamt mit
+        n_lessons[cs_id] += 1
+        if day <= today:
+            held[cs_id] += minutes
+        if is_cancelled:
+            cancelled.add(lesson_id)
+
+    missed, unknown = defaultdict(int), defaultdict(int)
+    for lesson_id, status, minutes in (
+        db.query(m.Attendance.lesson_id, m.Attendance.status, m.Attendance.minutes_missed)
+        .join(m.Lesson, m.Lesson.id == m.Attendance.lesson_id)
+        .join(m.TimetableEntry, m.TimetableEntry.id == m.Lesson.timetable_id)
+        .filter(m.Attendance.student_id == student_id,
+                m.TimetableEntry.class_subject_id.in_(cs_ids))
+    ):
+        if lesson_id not in length or lesson_id in cancelled or status == "anwesend":
+            continue                        # nach Klassenende, abgesagt oder anwesend
+        cs_id, lesson_minutes, _ = length[lesson_id]
+        if minutes is None:
+            if status == "abwesend":
+                missed[cs_id] += lesson_minutes      # alter Eintrag ohne Minuten: ganze Stunde
+            else:
+                unknown[cs_id] += 1                  # Verspaetung ohne Minuten: unbekannt
+            continue
+        missed[cs_id] += minutes
+
+    return {cs_id: att.absence_summary(total[cs_id], held[cs_id], missed[cs_id],
+                                       unknown[cs_id], n_lessons[cs_id])
+            for cs_id in total}
+
+
+def _forecasts(db: Session, student_id: int, show_probability: bool) -> dict[int, dict]:
+    """Neuestes Ergebnis des naechtlichen Laufs je Fach (Tabelle risk_assessments).
+    Ohne Tabelle oder ohne Lauf: leeres dict - die Seite zeigt dann nichts an."""
+    try:
+        rows = db.execute(text("""
+            SELECT r.class_subject_id, r.status, r.predicted_final, r.predicted_low,
+                   r.predicted_high, r.fail_probability, r.computed_at, r.model_version
+            FROM risk_assessments r
+            WHERE r.student_id = :sid
+            ORDER BY r.computed_at DESC, r.id DESC
+        """), {"sid": student_id}).all()
+    except Exception:
+        return {}
+    out = {}
+    for cs_id, status, final, low, high, p, computed_at, version in rows:
+        if cs_id in out:
+            continue                                   # schon das neuere
+        out[cs_id] = {
+            "status": status,
+            "predicted": float(final), "low": float(low), "high": float(high),
+            "computed_at": computed_at.isoformat(),
+            "model_version": version,
+        }
+        if show_probability:
+            out[cs_id]["fail_probability"] = None if p is None else float(p)
+    return out
+
+
+def _last_run(db: Session) -> str | None:
+    try:
+        when = db.execute(text("SELECT MAX(finished_at) FROM pipeline_runs WHERE status = 'success'")).scalar()
+    except Exception:
+        return None
+    return when.isoformat() if when else None
 
 
 def _subject_names(db: Session, cs_ids: list[int]) -> dict[int, dict]:
@@ -256,6 +385,9 @@ def student_statistics(student_id: int, db: Session = Depends(get_db),
 
     windows = _trimester_windows(db)
     meta = _subject_names(db, sorted({g.class_subject_id for g in grades}))
+    today = date.today()
+    absences = _attendance(db, student_id, sorted(meta), today)
+    forecasts = _forecasts(db, student_id, show_probability=role != "schueler")
 
     by_subject = defaultdict(list)
     for g in grades:
@@ -334,6 +466,9 @@ def student_statistics(student_id: int, db: Session = Depends(get_db),
             "class_comparison": comparison,
             "n_marks": len(marks),
             "progression": _progression(rows),
+            "attendance": absences.get(cs_id),
+            "growth": trend.growth([(r.date, r.value) for r in rows]),
+            "forecast": forecasts.get(cs_id),
             "recent": [
                 {"category": r.category, "value": float(r.value),
                  "weight": float(r.weight), "date": r.date.isoformat(),
@@ -348,7 +483,6 @@ def student_statistics(student_id: int, db: Session = Depends(get_db),
     finals = [Decimal(str(s["current"]["raw"])) for s in subjects
               if s["current"]["raw"] is not None]
     overall = gs.mean(finals)
-    today = date.today()
 
     return {
         "student": {"id": student.id,
@@ -365,7 +499,11 @@ def student_statistics(student_id: int, db: Session = Depends(get_db),
             "n_at_risk": sum(1 for s in subjects if s["standing"] == "failing"),
             "n_fragile": sum(1 for s in subjects if s["standing"] == "fragile"),
             "n_ok": sum(1 for s in subjects if s["standing"] == "ok"),
+            "attendance": att.overall_summary(list(absences.values())),
+            "growth": {label: sum(1 for s in subjects if s["growth"]["label"] == label)
+                       for label in ("rising", "steady", "falling", "up_and_down", "too_early")},
         },
+        "model": {"updated_at": _last_run(db)},
         "notices": _notices(subjects),
         "recent_overall": _recent_overall(grades, meta, today),
         "insights": _insights(db, student_id,

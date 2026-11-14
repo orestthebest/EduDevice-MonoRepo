@@ -73,6 +73,9 @@ class SchoolClass(Base):
     school_year_id = Column(Integer, ForeignKey("school_years.id"), nullable=False)
     name = Column(String(20), nullable=False)
     class_teacher_id = Column(Integer, ForeignKey("users.id"), nullable=True)   # V4.6: Klassenvorstand
+    # V4.10: letzter Unterrichtstag dieser Klasse, falls frueher als der des Schuljahres
+    # (5. Klassen: Ende Trimester 3 am 30.04.); NULL = last_lesson_day des Schuljahres
+    last_lesson_day = Column(Date, nullable=True)
 
 
 class StudentClass(Base):

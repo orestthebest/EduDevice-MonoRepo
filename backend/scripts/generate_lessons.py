@@ -6,6 +6,8 @@ jeden Stundenplan-Eintrag dieses Wochentags eine Zeile in `lessons` an.
 Der Schulkalender (school_calendar) wird beachtet:
   - Feiertage, Ferien, schulautonome Tage -> keine Stunden
   - Tage mit getauschtem Stundenplan       -> Stunden des anderen Wochentags
+V4.10: hat eine Klasse einen eigenen letzten Unterrichtstag (classes.last_lesson_day,
+z. B. 5. Klassen am 30.04.), werden danach fuer sie keine Stunden mehr angelegt.
 Damit ist `lessons` der Kalender des Jahres, und die Unterrichtsminuten eines
 Fachs im Jahr sind einfach die Summe seiner (nicht abgesagten) Stunden.
 
@@ -67,7 +69,7 @@ def generate(year_label: str = "2026/27", start: date | None = None, end: date |
                     .filter(m.SchoolCalendarDay.date.between(first, last))}
 
         # Stundenplan-Eintraege dieses Schuljahres, nach Wochentag gruppiert
-        query = (db.query(m.TimetableEntry, m.SchoolClass.name)
+        query = (db.query(m.TimetableEntry, m.SchoolClass.name, m.SchoolClass.last_lesson_day)
                  .join(m.ClassSubject, m.ClassSubject.id == m.TimetableEntry.class_subject_id)
                  .join(m.SchoolClass, m.SchoolClass.id == m.ClassSubject.class_id)
                  .filter(m.SchoolClass.school_year_id == year.id))
@@ -75,9 +77,12 @@ def generate(year_label: str = "2026/27", start: date | None = None, end: date |
             query = query.filter(m.SchoolClass.name.in_(classes))
         by_weekday = defaultdict(list)
         class_of = {}
-        for entry, class_name in query:
+        class_end = {}      # V4.10: Klassen, die frueher aufhoeren (5. Klassen)
+        for entry, class_name, class_last in query:
             by_weekday[entry.weekday].append(entry)
             class_of[entry.id] = class_name
+            if class_last is not None:
+                class_end[class_name] = class_last
         if not class_of:
             raise SystemExit("Keine Stundenplan-Eintraege gefunden - gibt es schon einen Stundenplan?")
 
@@ -89,6 +94,8 @@ def generate(year_label: str = "2026/27", start: date | None = None, end: date |
         created, skipped = Counter(), Counter()
         for day, weekday in days:
             for entry in by_weekday.get(weekday, []):
+                if day > class_end.get(class_of[entry.id], last):
+                    continue                     # Klasse hat an diesem Tag keinen Unterricht mehr
                 if (entry.id, day) in existing:
                     skipped[class_of[entry.id]] += 1
                     continue
