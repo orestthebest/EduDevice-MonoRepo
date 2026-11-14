@@ -18,17 +18,37 @@
 		)
 	);
 
-	// ---------- Dialog: neue Unterrichtseinheit ----------
-	let addDialog = $state();
+	// ---------- Dialog: Unterrichtseinheit anlegen / bearbeiten ----------
+	let lessonDialog = $state();
 	let draft = $state({ class_subject_id: '', weekday: 'Mo', period_from: 1, period_to: 1, room: '' });
+	let editing = $state(null); // null = neu anlegen, sonst der angeklickte Block (alte Werte + IDs)
+	let confirmDelete = $state(false);
 	let saving = $state(false);
 	let dialogError = $state('');
 
+	function openDialog(values, block = null) {
+		draft = values;
+		editing = block;
+		confirmDelete = false;
+		dialogError = '';
+		lessonDialog.showModal();
+	}
+
 	// Klick auf ein freies Feld: Tag + Stunde sind schon ausgefüllt
 	function addLesson({ day, period }) {
-		draft = { class_subject_id: '', weekday: day.key, period_from: period, period_to: period, room: '' };
-		dialogError = '';
-		addDialog.showModal();
+		openDialog({ class_subject_id: '', weekday: day.key, period_from: period, period_to: period, room: '' });
+	}
+
+	// Klick auf einen Block: Werte übernehmen, IDs aller Stunden des Blocks merken
+	function editLesson(block) {
+		const values = {
+			class_subject_id: block.class_subject_id,
+			weekday: block.day,
+			period_from: block.from,
+			period_to: block.to,
+			room: block.room ?? ''
+		};
+		openDialog({ ...values }, { ...values, ids: block.items.map((s) => s.id) });
 	}
 
 	// "Bis"-Stunde darf nie vor der "Von"-Stunde liegen
@@ -40,11 +60,6 @@
 		`${WEEKDAYS.find((w) => w.key === draft.weekday)?.label} · ${PERIODS[draft.period_from - 1].start}–${PERIODS[draft.period_to - 1].end} · ` +
 			`${draft.period_to - draft.period_from + 1} ${draft.period_to === draft.period_from ? 'period' : 'periods'}`
 	);
-
-	// Klick auf einen Block – Bearbeiten/Löschen kommt in Schritt 5c
-	function editLesson(block) {
-		console.log('edit', block);
-	}
 </script>
 
 <svelte:head>
@@ -85,7 +100,7 @@
 			<span class="font-semibold text-navy">Class {data.schoolClass.name}</span>
 			<span>· {data.slots.length} {data.slots.length === 1 ? 'period' : 'periods'} per week</span>
 			<span>· {data.subjects.length} {data.subjects.length === 1 ? 'subject' : 'subjects'}</span>
-			<span class="inline-flex items-center gap-1">· <Icon name="plus" class="size-3.5" /> click a free period to add a lesson</span>
+			<span class="inline-flex items-center gap-1">· <Icon name="plus" class="size-3.5" /> click a free period to add a lesson, click a lesson to edit it</span>
 		</p>
 	{/if}
 
@@ -99,22 +114,24 @@
 		onBlockClick={editLesson}
 	/>
 
-	<!-- Dialog: neue Unterrichtseinheit -->
-	<dialog bind:this={addDialog}
+	<!-- Dialog: neue Unterrichtseinheit anlegen / bearbeiten -->
+	<dialog bind:this={lessonDialog}
 		class="m-auto w-full max-w-md rounded-2xl border border-line bg-white p-0 text-navy shadow-xl backdrop:bg-navy/35">
-		<form method="POST" action="?/create" class="p-6"
+		<form method="POST" action={editing ? '?/update' : '?/create'} class="p-6"
 			use:enhance={() => {
 				saving = true;
 				return async ({ result, update }) => {
 					if (result.type === 'failure') dialogError = result.data?.error ?? 'Could not save the lesson';
-					if (result.type === 'success') addDialog.close();
+					if (result.type === 'success') lessonDialog.close();
 					await update({ reset: false });
 					saving = false;
 				};
 			}}>
 			<input type="hidden" name="class_id" value={data.schoolClass.id} />
 
-			<h2 class="text-lg font-bold">New lesson · {data.schoolClass.name}</h2>
+			{#if editing}<input type="hidden" name="old" value={JSON.stringify(editing)} />{/if}
+
+			<h2 class="text-lg font-bold">{editing ? 'Edit lesson' : 'New lesson'} · {data.schoolClass.name}</h2>
 			<p class="mt-1 text-sm text-subtle">{summary}</p>
 
 			<div class="mt-5 space-y-4">
@@ -166,14 +183,29 @@
 				<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{dialogError}</p>
 			{/if}
 
-			<div class="mt-6 flex justify-end gap-2">
-				<button type="button" onclick={() => addDialog.close()}
-					class="cursor-pointer rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+			<div class="mt-6 flex items-center gap-2">
+				<!-- Löschen nur beim Bearbeiten, mit zweitem Klick als Bestätigung -->
+				{#if editing}
+					{#if confirmDelete}
+						<button type="submit" formaction="?/delete" formnovalidate disabled={saving}
+							class="cursor-pointer rounded-lg bg-error px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60">
+							Really delete?
+						</button>
+					{:else}
+						<button type="button" onclick={() => (confirmDelete = true)} aria-label="Delete lesson"
+							class="cursor-pointer rounded-lg border border-ghost p-2.5 text-subtle transition hover:border-error hover:text-error">
+							<Icon name="trash" />
+						</button>
+					{/if}
+				{/if}
+
+				<button type="button" onclick={() => lessonDialog.close()}
+					class="ml-auto cursor-pointer rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
 					Cancel
 				</button>
 				<button type="submit" disabled={saving}
 					class="cursor-pointer rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60">
-					{saving ? 'Saving…' : 'Add lesson'}
+					{saving ? 'Saving…' : editing ? 'Save changes' : 'Add lesson'}
 				</button>
 			</div>
 		</form>

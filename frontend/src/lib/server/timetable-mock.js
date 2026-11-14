@@ -128,6 +128,17 @@ function createSlots(json, extra = {}) {
 	return [201, created];
 }
 
+// DELETE /timetable/{id}: eine Stunde löschen (im Mock immer endgültig, ohne valid_to)
+function deleteSlot(id) {
+	for (const [classId, slots] of classSlots) {
+		if (slots.some((s) => s.id === id)) {
+			classSlots.set(classId, slots.filter((s) => s.id !== id));
+			return [204, null];
+		}
+	}
+	return mockError(404, 'Stundenplan-Eintrag nicht gefunden');
+}
+
 function route(method, url, json, user, extra) {
 	if (method === 'GET' && url.pathname === '/timetable/week') {
 		const date = url.searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
@@ -139,10 +150,15 @@ function route(method, url, json, user, extra) {
     
 	if (method === 'POST' && url.pathname === '/timetable') return createSlots(json, extra);
 
+    
+	const one = url.pathname.match(/^\/timetable\/(\d+)$/);
+	if (method === 'DELETE' && one) return deleteSlot(Number(one[1]));
+
 	return [404, { detail: `Mock: ${method} ${url.pathname} gibt es noch nicht` }];
 }
 
 export async function mockApi(path, { method = 'GET', json, user, extra } = {}) {
 	const [status, data] = route(method, new URL(path, 'http://mock'), json, user, extra);
+    if (status === 204) return new Response(null, { status }); // 204 darf keinen Body haben
 	return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 }
