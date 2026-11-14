@@ -91,10 +91,18 @@
 
 {#if stats.subjects.length === 0}
 	<div class="rounded-2xl border border-line bg-white p-10 text-center">
-		<p class="font-medium">No grades yet</p>
-		<p class="mt-1 text-sm text-subtle">
-			As soon as your teachers enter marks, your results appear here.
-		</p>
+		{#if !data.isOwnView && data.user.role === 'lehrkraft'}
+			<!-- Lehrkräfte sehen nur ihre eigenen Fächer -->
+			<p class="font-medium">No grades in your subjects</p>
+			<p class="mt-1 text-sm text-subtle">
+				{stats.student.name} has no marks in a subject you teach. Teachers only see their own subjects.
+			</p>
+		{:else}
+			<p class="font-medium">No grades yet</p>
+			<p class="mt-1 text-sm text-subtle">
+				As soon as your teachers enter marks, your results appear here.
+			</p>
+		{/if}
 	</div>
 {:else}
 	<!-- 1. Gesamtschnitt -->

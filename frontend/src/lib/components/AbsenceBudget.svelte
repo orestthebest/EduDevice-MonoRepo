@@ -50,7 +50,17 @@
 		<span class="absolute -translate-x-1/2" style="left: {pos(0.2)}">20 % exam</span>
 		<span class="absolute -translate-x-1/2" style="left: {pos(0.3)}">30 %</span>
 	</div>
-
+	{#if absence.projected_rate != null && absence.projected_rate > absence.rate}
+		<p class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-subtle">
+			<span class="flex items-center gap-1.5">
+				<span class="inline-block h-2 w-4 rounded-full bg-blue-violet"></span>missed so far
+			</span>
+			<span class="flex items-center gap-1.5">
+				<span class="inline-block h-2 w-4 rounded-full border border-dashed border-blue-violet/60"></span>
+				at your current pace by the end of the year
+			</span>
+		</p>
+	{/if}
 	<p class="mt-2 text-sm">
 		Missed <strong class="tabular-nums">{fmt(absence.missed_minutes)}</strong> of
 		{fmt(absence.total_minutes)} minutes this year ({pct(absence.rate)}).

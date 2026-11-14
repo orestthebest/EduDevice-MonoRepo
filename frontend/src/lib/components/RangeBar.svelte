@@ -8,6 +8,8 @@
 
 	let { low, high, current, passMark = 4.6 } = $props();
 	const pos = (g) => `${scalePos(g) * 100}%`;
+	// Beschriftung nicht ganz an den Rand, sonst wird sie abgeschnitten
+	const label = (g) => `${Math.min(95, Math.max(5, scalePos(g) * 100))}%`;
 </script>
 
 <div>
@@ -31,7 +33,22 @@
 			style="left: {pos(current)}"
 		></div>
 	</div>
-	<div class="mt-1 flex justify-between text-[11px] text-subtle">
-		<span>4</span><span>10</span>
+	<!-- Grenzen des Bereichs direkt am Balken; 4 und 10 nur, wenn kein Wert daneben steht -->
+	<div class="relative mt-1 h-4 text-[11px] tabular-nums">
+		{#if low > 4.7}<span class="absolute left-0 text-muted">4</span>{/if}
+		{#if high < 9.3}<span class="absolute right-0 text-muted">10</span>{/if}
+		{#if high - low >= 1}
+			<span class="absolute -translate-x-1/2 font-semibold text-navy" style="left: {label(low)}"
+				>{fmtGrade(low)}</span
+			>
+			<span class="absolute -translate-x-1/2 font-semibold text-navy" style="left: {label(high)}"
+				>{fmtGrade(high)}</span
+			>
+		{:else}
+			<span
+				class="absolute -translate-x-1/2 font-semibold whitespace-nowrap text-navy"
+				style="left: {label((low + high) / 2)}">{fmtGrade(low)} – {fmtGrade(high)}</span
+			>
+		{/if}
 	</div>
 </div>
