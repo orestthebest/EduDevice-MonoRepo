@@ -128,3 +128,12 @@ export function subjectColor(name = '') {
 	for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
 	return SUBJECT_COLORS[hash % SUBJECT_COLORS.length];
 }
+
+
+// "09:35:00" -> "3rd period" (liegt die Zeit nicht im Raster: einfach die Uhrzeit)
+export function periodLabel(time) {
+	const p = periodOf(time);
+	if (!p) return String(time).slice(0, 5);
+	const suffix = p === 1 ? 'st' : p === 2 ? 'nd' : p === 3 ? 'rd' : 'th';
+	return `${p}${suffix} period`;
+}
