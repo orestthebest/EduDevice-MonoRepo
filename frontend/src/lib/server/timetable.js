@@ -9,7 +9,8 @@ import { env } from '$env/dynamic/private';
 import { api } from './api.js';
 import { mockApi } from './timetable-mock.js';
 
-export function timetableApi(path, locals, { method = 'GET', json } = {}) {
-	if (env.TIMETABLE_MOCK === '1') return mockApi(path, { method, json, user: locals.user });
+// mock = Zusatzinfos nur für den Mock (z. B. Klasse/Lehrkraft) – an die echte API geht das nie
+export function timetableApi(path, locals, { method = 'GET', json, mock } = {}) {
+	if (env.TIMETABLE_MOCK === '1') return mockApi(path, { method, json, user: locals.user, extra: mock });
 	return api(path, { method, token: locals.token, json });
 }

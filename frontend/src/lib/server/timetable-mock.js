@@ -82,7 +82,53 @@ function week(date, isTeacher) {
 // Nur im Speicher des Dev-Servers (Neustart = leer). Eine Zeile pro Stunde wie in der DB.
 const classSlots = new Map(); // class_id -> [{ id, class_subject_id, weekday, period, start_time, end_time, room }]
 
-function route(method, url, json, user) {
+let nextSlotId = 1;
+
+const mockError = (status, detail) => [status, { detail }];
+const sameRoom = (a, b) => Boolean(a) && Boolean(b) && a.trim().toLowerCase() === b.trim().toLowerCase();
+
+// POST /timetable: eine Zeile pro Stunde anlegen, vorher Überschneidungen prüfen.
+// extra = { class_id, class_name, teacher_id, teacher_name } kommt nur beim Mock mit (die echte API kennt das selbst).
+// Vereinfachung: prüft Lehrkraft und Raum, aber NICHT die einzelnen Schüler.
+function createSlots(json, extra = {}) {
+	const { class_subject_id, weekday, period_from, period_to, room = null } = json ?? {};
+	if (!class_subject_id || !extra.class_id) return mockError(422, 'class_subject_id fehlt');
+	if (!WEEKDAYS.some((w) => w.key === weekday)) return mockError(422, 'Ungültiger Wochentag');
+	if (!(period_from >= 1 && period_to <= PERIODS.length && period_from <= period_to)) {
+		return mockError(422, 'Ungültige Stunden');
+	}
+
+	const all = [...classSlots.values()].flat();
+	for (let p = period_from; p <= period_to; p++) {
+		const busy = all.filter((s) => s.weekday === weekday && s.period === p);
+		const teacher = busy.find((s) => s.teacher_id === extra.teacher_id);
+		if (teacher) {
+			return mockError(409, `${extra.teacher_name ?? 'The teacher'} already teaches class ${teacher.class_name} in period ${p}`);
+		}
+		const usedRoom = busy.find((s) => sameRoom(s.room, room));
+		if (usedRoom) return mockError(409, `Room ${room} is already used by class ${usedRoom.class_name} in period ${p}`);
+	}
+
+	const created = [];
+	for (let p = period_from; p <= period_to; p++) {
+		created.push({
+			id: nextSlotId++,
+			class_subject_id,
+			weekday,
+			period: p,
+			start_time: PERIODS[p - 1].start,
+			end_time: PERIODS[p - 1].end,
+			room: room || null,
+			// nur für die Prüfungen im Mock
+			class_name: extra.class_name,
+			teacher_id: extra.teacher_id
+		});
+	}
+	classSlots.set(extra.class_id, [...(classSlots.get(extra.class_id) ?? []), ...created]);
+	return [201, created];
+}
+
+function route(method, url, json, user, extra) {
 	if (method === 'GET' && url.pathname === '/timetable/week') {
 		const date = url.searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
 		return [200, week(date, user?.role === 'lehrkraft')]; // Lehrkraft: nur eigene Stunden
@@ -90,11 +136,13 @@ function route(method, url, json, user) {
 
 	const cls = url.pathname.match(/^\/timetable\/class\/(\d+)$/);
 	if (method === 'GET' && cls) return [200, classSlots.get(Number(cls[1])) ?? []];
+    
+	if (method === 'POST' && url.pathname === '/timetable') return createSlots(json, extra);
 
 	return [404, { detail: `Mock: ${method} ${url.pathname} gibt es noch nicht` }];
 }
 
-export async function mockApi(path, { method = 'GET', json, user } = {}) {
-	const [status, data] = route(method, new URL(path, 'http://mock'), json, user);
+export async function mockApi(path, { method = 'GET', json, user, extra } = {}) {
+	const [status, data] = route(method, new URL(path, 'http://mock'), json, user, extra);
 	return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 }

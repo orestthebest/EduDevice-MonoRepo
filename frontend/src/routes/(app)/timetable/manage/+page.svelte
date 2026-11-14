@@ -2,7 +2,8 @@
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import TimetableGrid from '$lib/components/TimetableGrid.svelte';
-	import { WEEKDAYS, toBlocks } from '$lib/timetable.js';
+	import { enhance } from '$app/forms';
+	import { WEEKDAYS, PERIODS, toBlocks } from '$lib/timetable.js';
 
 	let { data } = $props();
 
@@ -17,10 +18,30 @@
 		)
 	);
 
-	// Klick auf ein freies Feld bzw. auf einen Block – die Dialoge kommen in Schritt 5b und 5c
+	// ---------- Dialog: neue Unterrichtseinheit ----------
+	let addDialog = $state();
+	let draft = $state({ class_subject_id: '', weekday: 'Mo', period_from: 1, period_to: 1, room: '' });
+	let saving = $state(false);
+	let dialogError = $state('');
+
+	// Klick auf ein freies Feld: Tag + Stunde sind schon ausgefüllt
 	function addLesson({ day, period }) {
-		console.log('add', day.key, period);
+		draft = { class_subject_id: '', weekday: day.key, period_from: period, period_to: period, room: '' };
+		dialogError = '';
+		addDialog.showModal();
 	}
+
+	// "Bis"-Stunde darf nie vor der "Von"-Stunde liegen
+	function fixRange() {
+		if (draft.period_to < draft.period_from) draft.period_to = draft.period_from;
+	}
+
+	const summary = $derived(
+		`${WEEKDAYS.find((w) => w.key === draft.weekday)?.label} · ${PERIODS[draft.period_from - 1].start}–${PERIODS[draft.period_to - 1].end} · ` +
+			`${draft.period_to - draft.period_from + 1} ${draft.period_to === draft.period_from ? 'period' : 'periods'}`
+	);
+
+	// Klick auf einen Block – Bearbeiten/Löschen kommt in Schritt 5c
 	function editLesson(block) {
 		console.log('edit', block);
 	}
@@ -77,4 +98,85 @@
 		onCellClick={addLesson}
 		onBlockClick={editLesson}
 	/>
+
+	<!-- Dialog: neue Unterrichtseinheit -->
+	<dialog bind:this={addDialog}
+		class="m-auto w-full max-w-md rounded-2xl border border-line bg-white p-0 text-navy shadow-xl backdrop:bg-navy/35">
+		<form method="POST" action="?/create" class="p-6"
+			use:enhance={() => {
+				saving = true;
+				return async ({ result, update }) => {
+					if (result.type === 'failure') dialogError = result.data?.error ?? 'Could not save the lesson';
+					if (result.type === 'success') addDialog.close();
+					await update({ reset: false });
+					saving = false;
+				};
+			}}>
+			<input type="hidden" name="class_id" value={data.schoolClass.id} />
+
+			<h2 class="text-lg font-bold">New lesson · {data.schoolClass.name}</h2>
+			<p class="mt-1 text-sm text-subtle">{summary}</p>
+
+			<div class="mt-5 space-y-4">
+				<div>
+					<label for="tt-subject" class="label">Subject</label>
+					<select id="tt-subject" name="class_subject_id" required class="input" bind:value={draft.class_subject_id}>
+						<option value="" disabled>Choose a subject</option>
+						{#each data.subjects as s (s.id)}
+							<option value={s.id}>{s.subject_name} · {s.teacher_name}</option>
+						{/each}
+					</select>
+				</div>
+
+				<div>
+					<label for="tt-weekday" class="label">Weekday</label>
+					<select id="tt-weekday" name="weekday" class="input" bind:value={draft.weekday}>
+						{#each WEEKDAYS as w (w.key)}
+							<option value={w.key}>{w.label}</option>
+						{/each}
+					</select>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label for="tt-from" class="label">From period</label>
+						<select id="tt-from" name="period_from" class="input" bind:value={draft.period_from} onchange={fixRange}>
+							{#each PERIODS as p (p.period)}
+								<option value={p.period}>{p.period}. · {p.start}</option>
+							{/each}
+						</select>
+					</div>
+					<div>
+						<label for="tt-to" class="label">To period</label>
+						<select id="tt-to" name="period_to" class="input" bind:value={draft.period_to}>
+							{#each PERIODS.filter((p) => p.period >= draft.period_from) as p (p.period)}
+								<option value={p.period}>{p.period}. · {p.end}</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+
+				<div>
+					<label for="tt-room" class="label">Room <span class="font-normal text-subtle">(optional)</span></label>
+					<input id="tt-room" name="room" maxlength="50" class="input" placeholder="e.g. K22" bind:value={draft.room} />
+				</div>
+			</div>
+
+			{#if dialogError}
+				<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{dialogError}</p>
+			{/if}
+
+			<div class="mt-6 flex justify-end gap-2">
+				<button type="button" onclick={() => addDialog.close()}
+					class="cursor-pointer rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+					Cancel
+				</button>
+				<button type="submit" disabled={saving}
+					class="cursor-pointer rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60">
+					{saving ? 'Saving…' : 'Add lesson'}
+				</button>
+			</div>
+		</form>
+	</dialog>
+
 {/if}
