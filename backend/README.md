@@ -15,7 +15,7 @@ backend/
 │   ├── services/            access.py (Zugriffsregeln) · files.py (Uploads)
 │   └── routers/             auth · grades · homework · attendance · timetable · quiz
 │                            classes · subjects · materials · quizzes · users · excuses
-├── sql/                     schema_v4_2.sql · migration_v4_3 · v4_4_quiz · v4_5_profile · v4_6_excuses · v4_7_pipeline · v4_8_kalender_minuten · v4_9_excuse_attachments
+├── sql/                     schema_v4_2.sql · migration_v4_3 · v4_4_quiz · v4_5_profile · v4_6_excuses · v4_7_pipeline · v4_8_kalender_minuten · v4_9_excuse_attachments · v4_10_klassen_ende · v4_11_stundenplan
 ├── scripts/seed.py          Testdaten
 ├── tests/                   automatische Tests (pytest)
 ├── postman/                 Postman-Collections + Anleitung (POSTMAN.md)
@@ -66,5 +66,6 @@ curl http://127.0.0.1:8000/health
 
 Neue Installation: `sql/schema_v4_2.sql`, danach der Reihe nach `migration_v4_3.sql`, `migration_v4_4_quiz.sql`,
 `migration_v4_5_profile.sql`, `migration_v4_6_excuses.sql`, `migration_v4_7_pipeline.sql`,
-`migration_v4_8_kalender_minuten.sql` (+ Daten `kalender_2026_27.sql`), `migration_v4_9_excuse_attachments.sql`.
-Server (hat V4.8): `migration_v4_9_excuse_attachments.sql` – vorher immer Backup!
+`migration_v4_8_kalender_minuten.sql` (+ Daten `kalender_2026_27.sql`), `migration_v4_9_excuse_attachments.sql`,
+`migration_v4_10_klassen_ende.sql`, `migration_v4_11_stundenplan.sql`.
+Server (hat V4.10): `migration_v4_11_stundenplan.sql` – vorher immer Backup!

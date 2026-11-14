@@ -12,7 +12,8 @@ export const NAV = {
 			{ href: '/', label: 'Dashboard', icon: 'home' },
 			{ href: '/grades', label: 'My grades', icon: 'grid' },
 			{ href: '/subjects', label: 'Subjects & materials', icon: 'book' },
-			{ href: '/excuses', label: 'Excuses', icon: 'clipboard' }
+			{ href: '/excuses', label: 'Excuses', icon: 'clipboard' },
+			{ href: '/timetable', label: 'Timetable', icon: 'clock' },
 		]
 	},
 	lehrkraft: {
@@ -22,6 +23,7 @@ export const NAV = {
 			{ href: '/subjects', label: 'Subjects & materials', icon: 'folder' },
 			{ href: '/excuses/review', label: 'Excuse review', icon: 'clipboard' },
 			{ href: '/attendance', label: 'Attendance', icon: 'calendar' },
+			{ href: '/timetable', label: 'Timetable', icon: 'clock' },			
 		]
 	},
 	admin: {
@@ -30,7 +32,8 @@ export const NAV = {
 			{ href: '/', label: 'Dashboard', icon: 'home' },
 			{ href: '/classes', label: 'Classes & students', icon: 'users' },
 			{ href: '/subjects', label: 'All subjects', icon: 'grid' },
-			{ href: '/excuses/review', label: 'Excuse review', icon: 'clipboard' }
+			{ href: '/excuses/review', label: 'Excuse review', icon: 'clipboard' },
+			{ href: '/timetable/manage', label: 'Timetables', icon: 'clock' },
 		]
 	}
 };

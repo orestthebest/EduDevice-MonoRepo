@@ -5,6 +5,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { formatDay, formatTime } from '$lib/excuses.js';
     import { todayISO } from '$lib/format.js';
+	import { periodLabel } from '$lib/timetable.js';
 
 	let { data, form } = $props();
 
@@ -82,7 +83,7 @@
 						onchange={(e) => pick({ time: e.currentTarget.value })}>
 						{#each data.slots as slot (slot.timetable_id)}
 							<option value={formatTime(slot.start_time)}>
-								{formatTime(slot.start_time)}–{formatTime(slot.end_time)}{slot.room ? ` · ${slot.room}` : ''}
+								{periodLabel(slot.start_time)} · {formatTime(slot.start_time)}–{formatTime(slot.end_time)}{slot.room ? ` · ${slot.room}` : ''}
 							</option>
 						{:else}
 							<option value="">No lesson</option>
@@ -110,7 +111,7 @@
 								{currentSubject?.subject_name} · {currentSubject?.class_name}
 							</h2>
 							<p class="text-sm text-subtle">
-								{formatDay(data.date)} · {formatTime(data.lesson.start_time)}–{formatTime(data.lesson.end_time)}
+								{formatDay(data.date)} · {periodLabel(data.lesson.start_time)} · {formatTime(data.lesson.start_time)}–{formatTime(data.lesson.end_time)}
 								{data.lesson.room ? `· ${data.lesson.room}` : ''}
 							</p>
 						</div>
@@ -219,7 +220,7 @@
 								{active ? 'bg-accent-light text-accent-dark' : 'hover:bg-surface'}">
 								<span>
 									<span class="font-medium">{formatDay(h.date)}</span>
-									<span class="text-subtle tabular-nums">· {formatTime(h.start_time)}</span>
+									<span class="text-subtle">· {periodLabel(h.start_time)}</span>
 								</span>
 								<span class="rounded-full px-2.5 py-0.5 text-xs font-semibold
 									{absent > 0 ? 'bg-error/12 text-error' : 'bg-success/12 text-success-dark'}">

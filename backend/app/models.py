@@ -1,10 +1,11 @@
 """
-EduDevice REST-API - Datenbankmodelle (ORM), Schema V4.9
+EduDevice REST-API - Datenbankmodelle (ORM), Schema V4.11
 Bildet die Tabellen aus Joriks Schema V4 ab, die von der API benutzt werden.
 Die Tabellen werden NICHT von der API erzeugt - das macht das SQL-Schema.
 """
 
 import enum
+from datetime import date as date_type
 from sqlalchemy import (
     Column, Integer, SmallInteger, String, Text, DateTime, Date, Time, Boolean,
     DECIMAL, ForeignKey, Enum, TIMESTAMP, func, UniqueConstraint,
@@ -73,9 +74,8 @@ class SchoolClass(Base):
     school_year_id = Column(Integer, ForeignKey("school_years.id"), nullable=False)
     name = Column(String(20), nullable=False)
     class_teacher_id = Column(Integer, ForeignKey("users.id"), nullable=True)   # V4.6: Klassenvorstand
-    # V4.10: letzter Unterrichtstag dieser Klasse, falls frueher als der des Schuljahres
-    # (5. Klassen: Ende Trimester 3 am 30.04.); NULL = last_lesson_day des Schuljahres
-    last_lesson_day = Column(Date, nullable=True)
+    last_lesson_day = Column(Date, nullable=True)   # V4.10: frueher als das Schuljahr (z. B. 5. Klassen)
+
 
 
 class StudentClass(Base):
@@ -135,6 +135,8 @@ class TimetableEntry(Base):
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
     room = Column(String(50))
+    valid_from = Column(Date, nullable=False, default=date_type(2000, 1, 1))   # V4.11 (Seed ohne Angabe: gilt immer)
+    valid_to = Column(Date, nullable=True)                                    # V4.11: NULL = offen
 
 
 class Lesson(Base):

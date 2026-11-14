@@ -1,6 +1,7 @@
 <script>
 	import Icon from '$lib/components/Icon.svelte';
 	import { EXCUSE_STATUS, formatRange } from '$lib/excuses.js';
+	import { periodLabel, subjectColor } from '$lib/timetable.js';
 
 	// data.user kommt aus +layout.server.js
 	let { data } = $props();
@@ -19,6 +20,10 @@
 		lehrkraft: 'Upload and manage materials for your subjects.',
 		admin: 'Manage classes and subjects of the platform.'
 	};
+
+	// Jetzt als "HH:MM" -> Stunden im Stundenplan-Kärtchen als vorbei / jetzt / kommt markieren
+	const nowTime = now.toTimeString().slice(0, 5);
+	const lessonState = (l) => (l.cancelled ? 'cancelled' : nowTime >= l.end ? 'done' : nowTime >= l.start ? 'now' : 'next');
 
 	// Materialien kommen in Schritt 3 aus der DB
 	const recentMaterials = $derived(data.recentMaterials ?? []);
@@ -59,6 +64,47 @@
 	</a>
 </section>
 
+<!-- Stundenplan heute (Schüler) -->
+{#if data.timetable}
+	{@const t = data.timetable}
+	<section class="mt-6 rounded-2xl border border-line bg-white p-6">
+		<div class="mb-4 flex items-center justify-between">
+			<h2 class="text-lg font-semibold">Today's timetable</h2>
+			<a href="/timetable"
+				class="rounded-lg border border-ghost px-3 py-1.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+				Full timetable
+			</a>
+		</div>
+
+		{#if t.dayOff}
+			<p class="rounded-xl bg-surface px-4 py-6 text-center text-sm text-subtle">No lessons today{t.dayOff.note ? ` · ${t.dayOff.note}` : ''}.</p>
+		{:else if t.lessons.length === 0}
+			<p class="rounded-xl bg-surface px-4 py-6 text-center text-sm text-subtle">No lessons today.</p>
+		{:else}
+			<ul class="divide-y divide-divider">
+				{#each t.lessons as l (`${l.from}-${l.subject}`)}
+					{@const state = lessonState(l)}
+					<li class="flex items-center gap-3 py-2.5 text-sm {state === 'done' || state === 'cancelled' ? 'opacity-50' : ''}">
+						<span class="w-24 shrink-0 text-subtle tabular-nums">{l.start}–{l.end}</span>
+						<span class="h-8 w-1 shrink-0 rounded-full" style="background: {subjectColor(l.subject)}"></span>
+						<span class="min-w-0 flex-1">
+							<span class="block truncate font-medium {l.cancelled ? 'line-through' : ''}">{l.subject}</span>
+							<span class="block truncate text-xs text-subtle">
+								Period {l.from}{l.to > l.from ? `–${l.to}` : ''}{l.room ? ` · ${l.room}` : ''}{l.teacher ? ` · ${l.teacher}` : ''}
+							</span>
+						</span>
+						{#if state === 'now'}
+							<span class="rounded-full bg-accent-light px-2.5 py-0.5 text-xs font-semibold text-accent-dark">Now</span>
+						{:else if state === 'cancelled'}
+							<span class="rounded-full bg-error/12 px-2.5 py-0.5 text-xs font-semibold text-error">Cancelled</span>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
+{/if}
+
 <!-- Anwesenheit: heutige Stunden der Lehrkraft laut Stundenplan -->
 {#if data.attendance}
 	{@const open = data.attendance.lessons.filter((l) => !l.recorded).length}
@@ -80,7 +126,7 @@
 					<li>
 						<a href="/attendance?subject={l.subjectId}&date={data.attendance.date}&time={l.start}"
 							class="flex items-center gap-3 py-2.5 text-sm transition hover:text-accent-dark">
-							<span class="w-12 text-subtle tabular-nums">{l.start}</span>
+							<span class="w-24 shrink-0 text-subtle">{periodLabel(l.start)}</span>
 							<span class="flex-1 font-medium">
 								{l.subject}
 								<span class="font-normal text-subtle">· {l.className}{l.room ? ` · ${l.room}` : ''}</span>
