@@ -1,5 +1,5 @@
 """
-EduDevice - Unterrichtsstunden eines Schuljahres im Voraus anlegen (Schema V4.8)
+EduDevice - Unterrichtsstunden eines Schuljahres im Voraus anlegen (Schema V4.8, ab V4.11 mit Gueltigkeit)
 
 Legt fuer jeden Unterrichtstag zwischen first_lesson_day und last_lesson_day und
 jeden Stundenplan-Eintrag dieses Wochentags eine Zeile in `lessons` an.
@@ -67,17 +67,18 @@ def generate(year_label: str = "2026/27", start: date | None = None, end: date |
                     .filter(m.SchoolCalendarDay.date.between(first, last))}
 
         # Stundenplan-Eintraege dieses Schuljahres, nach Wochentag gruppiert
-        query = (db.query(m.TimetableEntry, m.SchoolClass.name)
+        query = (db.query(m.TimetableEntry, m.SchoolClass.name, m.SchoolClass.last_lesson_day)
                  .join(m.ClassSubject, m.ClassSubject.id == m.TimetableEntry.class_subject_id)
                  .join(m.SchoolClass, m.SchoolClass.id == m.ClassSubject.class_id)
                  .filter(m.SchoolClass.school_year_id == year.id))
         if classes:
             query = query.filter(m.SchoolClass.name.in_(classes))
         by_weekday = defaultdict(list)
-        class_of = {}
-        for entry, class_name in query:
+        class_of, class_end = {}, {}
+        for entry, class_name, class_last in query:
             by_weekday[entry.weekday].append(entry)
             class_of[entry.id] = class_name
+            class_end[entry.id] = class_last          # V4.10: z. B. 5. Klassen enden frueher
         if not class_of:
             raise SystemExit("Keine Stundenplan-Eintraege gefunden - gibt es schon einen Stundenplan?")
 
@@ -89,6 +90,11 @@ def generate(year_label: str = "2026/27", start: date | None = None, end: date |
         created, skipped = Counter(), Counter()
         for day, weekday in days:
             for entry in by_weekday.get(weekday, []):
+                # V4.11: nur solange der Eintrag gilt; V4.10: nicht nach dem Ende der Klasse
+                if day < entry.valid_from or (entry.valid_to is not None and day > entry.valid_to):
+                    continue
+                if class_end[entry.id] is not None and day > class_end[entry.id]:
+                    continue
                 if (entry.id, day) in existing:
                     skipped[class_of[entry.id]] += 1
                     continue

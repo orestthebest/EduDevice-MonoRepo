@@ -84,6 +84,7 @@ from datetime import time as time_type  # noqa: E402
 from sqlalchemy import case, func  # noqa: E402
 from sqlalchemy.exc import IntegrityError  # noqa: E402
 
+from app.services.timetable import period_of, valid_on  # noqa: E402
 from app.schemas import (LessonAttendanceIn, LessonAttendanceOut, LessonHistoryOut,  # noqa: E402
                          LessonSlotOut, LessonStudentOut)
 
@@ -112,7 +113,8 @@ def weekday_of(db: Session, day: date_type) -> str:
 def find_slot(db: Session, cs: m.ClassSubject, day: date_type, start: time_type) -> m.TimetableEntry:
     wd = weekday_of(db, day)
     slot = (db.query(m.TimetableEntry)
-            .filter_by(class_subject_id=cs.id, weekday=wd, start_time=start).first())
+            .filter_by(class_subject_id=cs.id, weekday=wd, start_time=start)
+            .filter(valid_on(day)).first())                      # V4.11: nur an dem Tag gueltige Eintraege
     if slot is None:
         raise HTTPException(status_code=404,
                             detail=f"Laut Stundenplan hat dieses Fach am {wd} um {start:%H:%M} keine Stunde")
@@ -149,8 +151,9 @@ def lesson_slots(class_subject_id: int, date: date_type, db: Session = Depends(g
     """Welche Stunden hat das Fach an diesem Tag laut Stundenplan? (fuer die Auswahl von start_time)"""
     cs = teacher_subject(db, class_subject_id, current)
     slots = (db.query(m.TimetableEntry).filter_by(class_subject_id=cs.id, weekday=weekday_of(db, date))
+             .filter(valid_on(date))                              # V4.11
              .order_by(m.TimetableEntry.start_time).all())
-    return [LessonSlotOut(timetable_id=s.id, weekday=s.weekday, start_time=s.start_time,
+    return [LessonSlotOut(timetable_id=s.id, period=period_of(s.start_time), weekday=s.weekday, start_time=s.start_time,
                           end_time=s.end_time, room=s.room) for s in slots]
 
 

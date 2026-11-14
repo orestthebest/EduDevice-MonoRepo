@@ -1,4 +1,4 @@
-# EduDevice REST-API V2.11 – Anleitung für die WebApp
+# EduDevice REST-API V2.12 – Anleitung für die WebApp
 
 Basis-URL am Server (nur intern): `http://127.0.0.1:8000`  ·  Swagger: `http://172.20.1.115:8000/docs`
 Alle Endpunkte außer Login/Register brauchen den Header `Authorization: Bearer <token>`.
@@ -226,3 +226,53 @@ Die API rechnet `class_subject_id + date + start_time` selbst in die richtige St
 - Ablauf in der WebApp: zuerst `POST /excuses` (liefert die `id`), dann die Dateien einzeln an `/excuses/{id}/attachments`.
 - Download wie beim Profilbild über eine SvelteKit-Route weiterreichen (braucht den Token).
 - DELETE ist zusätzlich dazugekommen, damit SchülerInnen eine falsche Datei wieder entfernen können.
+
+## Stundenplan-Verwaltung (V2.12, Schema V4.11)
+
+**Raster** (fest in `app/core/config.py`): 1 07:45–08:30 · 2 08:35–09:20 · 3 09:35–10:20 · 4 10:25–11:10 ·
+5 11:20–12:05 · 6 12:10–12:55 · 7 13:00–13:45 · 8 13:50–14:35 · 9 14:40–15:25 · 10 15:30–16:15 · 11 16:20–17:05
+
+Eine Zeile in `timetable` pro Periode (Doppelstunde = 2 Zeilen), Uhrzeiten immer aus dem Raster.
+Neu: `valid_from` / `valid_to` – ein Eintrag gilt an einem Datum, wenn `valid_from <= Datum` und
+(`valid_to` leer oder `>= Datum`). Alte Einträge gelten ab dem ersten Schultag (03.09.).
+
+| Methode + Pfad | Wer | Antwort |
+|---|---|---|
+| `GET /timetable/periods` | alle | `[{period, start, end}]` |
+| `GET /timetable/week?user_id=&date=` | eigener User, admin alle | `{week_start, lessons: [...], calendar: [...]}` |
+| `GET /timetable/class/{class_id}` | admin | heute gültige Zeilen der Klasse |
+| `POST /timetable` | admin | `201` Liste der neuen Zeilen · `409` Konflikt (englischer Text) · `404` Fach · `422` |
+| `DELETE /timetable/{id}` | admin | `204` · `404` |
+| `PATCH /classes/{id}` `{class_teacher_id: 12 \| null}` | admin | `200` ClassOut · `400` keine Lehrkraft · `422` Feld fehlt |
+| `GET /users?role=lehrkraft` | admin | `[{id, first_name, last_name, username}]` |
+
+```json
+// GET /timetable/week  (date darf jeder Tag sein, wird auf Montag gerechnet)
+{ "week_start": "2026-11-16",
+  "lessons": [ { "lesson_id": 123, "date": "2026-11-16", "period": 1, "start_time": "07:45", "end_time": "08:30",
+                 "class_subject_id": 11, "subject": "Test", "class_name": "TEST",
+                 "teacher": "Lehrer", "teacher_username": "alehrer", "room": "TEST", "cancelled": false } ],
+  "calendar": [ { "date": "2026-11-18", "day_type": "info", "has_lessons": true,
+                  "timetable_weekday": null, "note": "Sprechtag" } ] }
+
+// GET /timetable/class/{id} und Antwort von POST
+[ { "id": 5, "class_subject_id": 11, "weekday": "Mo", "period": 1, "start_time": "07:45", "end_time": "08:30",
+    "room": "TEST", "subject": "Test", "teacher": "Lehrer", "teacher_username": "alehrer" } ]
+
+// POST /timetable
+{ "class_subject_id": 11, "weekday": "Mo", "period_from": 1, "period_to": 2, "room": "PR3" }
+```
+
+- `teacher` = **Nachname** der Lehrkraft (ein Kürzel wie „CER“ gibt es in der Datenbank nicht), zusätzlich `teacher_username`.
+- `period` ist `null` bei alten Einträgen, deren Uhrzeit nicht ins Raster passt (z. B. Joriks Sim-Stunden 08:00–08:50).
+- **Wochenansicht:** SchülerIn sieht die Fächer, in denen sie eingetragen ist (`class_subject_students`, also auch Gruppen), Lehrkraft die eigenen. `calendar` enthält **alle** Kalendereinträge der Woche (statt `days_off`), auch Sprechtage und getauschte Tage. Freie Tage: `has_lessons: false`.
+- **Konflikte** (`409`, `detail` 1:1 anzeigbar) – geprüft über **überlappende Uhrzeiten**, nur mit Einträgen, die heute oder später noch gelten:
+  - `"alehrer already teaches class 4A in period 2"`
+  - `"Room K22 is already used by class 5B in period 3"` (Groß/Klein egal)
+  - `"Max Muster is already in INSY in period 2"`
+  - `"SEW for class 4A already has a lesson on Mo in period 1"` (gleiches Fach doppelt)
+  - Parallele Fächer derselben Klasse (Gruppen) sind erlaubt, solange sich Lehrkraft, Raum und SchülerInnen nicht überschneiden.
+- **POST** legt die Zeilen ab heute an und erzeugt gleich die Unterrichtsstunden bis zum Ende des Schuljahres (bei 5. Klassen bis 30.04.), Feiertage/Ferien werden übersprungen, getauschte Tage beachtet.
+- **DELETE:** Hat der Eintrag schon Anwesenheiten → er endet gestern (`valid_to`), die Geschichte bleibt. Sonst wird er wirklich gelöscht. In beiden Fällen verschwinden künftige Stunden ohne Anwesenheit. Ändern = DELETE aller Zeilen des Blocks + POST.
+- Angepasst: `GET /timetable/{user_id}` liefert nur heute gültige Einträge (mit `period`), `GET /attendance/slots` nur die an dem Datum gültigen (mit `period`).
+- `ClassOut` (`/classes`, `/classes/{id}`) hat jetzt `class_teacher_id` und `class_teacher_name`.

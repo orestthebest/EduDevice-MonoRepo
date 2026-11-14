@@ -6,11 +6,19 @@ from sqlalchemy.orm import Session
 
 from app import models as m
 from app.core.database import get_db
-from app.core.security import require_roles
-from app.schemas import ClassOut, StudentIdIn, StudentOut
+from app.core.security import require_roles, role_of
+from app.schemas import ClassOut, ClassTeacherIn, StudentIdIn, StudentOut
 from app.services.access import student_out
 
 router = APIRouter(prefix="/classes", tags=["Klassen"])
+
+
+def class_out(db: Session, c: m.SchoolClass, label: str) -> ClassOut:
+    """Klasse mit Klassenvorstand (V4.11)."""
+    kv = db.get(m.User, c.class_teacher_id) if c.class_teacher_id else None
+    return ClassOut(id=c.id, name=c.name, school_year_id=c.school_year_id, school_year=label,
+                    class_teacher_id=c.class_teacher_id,
+                    class_teacher_name=f"{kv.first_name} {kv.last_name}" if kv else None)
 
 
 def class_or_404(db: Session, class_id: int) -> ClassOut:
@@ -20,7 +28,7 @@ def class_or_404(db: Session, class_id: int) -> ClassOut:
     if row is None:
         raise HTTPException(status_code=404, detail="Klasse nicht gefunden")
     c, label = row
-    return ClassOut(id=c.id, name=c.name, school_year_id=c.school_year_id, school_year=label)
+    return class_out(db, c, label)
 
 
 def assignable_students(db: Session, school_year_id: int) -> list[m.User]:
@@ -38,12 +46,27 @@ def list_classes(db: Session = Depends(get_db), current: m.User = Depends(requir
     rows = (db.query(m.SchoolClass, m.SchoolYear.label)
             .join(m.SchoolYear, m.SchoolYear.id == m.SchoolClass.school_year_id)
             .order_by(m.SchoolYear.start_date.desc(), m.SchoolClass.name).all())
-    return [ClassOut(id=c.id, name=c.name, school_year_id=c.school_year_id, school_year=label)
-            for c, label in rows]
+    return [class_out(db, c, label) for c, label in rows]
 
 
 @router.get("/{class_id}", response_model=ClassOut)
 def get_class(class_id: int, db: Session = Depends(get_db), current: m.User = Depends(require_roles("admin"))):
+    return class_or_404(db, class_id)
+
+
+@router.patch("/{class_id}", response_model=ClassOut)
+def set_class_teacher(class_id: int, data: ClassTeacherIn, db: Session = Depends(get_db),
+                      current: m.User = Depends(require_roles("admin"))):
+    """Klassenvorstand setzen oder mit null entfernen. Muss eine Lehrkraft sein, sonst 400."""
+    c = db.get(m.SchoolClass, class_id)
+    if c is None:
+        raise HTTPException(status_code=404, detail="Klasse nicht gefunden")
+    if data.class_teacher_id is not None:
+        teacher = db.get(m.User, data.class_teacher_id)
+        if teacher is None or role_of(teacher) != "lehrkraft":
+            raise HTTPException(status_code=400, detail="Klassenvorstand muss eine Lehrkraft sein")
+    c.class_teacher_id = data.class_teacher_id
+    db.commit()
     return class_or_404(db, class_id)
 
 

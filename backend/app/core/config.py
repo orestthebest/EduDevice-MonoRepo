@@ -37,3 +37,13 @@ AVATAR_SIZE = 256
 EXCUSE_DIR = UPLOAD_DIR / "excuses"
 EXCUSE_MAX_BYTES = 5 * 1024 * 1024
 EXCUSE_MAX_FILES = 3
+
+# Stundenraster der Schule (V4.11): Periode -> (Beginn, Ende). Stundenplan-Eintraege bekommen
+# ihre Uhrzeiten immer aus diesem Raster (eine Zeile pro Periode, Doppelstunde = 2 Zeilen).
+from datetime import time as _t  # noqa: E402
+PERIODS = {
+    1: (_t(7, 45), _t(8, 30)),   2: (_t(8, 35), _t(9, 20)),   3: (_t(9, 35), _t(10, 20)),
+    4: (_t(10, 25), _t(11, 10)), 5: (_t(11, 20), _t(12, 5)),  6: (_t(12, 10), _t(12, 55)),
+    7: (_t(13, 0), _t(13, 45)),  8: (_t(13, 50), _t(14, 35)), 9: (_t(14, 40), _t(15, 25)),
+    10: (_t(15, 30), _t(16, 15)), 11: (_t(16, 20), _t(17, 5)),
+}

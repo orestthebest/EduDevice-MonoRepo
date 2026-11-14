@@ -144,6 +144,7 @@ class AttendanceOut(BaseModel):
 # Eine "Stunde" = timetable-Eintrag (Fach + Wochentag + Beginn) + Datum -> Zeile in lessons
 class LessonSlotOut(BaseModel):
     timetable_id: int
+    period: Optional[int] = None          # V4.11
     weekday: str
     start_time: time_type
     end_time: time_type
@@ -250,6 +251,70 @@ class TimetableOut(BaseModel):
     start_time: str
     end_time: str
     room: Optional[str] = None
+    period: Optional[int] = None          # V4.11: None = Uhrzeit passt nicht ins Raster
+
+
+class TimetableRowOut(BaseModel):
+    """Eine Zeile im Stundenplan einer Klasse (Admin-Ansicht)."""
+    id: int
+    class_subject_id: int
+    weekday: str
+    period: Optional[int] = None
+    start_time: str
+    end_time: str
+    room: Optional[str] = None
+    subject: str
+    teacher: str                          # Nachname der Lehrkraft
+    teacher_username: str
+
+
+class TimetableCreateIn(BaseModel):
+    class_subject_id: int
+    weekday: Literal["Mo", "Di", "Mi", "Do", "Fr"]
+    period_from: int = Field(ge=1, le=11)
+    period_to: int = Field(ge=1, le=11)
+    room: Optional[str] = Field(default=None, max_length=50)
+
+    @model_validator(mode="after")
+    def _reihenfolge(self):
+        if self.period_to < self.period_from:
+            raise ValueError("period_to must not be before period_from")
+        return self
+
+
+class WeekLessonOut(BaseModel):
+    lesson_id: int
+    date: date
+    period: Optional[int] = None
+    start_time: str
+    end_time: str
+    class_subject_id: int
+    subject: str
+    class_name: str
+    teacher: str
+    teacher_username: str
+    room: Optional[str] = None
+    cancelled: bool
+
+
+class CalendarDayOut(BaseModel):
+    date: date
+    day_type: str
+    has_lessons: bool
+    timetable_weekday: Optional[str] = None
+    note: Optional[str] = None
+
+
+class WeekOut(BaseModel):
+    week_start: date
+    lessons: list[WeekLessonOut]
+    calendar: list[CalendarDayOut]
+
+
+class PeriodOut(BaseModel):
+    period: int
+    start: str
+    end: str
 
 
 # ---------------- Quiz ----------------
@@ -264,6 +329,20 @@ class ClassOut(BaseModel):
     name: str
     school_year_id: int
     school_year: str
+    class_teacher_id: Optional[int] = None       # V4.11
+    class_teacher_name: Optional[str] = None
+
+
+class ClassTeacherIn(BaseModel):
+    """PATCH /classes/{id}: Klassenvorstand setzen (null = entfernen). Das Feld muss mitgeschickt werden."""
+    class_teacher_id: Optional[int]
+
+
+class TeacherOut(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    username: str
 
 
 class StudentOut(BaseModel):

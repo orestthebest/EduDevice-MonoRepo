@@ -17,7 +17,9 @@ from app.core.config import AVATAR_DIR, AVATAR_MAX_BYTES, AVATAR_SIZE, LOGIN_LIM
 from app.core.database import get_db
 from app.core.security import get_current_user, hash_password, limiter, require_roles, verify_password
 from app.routers.auth import create_user, user_out
-from app.schemas import AvatarOut, PasswordChangeIn, ProfileUpdateIn, UserCreateIn, UserOut
+from typing import Literal, Optional
+
+from app.schemas import AvatarOut, PasswordChangeIn, ProfileUpdateIn, TeacherOut, UserCreateIn, UserOut
 
 router = APIRouter(prefix="/users", tags=["Benutzerprofil"])
 
@@ -56,6 +58,17 @@ def make_avatar(data: bytes) -> Image.Image:
         raise HTTPException(status_code=400, detail="Datei ist kein gueltiges Bild")
     img = img.convert("RGBA" if img.mode in ("RGBA", "LA", "P") else "RGB")
     return ImageOps.fit(img, (AVATAR_SIZE, AVATAR_SIZE), method=Image.LANCZOS, centering=(0.5, 0.5))
+
+
+@router.get("", response_model=list[TeacherOut])
+def list_users(role: Optional[Literal["schueler", "lehrkraft", "admin"]] = None, db: Session = Depends(get_db),
+               current: m.User = Depends(require_roles("admin"))):
+    """Nur Admin: Benutzerliste, z. B. ?role=lehrkraft fuer die Auswahl des Klassenvorstands."""
+    q = db.query(m.User)
+    if role:
+        q = q.filter(m.User.role == role)
+    return [TeacherOut(id=u.id, first_name=u.first_name, last_name=u.last_name, username=u.username)
+            for u in q.order_by(m.User.last_name, m.User.first_name)]
 
 
 @router.post("", response_model=UserOut, status_code=201)
