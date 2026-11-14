@@ -32,7 +32,8 @@ export const NAV = {
 			{ href: '/', label: 'Dashboard', icon: 'home' },
 			{ href: '/classes', label: 'Classes & students', icon: 'users' },
 			{ href: '/subjects', label: 'All subjects', icon: 'grid' },
-			{ href: '/excuses/review', label: 'Excuse review', icon: 'clipboard' }
+			{ href: '/excuses/review', label: 'Excuse review', icon: 'clipboard' },
+			{ href: '/timetable/manage', label: 'Timetables', icon: 'clock' },
 		]
 	}
 };

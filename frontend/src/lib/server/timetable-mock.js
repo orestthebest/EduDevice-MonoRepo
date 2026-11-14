@@ -78,16 +78,23 @@ function week(date, isTeacher) {
 	return { week_start: monday, lessons, days_off: daysOff };
 }
 
-export async function mockApi(path, { user } = {}) {
-	const url = new URL(path, 'http://mock');
-	let status = 200;
-	let data;
-	if (url.pathname === '/timetable/week') {
+// ---------- Verwaltung (M-4): Stundenplan einer Klasse ----------
+// Nur im Speicher des Dev-Servers (Neustart = leer). Eine Zeile pro Stunde wie in der DB.
+const classSlots = new Map(); // class_id -> [{ id, class_subject_id, weekday, period, start_time, end_time, room }]
+
+function route(method, url, json, user) {
+	if (method === 'GET' && url.pathname === '/timetable/week') {
 		const date = url.searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
-		data = week(date, user?.role === 'lehrkraft'); // Lehrkraft: nur eigene Stunden
-	} else {
-		status = 404;
-		data = { detail: `Mock: ${url.pathname} gibt es noch nicht` };
+		return [200, week(date, user?.role === 'lehrkraft')]; // Lehrkraft: nur eigene Stunden
 	}
+
+	const cls = url.pathname.match(/^\/timetable\/class\/(\d+)$/);
+	if (method === 'GET' && cls) return [200, classSlots.get(Number(cls[1])) ?? []];
+
+	return [404, { detail: `Mock: ${method} ${url.pathname} gibt es noch nicht` }];
+}
+
+export async function mockApi(path, { method = 'GET', json, user } = {}) {
+	const [status, data] = route(method, new URL(path, 'http://mock'), json, user);
 	return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 }
