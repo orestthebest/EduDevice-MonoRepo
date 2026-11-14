@@ -29,6 +29,19 @@ const PLAN = [
 	['Fr', 6, 6, 'AM', 'K22', 'MOM', 4]
 ];
 
+// Lehrkraft: nur die eigenen Stunden, in verschiedenen Klassen
+// [Wochentag, von, bis, Fach, Raum, Klasse, class_subject_id, entfällt?]
+const TEACHER_PLAN = [
+	['Mo', 1, 2, 'SEW', 'PR3', '5B', 1],
+	['Mo', 5, 6, 'SEW', 'PR3', '4A', 21],
+	['Di', 2, 3, 'INSY', 'PR1', '5B', 7],
+	['Di', 8, 9, 'SEW', 'SW2', '3B', 22],
+	['Mi', 5, 6, 'INSY', 'SW2', '5B', 7],
+	['Do', 1, 2, 'SEW', 'PR3', '4A', 21, true], // Beispiel: entfällt
+	['Do', 5, 6, 'SEW', 'SW2', '5B', 1],
+	['Fr', 3, 4, 'INSY', 'PR1', '3B', 23]
+];
+
 // Tage ohne Unterricht (wie school_calendar)
 const DAYS_OFF = [
 	{ date: '2026-11-27', day_type: 'autonomous_day', note: 'Bridge day before Independence Day' },
@@ -36,13 +49,14 @@ const DAYS_OFF = [
 	{ date: '2026-12-25', day_type: 'holiday', note: 'Christmas' }
 ];
 
-function week(date) {
+function week(date, isTeacher) {
 	const monday = weekStart(date);
 	const dates = Object.fromEntries(WEEKDAYS.map((w, i) => [w.key, addDays(monday, i)]));
 	const daysOff = DAYS_OFF.filter((d) => Object.values(dates).includes(d.date));
 
 	const lessons = [];
-	for (const [weekday, from, to, subject, room, teacher, csId, cancelled = false] of PLAN) {
+	const plan = isTeacher ? TEACHER_PLAN : PLAN;
+	for (const [weekday, from, to, subject, room, who, csId, cancelled = false] of plan) {
 		const day = dates[weekday];
 		if (daysOff.some((d) => d.date === day)) continue;
 		for (let p = from; p <= to; p++) {
@@ -54,8 +68,8 @@ function week(date) {
 				end_time: PERIODS[p - 1].end,
 				class_subject_id: csId,
 				subject,
-				class_name: '5B',
-				teacher,
+				class_name: isTeacher ? who : '5B',
+				teacher: isTeacher ? null : who,
 				room,
 				cancelled
 			});
@@ -64,12 +78,13 @@ function week(date) {
 	return { week_start: monday, lessons, days_off: daysOff };
 }
 
-export async function mockApi(path) {
+export async function mockApi(path, { user } = {}) {
 	const url = new URL(path, 'http://mock');
 	let status = 200;
 	let data;
 	if (url.pathname === '/timetable/week') {
-		data = week(url.searchParams.get('date') ?? new Date().toISOString().slice(0, 10));
+		const date = url.searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
+		data = week(date, user?.role === 'lehrkraft'); // Lehrkraft: nur eigene Stunden
 	} else {
 		status = 404;
 		data = { detail: `Mock: ${url.pathname} gibt es noch nicht` };
