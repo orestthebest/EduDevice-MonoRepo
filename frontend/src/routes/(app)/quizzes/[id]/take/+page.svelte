@@ -15,6 +15,20 @@
 
 	let submitting = $state(false);
 
+	// Bestätigungs-Dialog vor dem Abgeben (statt Browser-confirm)
+	let submitDialog = $state();
+	let quizForm = $state();
+	let confirmed = false;
+	let answered = $state(0);
+
+	// Wie viele Fragen haben mindestens eine Antwort?
+	function countAnswered() {
+		const entries = [...new FormData(quizForm).entries()];
+		return questions.filter((q) =>
+			entries.some(([k, v]) => (k === `opt_${q.id}` || k.startsWith(`gap_${q.id}_`)) && String(v).trim() !== '')
+		).length;
+	}
+
 	const hint = { mc: 'Select all correct answers', tf: 'Choose one', gap: 'Type the missing words' };
 </script>
 
@@ -61,9 +75,18 @@
 	</section>
 {:else}
 	<!-- Quiz lösen -->
-	<form method="POST" action="?/submit" class="flex flex-col gap-4"
+	<form method="POST" action="?/submit" class="flex flex-col gap-4" bind:this={quizForm}
 		use:enhance={({ cancel }) => {
-			if (!confirm('Submit your answers? You can only submit once.')) return cancel();
+			// 1. Klick auf "Submit": nur den Dialog öffnen
+			if (!confirmed) {
+				cancel();
+				answered = countAnswered();
+				submitDialog.showModal();
+				return;
+			}
+			// 2. Im Dialog bestätigt: wirklich abschicken
+			confirmed = false;
+			submitDialog.close();
 			submitting = true;
 			return async ({ update }) => {
 				// Seite nicht neu laden, damit die Fragen fürs Ergebnis erhalten bleiben
@@ -115,4 +138,33 @@
 			</button>
 		</div>
 	</form>
+
+		<!-- Bestätigungs-Dialog: Quiz abgeben -->
+	<dialog bind:this={submitDialog}
+		class="m-auto w-full max-w-sm rounded-2xl border border-line bg-white p-0 text-navy shadow-xl backdrop:bg-navy/35">
+		<div class="p-6">
+			<span class="grid size-11 place-items-center rounded-xl bg-accent-light text-accent-dark">
+				<Icon name="check" class="size-5" />
+			</span>
+			<h2 class="mt-4 text-lg font-bold">Submit your answers?</h2>
+			<p class="mt-1 text-sm text-subtle">You can only submit once. Your answers cannot be changed afterwards.</p>
+
+			<p class="mt-4 rounded-lg px-4 py-3 text-sm
+				{answered < questions.length ? 'border border-warning/40 bg-warning/10 text-navy' : 'bg-surface text-subtle'}">
+				{answered} of {questions.length} questions answered
+				{#if answered < questions.length}· {questions.length - answered} still empty{/if}
+			</p>
+
+			<div class="mt-6 flex justify-end gap-2">
+				<button type="button" onclick={() => submitDialog.close()}
+					class="cursor-pointer rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+					Keep working
+				</button>
+				<button type="button" onclick={() => { confirmed = true; quizForm.requestSubmit(); }}
+					class="cursor-pointer rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark">
+					Submit
+				</button>
+			</div>
+		</div>
+	</dialog>
 {/if}
