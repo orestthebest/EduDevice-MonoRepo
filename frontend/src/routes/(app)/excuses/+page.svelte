@@ -2,7 +2,8 @@
 	import { enhance } from '$app/forms';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { EXCUSE_STATUS, ABSENCE_LABEL, formatDay, formatTime, formatRange, groupByDate } from '$lib/excuses.js';
+	import { EXCUSE_STATUS, ABSENCE_LABEL, formatDay, formatRange, groupByDate } from '$lib/excuses.js';
+	import { periodLabel } from '$lib/timetable.js';
 	import { formatSize } from '$lib/format.js';
 	import Attachments from '$lib/components/Attachments.svelte';
 
@@ -93,7 +94,7 @@
 									<label class="flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-surface">
 										<input type="checkbox" name="attendance_ids" value={a.attendance_id} bind:group={selected}
 											class="size-4 rounded border-input text-accent focus:ring-accent/30" />
-										<span class="w-12 text-sm text-subtle tabular-nums">{formatTime(a.start_time)}</span>
+										<span class="w-24 shrink-0 text-sm text-subtle">{periodLabel(a.start_time)}</span>
 										<span class="flex-1 text-sm font-medium">{a.subject_name}</span>
 										<span class="rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-subtle">
 											{ABSENCE_LABEL[a.status] ?? a.status}

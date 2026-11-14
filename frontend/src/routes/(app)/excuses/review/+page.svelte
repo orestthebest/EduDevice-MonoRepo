@@ -2,7 +2,8 @@
 	import { enhance } from '$app/forms';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { EXCUSE_STATUS, ABSENCE_LABEL, formatDay, formatTime, formatRange } from '$lib/excuses.js';
+	import { EXCUSE_STATUS, ABSENCE_LABEL, formatDay, formatRange } from '$lib/excuses.js';
+	import { periodLabel } from '$lib/timetable.js';
 	import { formatDate } from '$lib/format.js';
 	import Attachments from '$lib/components/Attachments.svelte';
 
@@ -64,7 +65,7 @@
 						{#each e.absences as a (a.attendance_id)}
 							<li class="flex items-center gap-3 px-4 py-2.5 text-sm">
 								<span class="w-28 text-subtle">{formatDay(a.date)}</span>
-								<span class="w-12 text-subtle tabular-nums">{formatTime(a.start_time)}</span>
+								<span class="w-24 shrink-0 text-subtle">{periodLabel(a.start_time)}</span>
 								<span class="flex-1 font-medium">{a.subject_name}</span>
 								<span class="rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-subtle">
 									{ABSENCE_LABEL[a.status] ?? a.status}
