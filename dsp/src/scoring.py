@@ -61,7 +61,7 @@ def _a(n: int) -> str:
 CATEGORY_LABEL = {
     "mini_test": "mini test", "oral": "oral exam", "homework": "homework",
     "classwork": "classwork", "presentation": "presentation", "participation": "participation",
-    "behaviour": "behaviour", "schularbeit": "written exam", "project": "project",
+    "behaviour": "behaviour mark", "schularbeit": "written exam", "project": "project",
 }
 
 
