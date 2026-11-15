@@ -112,10 +112,12 @@ ARCHETYPES = {
 }
 
 
-def clamp(v: float) -> float:
-    """Clamp to the scale and snap to a half step (grades.value is decimal(3,1))."""
+def clamp(v: float, whole: bool = False) -> float:
+    """Clamp to the scale and snap to a half step (grades.value is decimal(3,1)).
+    whole=True: Schularbeit and project marks come from points and are always
+    whole numbers (up to 50 % a 4, 56 % 5, 62 % 6, 71 % 7, 81 % 8, 91 % 9, above 10)."""
     v = max(GRADE_MIN, min(GRADE_MAX, v))
-    return round(v * 2) / 2
+    return float(round(v)) if whole else round(v * 2) / 2
 
 
 @dataclass
@@ -281,7 +283,7 @@ def generate(per_class: int, seed: int):
                     grades.append(
                         SimGrade(
                             username, cs_id, cat, w,
-                            clamp(level + rng.uniform(-1.2, 1.2)),
+                            clamp(level + rng.uniform(-1.2, 1.2), whole=True),
                             _date_in(rng, t),
                         )
                     )
@@ -292,7 +294,7 @@ def generate(per_class: int, seed: int):
                         grades.append(
                             SimGrade(
                                 username, cs_id, cat, w,
-                                clamp(level + rng.uniform(-0.8, 1.2)),
+                                clamp(level + rng.uniform(-0.8, 1.2), whole=True),
                                 _date_in(rng, t),
                             )
                         )

@@ -132,12 +132,73 @@ The rules live once, in `backend/app/services/attendance_stats.py`; the
 scoring job imports that file instead of copying it, and for all 125 sim
 student-subjects the job and the API give identical numbers.
 
-**The scoring job writes a range, not yet a forecast.** Until the prognosis
-model exists, `predicted_low/high` in `risk_assessments` is the exact envelope
-from the rules (missing parts all 4 / all 10) and `predicted_final` is today's
-average. The page calls it "still possible", not "expected". The fail
-probability is only computed where the rules leave the outcome open
-(`undecided`) and is shown to teachers only - never to students.
+**The year grade is built per trimester.** M1 and M2 are averaged within each
+trimester (by the marks' own weights), the year's M1 and M2 are the mean of
+the trimester values - every trimester counts the same, however many marks it
+has - and M3 is the one project mark; final = 40 % M1 + 40 % M2 + 20 % M3.
+The trimester M1 is not rounded by a rule: the teacher may set it closer to
+their impression, which can never be computed, so the page shows the plain
+arithmetic. The first version averaged all marks of the year in one block, so a
+trimester with six marks outweighed one with three. The rule lives once, in
+`backend/app/services/final_range.py` (`year_components`); the page's average,
+components, timeline and class comparison and the job's average all use it.
+
+**"Still possible" counts everything still to come.** The first version only
+treated a part (M1/M2/M3) as open while it had no mark at all, so in November
+117 of 126 sim subjects were already "secured pass", 25 of them an exact final
+grade. Now open means: trimesters that have not started (fully open), the rest
+of the running trimester (its pace so far, and at least one more mark of the
+usual weight - otherwise a missing Schularbeit near its end fell outside the
+range), and the project until it is graded. Everything open is filled with 4s
+and with 10s. Over 8 simulated years the real final grade lands inside this
+range 99.7 % of the time (98 % or more at every point in the year). The same
+file holds this rule (`final_range`); "needed average", "secured" and
+"reachable" on the page come from it.
+
+**The likely range is a forecast with a tested 80 % promise.**
+`prognosis_school.py` learns from 8 whole simulated years (seeds 1001-1008,
+never the server's 20261025, so it never sees the students it predicts;
+"incomplete" students are left out because their year never finishes). Two
+candidates per point in the year: "final = today's average" and a ridge
+regression on 14 grade features; whichever has the lower error on unseen years
+is used there. The range is conformal (the errors on held-out years), pooled
+per point in the year and per forecast level - students near the bottom of the
+scale scatter much less (spread 0.35 vs 0.8), and one pool for everyone made
+their range too wide and their chance to fail too mild. Measured on years that
+took part neither in fitting nor in calibrating (Schularbeit and project marks
+whole numbers, as at school):
+
+| | value |
+|---|---|
+| mean error, today's average / ridge / saved combination | 0.430 / 0.409 / 0.399 grade points |
+| 80 % range holds | 80.4 % (80.2 % after clipping into the possible range) |
+| range width in November / March / May | about 2.2 / 1.0 / 0.4 points (possible range 4.7 / 2.0 / 1.3) |
+| chance to fail, Brier score (undecided cases) | 0.073, against 0.184 for always guessing the fail rate |
+| predicted 50-70 % / 70-90 % / 90-100 % | actually failed 57 % / 80 % / 95 % |
+
+Ridge only beats today's average by about 0.03 points: on the sim, where a
+student will go is mostly not visible in their early marks (an improving and a
+declining student look alike in October). From 80 % of the year on, today's
+average is better and is used. The forecast is shown from 15 % of the year, like
+the absence projection; the likely band is clipped into the possible range, so
+it never claims what the rules exclude. Students and teachers both see it.
+
+**The chance to fail comes from the forecast, not from risk_school.** With the
+range fixed, 52 subjects were undecided and the old classifier's numbers became
+visible: 99 % chance to fail for sim_0024 in Software Development while the
+forecast's midpoint (4.53) sat right at the line, 95-98 % for students whose
+midpoint was above the pass mark - and 20 teacher alerts. Its class weights
+("balanced") push probabilities up. The chance to fail is now the share of the
+prognosis model's held-out errors that would put the final grade below 4.6, so
+the teacher's number and the band come from one model. `risk_school.py` stays
+in the repo as the first school model, the job no longer uses it.
+
+**Schularbeit and project marks are whole numbers.** They are graded from
+points (up to 50 % a 4, 56 % 5, 62 % 6, 71 % 7, 81 % 8, 91 % 9, above 10), so
+a 4.5 cannot exist; the other marks can have half steps. The first sim seed
+gave every mark half steps. `seed_edudevice_real.py` now rounds Schularbeit and
+project marks to whole numbers, `sql/sim_whole_marks.sql` fixes the rows
+already in the database (each .5 up or down by a fixed coin per grade id).
 
 **Observations need to beat the student's own noise.** A change is only
 mentioned when it is large compared with that student's normal spread in the
@@ -219,6 +280,5 @@ at 0 bytes, so nothing new could run. Check `ls -l` after saving.
 | The real trimester start/end dates | Sekretariat | the windows in the generator are a guess; every per-trimester figure depends on them |
 | `FRAGILE_BELOW = 5.5` | Prof. Opitz | it is our judgement, not a rule, and it decides who gets a warning |
 | `risk_assessments.absence_rate NOT NULL` | Gridi | no attendance data exists; writing 0.0000 would claim perfect attendance for everyone. Either the column becomes nullable, or attendance gets generated too |
-| `predicted_final` / `_low` / `_high` `NOT NULL` | us | `model_prognosis.py` forecasts with a conformal interval but runs on OULAD; it has no school-data version yet |
 | Teacher view on a shared device | Prof. Opitz | currently aggregates plus a named at-risk list. Naming struggling students on a screen in a classroom is a real question |
 | Does the device show a teacher view at all | Prof. Opitz | changes the whole interaction model, and Orest needs to know before designing |
