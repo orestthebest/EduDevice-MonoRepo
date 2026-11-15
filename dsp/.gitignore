@@ -28,3 +28,6 @@ venv/
 .idea/
 .DS_Store
 Thumbs.db
+
+# cron log files of jobs/run_score.sh
+logs/
