@@ -7,8 +7,10 @@ For every student in every subject of the school year:
 
   risk_assessments   status (secured / undecided / cannot pass), the possible
                      range of the final grade, the needed average, the absence
-                     rate, and the fail probability of the risk model
+                     rate, and the chance to fail from the prognosis model
                      (NULL when the rules already decide the outcome)
+  grade_forecasts    the likely final grade with its 80 % range (prognosis_school
+                     model), clipped into the possible range; from 15 % of the year
   alerts             for teachers: fail risk, attendance 20 % / 30 % / trend,
                      unusual drop - each only once, not again every night
   student_insights   the week's observations for the student page (top 3)
@@ -30,15 +32,15 @@ When does it actually run
 Connection: EDUDEVICE_DB_URL (the same variable as the API), e.g.
   mysql+pymysql://jorik:PASSWORD@127.0.0.1:3306/edudevice_db
 
-The absence rules are not copied here: they are imported from the backend
-(backend/app/services/attendance_stats.py), so the page and the job can never
-disagree about a percentage.
+The absence rules, the year grade (per trimester) and the possible range are
+not copied here: they are imported from the backend
+(backend/app/services/attendance_stats.py and final_range.py), so the page
+and the job can never disagree about a percentage, an average or "secured".
 """
 
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import os
 import sys
 import traceback
@@ -49,28 +51,16 @@ from pathlib import Path
 
 from sqlalchemy import create_engine, text
 
+import backend_rules
 import model_store
 import notenstatistiken as ns
-import risk_school
+import prognosis_school
 import scoring
-from grade_stats import Mark, component_grade
 
 DSP_DIR = Path(__file__).resolve().parent.parent
-BACKEND_RULES = DSP_DIR.parent / "backend" / "app" / "services" / "attendance_stats.py"
 URL_ENV_VAR = "EDUDEVICE_DB_URL"
 INSIGHT_MODEL = "insights-v1"
-RANGE_MODEL = "envelope-v1"
-
-
-def load_attendance_rules():
-    """The backend's attendance_stats.py, loaded by path (it has no dependencies)."""
-    if not BACKEND_RULES.exists():
-        raise FileNotFoundError(f"{BACKEND_RULES} not found - score_job.py must run inside the "
-                                "monorepo (dsp/ next to backend/)")
-    spec = importlib.util.spec_from_file_location("attendance_stats", BACKEND_RULES)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+RANGE_MODEL = "range-v3"           # v3: per trimester, coming trimesters open (final_range.py)
 
 
 # ---------------------------------------------------------------------------
@@ -89,6 +79,24 @@ def nothing_changed(con) -> bool:
     last = con.execute(text("SELECT MAX(started_at) FROM pipeline_runs WHERE status = 'success'")).scalar()
     newest = con.execute(text("SELECT MAX(created_at) FROM grades")).scalar()
     return last is not None and (newest is None or newest <= last)
+
+
+def load_last_days(con, year_id: int) -> dict[int, date]:
+    """class_subject_id -> last lesson day. Same as the API (statistics._trimesters_per_subject):
+    the class's last day (5th classes: 30 April), otherwise the school year's."""
+    return {cs: last for cs, last in con.execute(text("""
+            SELECT cs.id, COALESCE(c.last_lesson_day, y.last_lesson_day, y.end_date)
+            FROM class_subjects cs
+                JOIN classes c      ON c.id = cs.class_id
+                JOIN school_years y ON y.id = c.school_year_id
+            WHERE c.school_year_id = :y"""), {"y": year_id})}
+
+
+def current_trimester(con, year_id: int, today: date) -> int | None:
+    """id of the trimester today lies in - between two trimesters the one that ended last."""
+    return con.execute(text("""
+            SELECT id FROM trimesters WHERE school_year_id = :y AND start_date <= :d
+            ORDER BY start_date DESC LIMIT 1"""), {"y": year_id, "d": today}).scalar()
 
 
 def load_attendance(con, year_id: int, today: date, rules) -> tuple[dict, dict]:
@@ -162,18 +170,24 @@ def load_attendance(con, year_id: int, today: date, rules) -> tuple[dict, dict]:
 # Computing
 # ---------------------------------------------------------------------------
 
-def load_model(root: Path):
+def load_model(root: Path, name: str, without: str):
+    """(model, card) from the model store, or (None, None) with a warning."""
     try:
-        model, card, _ = model_store.load(risk_school.MODEL_NAME, "latest", root)
+        model, card, _ = model_store.load(name, "latest", root)
         return model, card
     except FileNotFoundError as e:
-        print(f"WARNING: {e}\n         fail probabilities stay empty until a model is trained.",
-              file=sys.stderr)
+        print(f"WARNING: {e}\n         {without}", file=sys.stderr)
         return None, None
 
 
-def compute(data: dict, absences: dict, held_per_student: dict, model, card, today: date) -> dict:
+def compute(data: dict, absences: dict, held_per_student: dict, bundle, card, today: date,
+            last_days: dict, ranges) -> dict:
+    """bundle, card: the prognosis model (both None without one).
+    last_days: {cs: last lesson day}; ranges: backend final_range.py."""
     windows = data["trimesters"]
+    base = [(t["start_date"], t["end_date"]) for t in sorted(windows, key=lambda t: t["number"])]
+    tris = defaultdict(lambda: base)            # per class_subject, cut at the class's last day
+    tris.update({cs: ranges.clip_to(base, last) for cs, last in last_days.items()})
 
     def trimester_of(day):
         for t in windows:
@@ -181,12 +195,8 @@ def compute(data: dict, absences: dict, held_per_student: dict, model, card, tod
                 return t["number"]
         return None
 
-    # The risk model is trained on snapshots "after trimester k" - give it the
-    # trimesters that have started, not all three of the year.
-    probabilities = {}
-    if model is not None:
-        started = dict(data, trimesters=[t for t in windows if t["start_date"] <= today])
-        probabilities = risk_school.predict_current(started, model, card)
+    # The chance to fail comes from the prognosis model too (prognosis_school.fail_probability),
+    # so the teacher's number and the likely band cannot contradict each other.
     model_note = (f"model {card.name} v{card.version}"
                   + (", trained on simulated data" if card.synthetic_training_data else "")
                   if card else "")
@@ -196,31 +206,42 @@ def compute(data: dict, absences: dict, held_per_student: dict, model, card, tod
     for r in data["grades"]:
         by_pair[(r.student_id, r.class_subject_id)].append(
             scoring.DatedMark(r.category, r.value, r.weight, r.on))
+    likely = prognosis_school.predict_current(bundle, by_pair, tris, today) if bundle else {}
 
-    assessments, alerts, candidates = [], [], defaultdict(list)
+    assessments, alerts, forecasts, candidates = [], [], [], defaultdict(list)
     for (sid, cs), marks in by_pair.items():
-        plain = [Mark(m.category, m.value, m.weight) for m in marks]
-        comps = {k: component_grade(plain, k).raw for k in ("M1", "M2", "M3")}
-        raw = scoring.subject_raw(marks)
+        raw = scoring.subject_raw(marks, tris[cs])
         if raw is None:
             continue
-        env = scoring.envelope(comps, raw)
+        # still possible: coming trimesters, the rest of the current one, missing parts
+        r = ranges.final_range([(m.component, m.value, m.weight, m.date) for m in marks], tris[cs], today)
+        env = scoring.Envelope(raw, r.low, r.high, r.status, r.required)
         absence = absences.get((sid, cs))
-        p = probabilities.get((sid, cs), {}).get("fail_probability")
-        p = p if env.status == "undecided" else None          # decided by the rules: no model needed
+        forecast = likely.get((sid, cs))
+        p = forecast["fail_probability"] if forecast and env.status == "undecided" else None
+        # (decided by the rules: no model needed)
         point = min(max(raw, env.low), env.high)
         assessments.append({
             "student_id": sid, "class_subject_id": cs, "model_version": version,
             "status": env.status, "fail_probability": p,
             "predicted_final": round(point, 2), "predicted_low": round(env.low, 2),
             "predicted_high": round(env.high, 2),
-            "required_remaining_avg": None if env.required is None else round(env.required, 2),
+            # shortly before the end very little is open, so the needed average can be
+            # far outside 4-10; the column holds -99.99 to 99.99, and the sign is what matters
+            "required_remaining_avg": None if env.required is None
+                                      else round(min(max(env.required, Decimal(-99)), Decimal(99)), 2),
             "absence_rate": absence["rate"] if absence else 0,
         })
+        if forecast:
+            # the likely range never claims what the rules exclude: clip it into the possible range
+            lo, hi = float(env.low), float(env.high)
+            f_low, f_point, f_high = (round(min(max(forecast[k], lo), hi), 2) for k in ("low", "point", "high"))
+            forecasts.append({"student_id": sid, "class_subject_id": cs, "predicted_grade": f_point,
+                              "predicted_low": f_low, "predicted_high": f_high, "model_version": version})
         for a in scoring.alerts_for(env, p, absence, marks, today, model_note):
             alerts.append({"student_id": sid, "class_subject_id": cs, "type": a.type,
                            "severity": a.severity, "message": a.message})
-        candidates[sid] += scoring.subject_insights(cs, marks, raw, absence, today, trimester_of)
+        candidates[sid] += scoring.subject_insights(cs, marks, raw, absence, today, trimester_of, tris[cs])
 
     for sid, held in held_per_student.items():
         clean = scoring.attendance_streak(held, today)
@@ -232,14 +253,16 @@ def compute(data: dict, absences: dict, held_per_student: dict, model, card, tod
         for i in scoring.pick(cands):
             insights.append({"student_id": sid, "class_subject_id": i.class_subject_id, "kind": i.kind,
                              "tone": i.tone, "score": round(i.score, 3), "message": i.message})
-    return {"assessments": assessments, "alerts": alerts, "insights": insights, "version": version}
+    return {"assessments": assessments, "alerts": alerts, "forecasts": forecasts,
+            "insights": insights, "version": version}
 
 
 # ---------------------------------------------------------------------------
 # Writing
 # ---------------------------------------------------------------------------
 
-def write(con, run_id: int, result: dict, year_start: date, today: date) -> int:
+def write(con, run_id: int, result: dict, year_start: date, today: date,
+          trimester_id: int | None) -> int:
     if result["assessments"]:
         con.execute(text("""
             INSERT INTO risk_assessments (student_id, class_subject_id, model_version, status,
@@ -270,6 +293,14 @@ def write(con, run_id: int, result: dict, year_start: date, today: date) -> int:
             INSERT INTO alerts (student_id, class_subject_id, type, severity, message)
             VALUES (:student_id, :class_subject_id, :type, :severity, :message)"""), new_alerts)
 
+    if result["forecasts"] and trimester_id is not None:
+        con.execute(text("""
+            INSERT INTO grade_forecasts (run_id, student_id, class_subject_id, trimester_id,
+                predicted_grade, predicted_low, predicted_high, model_version)
+            VALUES (:run_id, :student_id, :class_subject_id, :trimester_id, :predicted_grade,
+                :predicted_low, :predicted_high, :model_version)"""),
+            [dict(f, run_id=run_id, trimester_id=trimester_id) for f in result["forecasts"]])
+
     if result["insights"]:
         week = scoring.week_start(today)
         con.execute(text("""
@@ -297,7 +328,8 @@ def main() -> None:
         raise SystemExit(f"set {URL_ENV_VAR} (or pass --url)")
     engine = create_engine(url, pool_pre_ping=True)
     today = args.today or date.today()
-    rules = load_attendance_rules()
+    rules = backend_rules.load("attendance_stats")
+    ranges = backend_rules.load("final_range")
 
     with engine.connect() as con:
         if not args.force and not args.dry_run and nothing_changed(con):
@@ -307,14 +339,18 @@ def main() -> None:
         year_start = con.execute(text("SELECT start_date FROM school_years WHERE id = :y"),
                                  {"y": year_id}).scalar()
         absences, held = load_attendance(con, year_id, today, rules)
+        last_days = load_last_days(con, year_id)
+        trimester_id = current_trimester(con, year_id, today)
 
     data = ns.load(engine, year_id)
-    model, card = load_model(Path(args.models))
-    result = compute(data, absences, held, model, card, today)
+    bundle, card = load_model(Path(args.models), prognosis_school.MODEL_NAME,
+                              "no likely range and no chance to fail until the prognosis model is trained.")
+    result = compute(data, absences, held, bundle, card, today, last_days, ranges)
 
     if args.dry_run:
-        print(f"dry run: {len(result['assessments'])} assessments, {len(result['alerts'])} alert "
-              f"candidates, {len(result['insights'])} observations ({result['version']})")
+        print(f"dry run: {len(result['assessments'])} assessments, {len(result['forecasts'])} forecasts, "
+              f"{len(result['alerts'])} alert candidates, {len(result['insights'])} observations "
+              f"({result['version']})")
         for i in result["insights"][:12]:
             print(f"  student {i['student_id']:>3}  {i['tone']:<9} {i['kind']:<16} {i['message']}")
         return
@@ -325,7 +361,7 @@ def main() -> None:
                              {"v": result["version"]}).lastrowid
     try:
         with engine.begin() as con:                     # everything or nothing
-            n = write(con, run_id, result, year_start, today)
+            n = write(con, run_id, result, year_start, today, trimester_id)
         with engine.begin() as con:
             con.execute(text("""UPDATE pipeline_runs SET status = 'success', finished_at = NOW(),
                                 rows_processed = :n WHERE run_id = :r"""), {"n": n, "r": run_id})
@@ -336,8 +372,8 @@ def main() -> None:
                         {"e": f"{e}\n{traceback.format_exc()}"[:60000], "r": run_id})
         raise
     print(f"{datetime.now():%Y-%m-%d %H:%M} run {run_id}: {n} assessments, "
-          f"{result['new_alerts']} new alerts, {len(result['insights'])} observations "
-          f"({result['version']})")
+          f"{len(result['forecasts'])} forecasts, {result['new_alerts']} new alerts, "
+          f"{len(result['insights'])} observations ({result['version']})")
 
 
 if __name__ == "__main__":

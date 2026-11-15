@@ -165,28 +165,6 @@ def subject_grade(m1: Optional[Decimal], m2: Optional[Decimal],
     return raw, bool(missing), missing
 
 
-def required_remaining_avg(m1: Optional[Decimal], m2: Optional[Decimal],
-                           m3: Optional[Decimal]) -> Optional[Decimal]:
-    """Welchen Schnitt die noch offenen Komponenten brauchen, um positiv zu sein.
-
-    Fuer Schuelerinnen und Schueler vermutlich die nuetzlichste Einzelzahl des
-    ganzen Systems, weil sie einen Handlungsspielraum benennt statt ein Urteil.
-
-    None, wenn nichts mehr offen ist. Ein Wert ueber 10 bedeutet, dass das Fach
-    rechnerisch nicht mehr positiv abgeschlossen werden kann.
-    """
-    parts = [("M1", m1), ("M2", m2), ("M3", m3)]
-    done = [(k, v) for k, v in parts if v is not None]
-    open_ = [k for k, v in parts if v is None]
-    if not open_:
-        return None
-
-    have = sum(_dec(v) * COMPONENT_WEIGHT[k] for k, v in done)
-    open_weight = sum(COMPONENT_WEIGHT[k] for k in open_)
-    needed = (PASS_THRESHOLD - have) / open_weight
-    return needed
-
-
 def mean(values: Sequence[Decimal]) -> Optional[Decimal]:
     vals = [_dec(v) for v in values if v is not None]
     if not vals:

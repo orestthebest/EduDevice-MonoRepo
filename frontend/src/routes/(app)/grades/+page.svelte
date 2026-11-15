@@ -15,14 +15,22 @@
 	// der Endnote aus dem nächtlichen Lauf. Die Ausfallwahrscheinlichkeit des
 	// Modells liefert die API nur an Lehrkräfte - für Schüler fehlt das Feld.
 	//
+	// V4: Die Jahresnote wird je Trimester gerechnet (in der API). Der mögliche
+	// Bereich kommt live aus der API (offen: kommende Trimester, der Rest des
+	// laufenden, fehlende Teile); darin der wahrscheinliche Bereich (80 %)
+	// aus dem Prognosemodell - für Schüler und Lehrkräfte. Erklärungen stehen
+	// in Hinweisen (ⓘ) statt als Text unter jedem Element. Die Zeitleiste zeigt
+	// den Schnitt über das ganze Jahr statt nur den Stand je Trimester.
+	//
 	// Gerechnet wird nichts: alle Zahlen und Hinweise kommen fertig aus der API.
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Sparkline from '$lib/components/Sparkline.svelte';
-	import TrendLine from '$lib/components/TrendLine.svelte';
+	import GradeTimeline from '$lib/components/GradeTimeline.svelte';
 	import ComponentBars from '$lib/components/ComponentBars.svelte';
 	import AbsenceBudget from '$lib/components/AbsenceBudget.svelte';
 	import RangeBar from '$lib/components/RangeBar.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import Tip from '$lib/components/Tip.svelte';
 	import { fmtGrade, fmtSigned, standingOf, categoryLabel, shortDate } from '$lib/grades.js';
 
 	let { data } = $props();
@@ -71,11 +79,51 @@
 		open = stats.subjects.findIndex((s) => s.class_subject_id === csId);
 	}
 
+	// Beobachtungen: Farbe nach Ton (gut / neutral / Achtung)
 	const TONE = {
-		positive: { icon: 'check', box: 'bg-success/12 text-success-dark' },
-		neutral: { icon: 'arrow', box: 'bg-accent-light text-accent-dark' },
-		attention: { icon: 'clipboard', box: 'bg-warning/15 text-[#b4730f]' }
+		positive: {
+			card: 'border-success/25 bg-success/[0.06]',
+			box: 'bg-success/15 text-success-dark',
+			remark: 'text-success-dark'
+		},
+		neutral: {
+			card: 'border-accent/15 bg-accent-xlight',
+			box: 'bg-accent-light text-accent-dark',
+			remark: 'text-accent-dark'
+		},
+		attention: {
+			card: 'border-warning/30 bg-warning/[0.07]',
+			box: 'bg-warning/20 text-[#b4730f]',
+			remark: 'text-[#b4730f]'
+		}
 	};
+	// je Art: Icon, Stichwort (Hinweis beim Icon) und eine kurze, freundliche
+	// Bemerkung vorne - auch bei den Achtung-Punkten ermutigend, nie ein Urteil
+	const INSIGHT = {
+		recent_lift: { icon: 'trend-up', keyword: 'Big step up', remark: 'Nice!' },
+		good_mark: { icon: 'star', keyword: 'Above your usual', remark: 'Well done!' },
+		streak: { icon: 'zap', keyword: 'On a roll', remark: 'Keep it up!' },
+		trimester_up: { icon: 'trend-up', keyword: 'Steadily improving', remark: 'Getting there!' },
+		attendance_clean: { icon: 'check', keyword: 'Full attendance', remark: 'Nice!' },
+		near_round_up: { icon: 'target', keyword: 'Almost a grade up', remark: 'So close!' },
+		trimester_down: {
+			icon: 'trend-down',
+			keyword: 'Dipped this trimester',
+			remark: 'You can turn this around.'
+		},
+		unusual_drop: {
+			icon: 'trend-down',
+			keyword: 'Unusual dip',
+			remark: 'One mark is not the whole story.'
+		},
+		absence_pace: { icon: 'clock', keyword: 'Watch your absences', remark: "There's still time." }
+	};
+	const failTone = (p) =>
+		p >= 0.5
+			? 'bg-error/10 text-error'
+			: p >= 0.2
+				? 'bg-warning/15 text-[#b4730f]'
+				: 'bg-surface text-navy';
 </script>
 
 <svelte:head><title>My grades · EduDevice</title></svelte:head>
@@ -269,14 +317,18 @@
 					well and what has changed.
 				</p>
 			{:else}
-				<ul class="mt-3 space-y-3">
+				<ul class="mt-3 space-y-2.5">
 					{#each insights as i}
 						{@const tone = TONE[i.tone] ?? TONE.neutral}
-						<li class="flex gap-3">
-							<span class="grid size-8 shrink-0 place-items-center rounded-lg {tone.box}">
-								<Icon name={tone.icon} />
-							</span>
+						{@const kind = INSIGHT[i.kind] ?? { icon: 'arrow', keyword: '', remark: '' }}
+						<li class="flex items-start gap-3 rounded-xl border p-3 {tone.card}">
+							<Tip text={kind.keyword} slow align="start">
+								<span class="grid size-9 shrink-0 place-items-center rounded-lg {tone.box}">
+									<Icon name={kind.icon} />
+								</span>
+							</Tip>
 							<p class="text-sm">
+								{#if kind.remark}<strong class={tone.remark}>{kind.remark}</strong>{/if}
 								{#if i.subject_name}<span class="font-semibold">{i.subject_name}:</span>{/if}
 								{i.message}
 							</p>
@@ -321,11 +373,6 @@
 										>{GROWTH[s.growth.label].sign} {GROWTH[s.growth.label].label}</span
 									>
 								{/if}
-								{#if s.current.provisional}
-									<span class="rounded-full bg-surface px-2 py-0.5 text-[11px] text-subtle">
-										provisional · {s.current.missing.join(', ')} missing
-									</span>
-								{/if}
 							</div>
 							<p class="mt-0.5 text-xs text-subtle">
 								{s.class_name} · {s.n_marks} mark{s.n_marks === 1 ? '' : 's'}
@@ -354,55 +401,77 @@
 							<Icon name="back" />
 						</span>
 					</button>
-
+					
 					{#if open === i}
+						{@const fail = s.forecast?.fail_probability}
 						<div class="border-t border-divider p-4 sm:p-5">
-							{#if s.required_remaining_avg != null}
-								<!-- Handlungsspielraum statt Urteil -->
-								<p
-									class="mb-5 rounded-xl px-4 py-3 text-sm {!s.reachable
-										? 'bg-error/10 text-error'
-										: s.secured
-											? 'bg-success/12 text-success-dark'
-											: 'bg-accent-light text-accent-dark'}"
-								>
-									{#if !s.reachable}
-										Even a 10 on everything still open would not reach the pass mark here.
-									{:else if s.secured}
-										Already safe: even 4s on everything still open would pass this subject.
-									{:else}
-										You need an average of <strong>{fmtGrade(s.required_remaining_avg)}</strong>
-										on what is still open to pass this subject.
-									{/if}
-								</p>
-							{/if}
-
-							{#if s.forecast && s.forecast.low !== s.forecast.high}
-								<!-- Noch möglicher Bereich: Regeln, kein Modell (fehlende Teile 4 bis 10) -->
-								<div class="mb-6">
-									<h4 class="mb-2 text-xs font-medium tracking-wide text-subtle uppercase">
-										Final grade still possible
-									</h4>
-									<RangeBar
-										low={s.forecast.low}
-										high={s.forecast.high}
-										current={s.current.raw}
-										{passMark}
-									/>
-									<p class="mt-1 text-sm">
-										Between <strong>{fmtGrade(s.forecast.low)}</strong> (4s on everything still
-										open) and <strong>{fmtGrade(s.forecast.high)}</strong> (10s) — today
-										{fmtGrade(s.current.raw)}.
-										<span class="text-xs text-muted">Updated {when(s.forecast.computed_at)}</span>
-									</p>
-									{#if s.forecast.fail_probability != null}
-										<!-- nur Lehrkräfte/Admin: die API liefert das Feld Schülern nicht -->
-										<p class="mt-1 text-xs text-subtle">
-											Teacher view · model estimate:
-											<strong class="text-navy">{pct(s.forecast.fail_probability, 0)}</strong>
-											chance to fail ({s.forecast.model_version}, trained on simulated data).
+							{#if s.required_remaining_avg != null || fail != null}
+								<div class="mb-5 space-y-2">
+									{#if s.required_remaining_avg != null}
+										<!-- Handlungsspielraum statt Urteil -->
+										<p
+											class="rounded-xl px-4 py-3 text-sm {!s.reachable
+												? 'bg-error/10 text-error'
+												: s.secured
+													? 'bg-success/12 text-success-dark'
+													: 'bg-accent-light text-accent-dark'}"
+										>
+											{#if !s.reachable}
+												Even a 10 on everything still open would not reach the pass mark here.
+											{:else if s.secured}
+												Already safe: even 4s on everything still open would pass this subject.
+											{:else}
+												You need an average of <strong>{fmtGrade(s.required_remaining_avg)}</strong>
+												on what is still open to pass this subject.
+											{/if}
 										</p>
 									{/if}
+									{#if fail != null}
+										<!-- nur Lehrkräfte/Admin: die API liefert das Feld Schülern nicht -->
+										<div
+											class="flex items-center gap-3 rounded-xl px-4 py-3 text-sm {failTone(fail)}"
+										>
+											<span class="font-heading text-xl font-bold tabular-nums">{pct(fail, 0)}</span
+											>
+											<span class="flex-1">
+												chance to fail this subject
+												<span class="block text-xs opacity-80"
+													>Model estimate · only teachers see this</span
+												>
+											</span>
+											<Tip
+												align="end"
+												text="From the same forecast as the likely band: how often its tested errors would put the final grade below {passMark}. Trained on simulated school years ({s
+													.forecast.model_version})."
+											/>
+										</div>
+									{/if}
+								</div>
+							{/if}
+
+							{#if s.possible && s.possible.low !== s.possible.high}
+								{@const likely = s.forecast?.likely}
+								<!-- Hell: noch möglich (Regeln, live). Dunkel: wahrscheinlich (Prognosemodell, 80 %) -->
+								<div class="mb-6">
+									<h4
+										class="mb-2 flex items-center gap-1.5 text-xs font-medium tracking-wide text-subtle uppercase"
+									>
+										{likely ? 'Where the final grade is heading' : 'Final grade still possible'}
+										<Tip
+											align="start"
+											text={likely
+												? `“Likely” is a model estimate: in testing, 8 in 10 final grades landed in a range like this. “Still possible” means 4s or 10s on everything still open.${s.forecast.computed_at ? ` Updated ${when(s.forecast.computed_at)}.` : ''}`
+												: '“Still possible” means 4s or 10s on everything still open: the trimesters still to come, the rest of this one and any part without a mark yet.'}
+										/>
+									</h4>
+									<RangeBar
+										low={s.possible.low}
+										high={s.possible.high}
+										current={s.current.raw}
+										likelyLow={likely?.low}
+										likelyHigh={likely?.high}
+										{passMark}
+									/>
 								</div>
 							{/if}
 
@@ -414,16 +483,22 @@
 									<ComponentBars components={s.components} />
 								</div>
 								<div>
-									<h4 class="mb-1 text-xs font-medium tracking-wide text-subtle uppercase">
-										Across the trimesters
+									<h4
+										class="mb-1 flex items-center gap-1.5 text-xs font-medium tracking-wide text-subtle uppercase"
+									>
+										Over the year
+										<Tip
+											align="start"
+											text="The line is your average after each day with a new mark; the pale dots are the single marks."
+										/>
 									</h4>
-									{#if stats.has_trimesters}
-										<TrendLine points={s.by_trimester} {passMark} />
-									{:else}
-										<p class="py-6 text-center text-xs text-muted">
-											Trimester dates are not set up yet.
-										</p>
-									{/if}
+									<GradeTimeline
+										progression={s.progression ?? []}
+										marks={s.marks ?? []}
+										trimesters={stats.trimesters ?? []}
+										today={stats.as_of}
+										{passMark}
+									/>
 								</div>
 							</div>
 
@@ -490,8 +565,18 @@
 			<li>
 				A subject grade is <strong class="text-navy">40 % Mitarbeit</strong>,
 				<strong class="text-navy">40 % Schularbeit</strong>
-				and <strong class="text-navy">20 % Projekt</strong>. A part that has not been graded yet is
-				left out rather than counted as zero — the grade is then marked as provisional.
+				and <strong class="text-navy">20 % Projekt</strong>. Mitarbeit and Schularbeit are averaged
+				per trimester first, and every trimester counts the same. A part that has not been graded
+				yet is left out rather than counted as zero.
+			</li>
+			<li>
+				"Still open" means the trimesters still to come, the rest of the current one (at about the
+				pace so far) and any part without a mark yet. "Already safe" means even 4s on all of that
+				would pass.
+			</li>
+			<li>
+				The darker "likely" band is an estimate from a model, not a rule: it was tested on simulated
+				school years, where 8 in 10 final grades landed inside it.
 			</li>
 			<li>"Close to the line" means passing, but below {stats.scale.fragile_below}.</li>
 			<li>Class figures are averages only. You never see another student's marks.</li>

@@ -181,8 +181,22 @@ to run twice). The sim timetable uses the school's 45-minute grid (07:45-08:30,
 version ran, `sql/sim_grid_45min.sql` moves it onto the grid (deletes nothing).
 Optional and deleting: `sql/sim_cut_grades_after_today.sql`
 removes sim grades dated after today, so the year looks "in progress".
+`sql/sim_whole_marks.sql` rounds the half-step Schularbeit and project marks
+of the first seed to whole numbers (they come from points and are never .5);
+it changes values, so take a backup first.
 
-**B5 — the scoring job** (writes into the live database)
+**B5 — the prognosis model** (no database needed)
+
+```bash
+python src/prognosis_school.py        # -> models/prognosis_school/v1/  (about 10 s)
+```
+
+Learns from 8 whole simulated years (other seeds than the server's sim data)
+and prints its own test: error against "final = today's average", coverage
+of the 80 % range, and whether the chance to fail is calibrated. Copy the new
+`models/prognosis_school/` folder to the server (`dsp/models/`) after training.
+
+**B6 — the scoring job** (writes into the live database)
 
 ```bash
 python src/score_job.py --dry-run     # compute and print, write nothing
@@ -190,10 +204,12 @@ python src/score_job.py               # only if a grade came in since the last r
 python src/score_job.py --force       # always - the nightly run
 ```
 
-Needs the trained model from B2 b) in `models/risk_school/` and the same
-`EDUDEVICE_DB_URL` as the API. Writes `risk_assessments`, `alerts`,
-`student_insights` and one row in `pipeline_runs` per run. It must run inside
-the monorepo: it imports the absence rules from `backend/`.
+Needs the prognosis model from B5 in `models/prognosis_school/` and the same
+`EDUDEVICE_DB_URL` as the API. Writes `risk_assessments`, `grade_forecasts`,
+`alerts`, `student_insights` and one row in `pipeline_runs` per run. It must
+run inside the monorepo: it loads the absence rules and the year-grade rule
+(averages per trimester, possible range) from `backend/app/services/`
+(`backend_rules.py`), so page and job always agree.
 
 ---
 
@@ -210,7 +226,7 @@ python src/model_store.py risk_school  # the full card for the newest version
 python -m pytest -q
 ```
 
-78 pass. Seven contract tests skip unless `EDUDEVICE_DB_URL` points at a
+93 pass. Eleven contract tests skip unless `EDUDEVICE_DB_URL` points at a
 database with the school tables — that is expected, not a failure.
 
 ---
@@ -247,18 +263,26 @@ They are not duplicates.
 | file | trained on | features | use |
 |---|---|---|---|
 | `model_risk.py` | OULAD | clicks, submissions, VLE engagement | the method chapter — a real dataset, non-circular metrics |
-| `risk_school.py` | the school DB | grades only | the device — the only features the school actually stores |
+| `risk_school.py` | the school DB | grades only | first school model; no longer used by the job (see below) |
+| `prognosis_school.py` | whole simulated school years | grades only | the job: likely final grade, 80 % range, chance to fail |
 
 `model_risk.py` is what proves the approach works, because OULAD is real data.
-`risk_school.py` is what runs on the Pi. Keep both and say exactly this in the
-write-up: it is the honest version and it is also the stronger argument.
+`prognosis_school.py` is what runs for the page. Keep all of them and say
+exactly this in the write-up: it is the honest version and it is also the
+stronger argument.
+
+`risk_school.py` was replaced in the job because its probabilities ran far too
+high (class weights "balanced"): 99 % chance to fail for a student whose
+forecast midpoint was above the pass mark. The chance to fail now comes from
+the prognosis model's own tested errors, so the number and the band cannot
+contradict each other (decisions.md).
 
 ---
 
 ## 5. The one thing that must be said out loud
 
-`risk_school` is currently trained on data that `seed_edudevice_real.py`
-invented. The model has rediscovered the rules the generator used, so its
+`risk_school` and `prognosis_school` are currently trained on data that
+`seed_edudevice_real.py` invented. The model has rediscovered the rules the generator used, so its
 ROC-AUC of 0.97 is **circular**. It demonstrates that the pipeline runs
 end to end. It is not evidence that the method works.
 
@@ -280,7 +304,9 @@ src/
   risk_school.py            risk model on school grades            -> models/risk_school/
   model_store.py            save / load / describe trained models
   model_risk.py             risk model on OULAD
-  model_prognosis.py        grade forecast with uncertainty band (O-3, not yet persisted)
+  model_prognosis.py        grade forecast with uncertainty band on OULAD (the method)
+  prognosis_school.py       the same on school grades: likely final grade, 80 % range,
+                            chance to fail                          -> models/prognosis_school/
   anomaly.py                EWMA control chart for sudden drops
   contract.py               the shared table shapes both adapters must produce
   oulad_adapter.py          OULAD CSVs    -> the contract
@@ -289,8 +315,10 @@ src/
   generate_school_data.py   the older standalone generator (pre-real-schema)
   seed_edudevice_real.py    the generator that writes SQL for the real schema
   seed_attendance.py        simulated timetable + attendance as SQL (minutes, by archetype)
-  scoring.py                rules of the scoring job: possible range, alerts, weekly observations
+  scoring.py                rules of the scoring job: alerts, weekly observations
   score_job.py              the nightly scoring job: reads, computes, writes, logs the run
+  backend_rules.py          loads rules from backend/app/services (absence limits, year grade
+                            per trimester, possible range)  
 
 sql/                        everything that was run on the server for the sim data
   sim_seed_edudevice.sql           sim students, enrolments, grades       (B0)
@@ -299,6 +327,7 @@ sql/                        everything that was run on the server for the sim da
   sim_attendance.sql               sim attendance with minutes            (B4)
   sim_grid_45min.sql               moves a 50-minute sim timetable onto the grid
   sim_cut_grades_after_today.sql   OPTIONAL, deletes sim grades dated after today
+  sim_whole_marks.sql              Schularbeit / project marks to whole numbers (changes values)
 
 tests/
   test_grade_stats.py       the school's grading rules
