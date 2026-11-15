@@ -207,7 +207,12 @@ def _fill_slope(state: SubjectState) -> float:
 # ---------------------------------------------------------------------
 
 def absence_rate(missed_lessons: int, held_lessons: int) -> float:
-    """Share of lessons missed. Cancelled lessons must not be counted."""
+    """Share of lessons missed. Cancelled lessons must not be counted.
+
+    Kept for the OULAD side and its tests. The school's live rule (minutes, not
+    lessons; base = the whole year incl. cancelled lessons) is
+    backend/app/services/attendance_stats.py - score_job.py imports that one.
+    """
     if held_lessons <= 0:
         raise ValueError("held_lessons must be positive")
     if not 0 <= missed_lessons <= held_lessons:

@@ -77,6 +77,7 @@ class SchoolClass(Base):
     last_lesson_day = Column(Date, nullable=True)   # V4.10: frueher als das Schuljahr (z. B. 5. Klassen)
 
 
+
 class StudentClass(Base):
     __tablename__ = "student_classes"
     __table_args__ = (UniqueConstraint("student_id", "class_id", name="uq_student_class"),)

@@ -6,6 +6,8 @@ jeden Stundenplan-Eintrag dieses Wochentags eine Zeile in `lessons` an.
 Der Schulkalender (school_calendar) wird beachtet:
   - Feiertage, Ferien, schulautonome Tage -> keine Stunden
   - Tage mit getauschtem Stundenplan       -> Stunden des anderen Wochentags
+V4.10: hat eine Klasse einen eigenen letzten Unterrichtstag (classes.last_lesson_day,
+z. B. 5. Klassen am 30.04.), werden danach fuer sie keine Stunden mehr angelegt.
 Damit ist `lessons` der Kalender des Jahres, und die Unterrichtsminuten eines
 Fachs im Jahr sind einfach die Summe seiner (nicht abgesagten) Stunden.
 
