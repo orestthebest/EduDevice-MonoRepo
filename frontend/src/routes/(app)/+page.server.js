@@ -108,7 +108,7 @@ async function timetableToday(locals) {
 				end: PERIODS[b.to - 1].end
 			}));
 
-		return { date, dayOff: week.days_off?.find((d) => d.date === date) ?? null, lessons };
+		return { date, dayOff: week.calendar?.find((d) => d.date === date && !d.has_lessons) ?? null, lessons };
 	} catch {
 		return null; // API nicht erreichbar
 	}

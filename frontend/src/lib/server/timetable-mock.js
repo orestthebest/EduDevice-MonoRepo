@@ -75,7 +75,11 @@ function week(date, isTeacher) {
 			});
 		}
 	}
-	return { week_start: monday, lessons, days_off: daysOff };
+	return {
+		week_start: monday,
+		lessons,
+		calendar: daysOff.map((d) => ({ ...d, has_lessons: false, timetable_weekday: null }))
+	};
 }
 
 // ---------- Verwaltung (M-4): Stundenplan einer Klasse ----------

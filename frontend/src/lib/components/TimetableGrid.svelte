@@ -70,6 +70,8 @@
 					{d.label}
 					{#if d.date}<span class="font-normal {isToday(d) ? '' : 'text-subtle'}">{shortDate(d.date)}</span>{/if}
 				</p>
+				<!-- Hinweis aus dem Schulkalender, z. B. "Monday timetable" oder "Sprechtag" -->
+				{#if d.note}<p class="truncate text-xs font-medium text-accent-dark" title={d.note}>{d.note}</p>{/if}
 			</div>
 		{/each}
 

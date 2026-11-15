@@ -2,7 +2,7 @@
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import TimetableGrid from '$lib/components/TimetableGrid.svelte';
-	import { toBlocks, weekDays, weekStart, addDays, shortDate } from '$lib/timetable.js';
+	import { toBlocks, weekDays, weekStart, addDays, shortDate, periodOf } from '$lib/timetable.js';
 	import { todayISO } from '$lib/format.js';
 
 	let { data } = $props();
@@ -17,12 +17,26 @@
 		info: 'No lessons'
 	};
 
+	const WEEKDAY_NAME = { Mo: 'Monday', Di: 'Tuesday', Mi: 'Wednesday', Do: 'Thursday', Fr: 'Friday' };
+
+	// Schulkalender der Woche: freie Tage (has_lessons = false) füllen die ganze Spalte,
+	// an anderen Tagen nur ein Hinweis im Tageskopf (getauschter Stundenplan, Sprechtag, ...)
 	const days = $derived(
 		weekDays(data.monday).map((d) => {
-			const off = data.timetable.days_off?.find((o) => o.date === d.date);
-			return off ? { ...d, off: { label: OFF_LABEL[off.day_type] ?? 'No lessons', note: off.note } } : d;
+			const entry = data.timetable.calendar?.find((c) => c.date === d.date);
+			if (!entry) return d;
+			if (!entry.has_lessons) {
+				return { ...d, off: { label: OFF_LABEL[entry.day_type] ?? 'No lessons', note: entry.note } };
+			}
+			const note = entry.day_type === 'swapped_timetable' && entry.timetable_weekday
+				? `${WEEKDAY_NAME[entry.timetable_weekday]} timetable`
+				: entry.note;
+			return { ...d, note };
 		})
 	);
+
+	// Alte Stunden außerhalb des Rasters (period = null) passen nicht ins Raster -> Hinweis statt stillschweigend weglassen
+	const outside = $derived(data.timetable.lessons.filter((l) => !(l.period ?? periodOf(l.start_time))).length);
 	const blocks = $derived(toBlocks(data.timetable.lessons));
 
 	// Schüler sehen die Lehrkraft, Lehrkräfte die Klasse
@@ -63,6 +77,12 @@
 
 {#if data.timetable.lessons.length === 0 && days.every((d) => !d.off)}
 	<p class="mb-4 rounded-lg bg-surface px-4 py-3 text-sm text-subtle">No lessons this week.</p>
+{/if}
+
+{#if outside > 0}
+	<p class="mb-4 rounded-lg bg-surface px-4 py-3 text-sm text-subtle">
+		{outside} {outside === 1 ? 'lesson is' : 'lessons are'} outside the school's period grid and not shown here.
+	</p>
 {/if}
 
 <TimetableGrid {days} {blocks} {details} {today} />
