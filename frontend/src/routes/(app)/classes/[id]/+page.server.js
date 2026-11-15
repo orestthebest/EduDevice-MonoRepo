@@ -9,13 +9,14 @@ export async function load({ params, locals }) {
 	const base = `/classes/${params.id}`;
 
 	// apiJson zeigt bei 404 automatisch die Fehlerseite ("Klasse nicht gefunden")
-	const [schoolClass, students, assignableStudents] = await Promise.all([
+	const [schoolClass, students, assignableStudents, teachers] = await Promise.all([
 		apiJson(base, { token }),
 		apiJson(`${base}/students`, { token }),
-		apiJson(`${base}/assignable-students`, { token })
+		apiJson(`${base}/assignable-students`, { token }),
+		apiJson('/users?role=lehrkraft', { token }) // für die Klassenvorstand-Auswahl
 	]);
 
-	return { schoolClass, students, assignableStudents };
+	return { schoolClass, students, assignableStudents, teachers };
 }
 
 export const actions = {
@@ -46,5 +47,21 @@ export const actions = {
 			return fail(res.status, { studentError: 'Could not remove the student' });
 		}
 		return { studentRemoved: true };
+	},
+
+	// Klassenvorstand setzen oder entfernen ("" = keiner)
+	setClassTeacher: async ({ request, params, locals }) => {
+		const form = await request.formData();
+		const value = form.get('class_teacher_id')?.toString() ?? '';
+
+		const res = await api(`/classes/${params.id}`, {
+			method: 'PATCH',
+			token: locals.token,
+			json: { class_teacher_id: value ? Number(value) : null }
+		});
+
+		if (res.status === 400) return fail(400, { teacherError: 'Only teachers can be class teachers' });
+		if (!res.ok) return fail(res.status, { teacherError: 'Could not save the class teacher' });
+		return { teacherSaved: true };
 	}
 };

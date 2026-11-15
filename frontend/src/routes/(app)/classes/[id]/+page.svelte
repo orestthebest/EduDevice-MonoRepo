@@ -7,6 +7,8 @@
 
 	const c = $derived(data.schoolClass);
 
+	let savingTeacher = $state(false);
+
 	// Suche im "Assign student"-Feld
 	let search = $state('');
 	const filteredStudents = $derived(
@@ -21,6 +23,40 @@
 </svelte:head>
 
 <PageHeader title="Class {c.name}" subtitle="{c.school_year} · {data.students.length} {data.students.length === 1 ? 'student' : 'students'}" back="/classes" />
+
+<!-- Klassenvorstand: prüft die Entschuldigungen der Schüler dieser Klasse -->
+<section class="mb-6 rounded-2xl border border-line bg-white p-6">
+	<h2 class="text-lg font-semibold">Class teacher</h2>
+	<p class="mt-1 text-sm text-subtle">Reviews the excuses of all students in class {c.name}.</p>
+
+	<form method="POST" action="?/setClassTeacher" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+		use:enhance={() => {
+			savingTeacher = true;
+			return async ({ update }) => {
+				await update({ reset: false });
+				savingTeacher = false;
+			};
+		}}>
+		<div class="flex-1">
+			<label for="class_teacher" class="label">Teacher</label>
+			<select id="class_teacher" name="class_teacher_id" class="input" value={c.class_teacher_id ?? ''}>
+				<option value="">No class teacher</option>
+				{#each data.teachers as t (t.id)}
+					<option value={t.id}>{t.last_name} {t.first_name} · {t.username}</option>
+				{/each}
+			</select>
+		</div>
+		<button type="submit" class="btn-primary sm:w-auto sm:px-6" disabled={savingTeacher}>
+			{savingTeacher ? 'Saving…' : 'Save'}
+		</button>
+	</form>
+
+	{#if form?.teacherError}
+		<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.teacherError}</p>
+	{:else if form?.teacherSaved}
+		<p class="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-dark">Class teacher saved.</p>
+	{/if}
+</section>
 
 <div class="grid items-start gap-6 lg:grid-cols-[1fr_340px]">
 	<!-- Links: Schüler in der Klasse -->

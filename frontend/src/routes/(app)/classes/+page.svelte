@@ -34,6 +34,9 @@
 						</span>
 					</div>
 					<h2 class="mt-4 text-lg font-semibold">Class {c.name}</h2>
+					<p class="mt-1 text-sm text-subtle">
+						{c.class_teacher_name ? `Class teacher: ${c.class_teacher_name}` : 'No class teacher yet'}
+					</p>
 				</div>
 			</a>
 		{/each}
