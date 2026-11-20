@@ -7,11 +7,13 @@ made-up marks.
 
 Three things are decided here
 -----------------------------
-1. The possible range of the final grade (interim, until the prognosis model
-   exists). Not a model: the components that are still missing are filled with
-   the worst (4) and the best (10) possible grade. The point value is today's
-   average. This range is exact - "still possible", not "likely" - which is why
-   the page calls it that.
+1. The possible range of the final grade is computed by the backend's
+   final_range.py (shared with the page); Envelope carries it through the
+   alerts here. Not a model: everything still open - coming trimesters, the
+   rest of the running one, parts without a mark - is filled with 4s and with
+   10s. The likely range inside it comes from the prognosis model
+   (prognosis_school.py). The subject average follows the same file: M1 and M2
+   per trimester, then the mean of the trimesters.
 
 2. Alerts for teachers. Each fires once and is not repeated every night.
    The anomaly evaluation (decisions.md) showed that a drop in the grade curve
@@ -32,8 +34,10 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Optional
 
-from grade_stats import (COMPONENT_WEIGHT, GRADE_MAX, GRADE_MIN, PASS_THRESHOLD, Mark,
-                         component_grade, component_of, subject_grade)
+import backend_rules
+from grade_stats import PASS_THRESHOLD, component_of, subject_grade
+
+_YEAR = backend_rules.load("final_range")   # the year rule, shared with the page
 
 RECENT_DAYS = 14            # a mark counts as "recent" for this long
 MIN_HISTORY = 3             # marks needed before one can be "unusual"
@@ -79,11 +83,12 @@ class DatedMark:
         return component_of(self.category)
 
 
-def subject_raw(marks: list[DatedMark]) -> Optional[Decimal]:
-    """Subject average with the same rules as the page (missing parts left out)."""
-    plain = [Mark(m.category, m.value, m.weight) for m in marks]
-    return subject_grade(component_grade(plain, "M1").raw, component_grade(plain, "M2").raw,
-                         component_grade(plain, "M3").raw).raw
+def subject_raw(marks: list[DatedMark], trimesters=()) -> Optional[Decimal]:
+    """Subject average with the same rules as the page: M1 and M2 averaged per
+    trimester, then over the trimesters (final_range.year_components); missing
+    parts left out. trimesters: [(start, end)] - without, the year is one block."""
+    c = _YEAR.year_components([(m.component, m.value, m.weight, m.date) for m in marks], list(trimesters))
+    return subject_grade(c["M1"], c["M2"], c["M3"]).raw
 
 
 # ---------------------------------------------------------------------------
@@ -92,28 +97,12 @@ def subject_raw(marks: list[DatedMark]) -> Optional[Decimal]:
 
 @dataclass
 class Envelope:
+    """The possible range from final_range.py, plus today's average."""
     current: Optional[Decimal]     # today's average (missing parts left out)
-    low: Decimal                   # missing parts all 4
-    high: Decimal                  # missing parts all 10
+    low: Decimal                   # everything still open all 4
+    high: Decimal                  # everything still open all 10
     status: str                    # secured_pass | undecided | fail_unavoidable
-    required: Optional[Decimal]    # average needed on the missing parts, None if nothing missing
-
-
-def envelope(components: dict[str, Optional[Decimal]], current: Optional[Decimal]) -> Envelope:
-    """components: {"M1": raw or None, "M2": ..., "M3": ...}."""
-    present = sum(COMPONENT_WEIGHT[k] * v for k, v in components.items() if v is not None)
-    missing_weight = sum(COMPONENT_WEIGHT[k] for k, v in components.items() if v is None)
-    low = present + missing_weight * GRADE_MIN
-    high = present + missing_weight * GRADE_MAX
-    required = None if missing_weight == 0 else (PASS_THRESHOLD - present) / missing_weight
-
-    if low >= PASS_THRESHOLD:
-        status = "secured_pass"
-    elif high < PASS_THRESHOLD:
-        status = "fail_unavoidable"
-    else:
-        status = "undecided"
-    return Envelope(current, low, high, status, required)
+    required: Optional[Decimal]    # average needed on everything still open, None if nothing is
 
 
 # ---------------------------------------------------------------------------
@@ -222,17 +211,17 @@ class Insight:
     message: str                      # never contains the subject name - the page adds it
 
 
-def _effect(marks: list[DatedMark], mark: DatedMark) -> Optional[float]:
+def _effect(marks: list[DatedMark], mark: DatedMark, trimesters=()) -> Optional[float]:
     """How much `mark` moved the subject average (with it minus without it)."""
-    with_it = subject_raw(marks)
-    without = subject_raw([m for m in marks if m is not mark])
+    with_it = subject_raw(marks, trimesters)
+    without = subject_raw([m for m in marks if m is not mark], trimesters)
     if with_it is None or without is None:
         return None
     return float(with_it - without)
 
 
 def subject_insights(cs_id: int, marks: list[DatedMark], raw: Optional[Decimal], absence: Optional[dict],
-                     today: date, trimester_of) -> list[Insight]:
+                     today: date, trimester_of, trimesters=()) -> list[Insight]:
     out: list[Insight] = []
     ordered = sorted(marks, key=lambda m: m.date)
 
@@ -241,7 +230,7 @@ def subject_insights(cs_id: int, marks: list[DatedMark], raw: Optional[Decimal],
         if change["d"] > 0:
             out.append(Insight(cs_id, "trimester_up", "positive", abs(change["z"]),
                                f"Up {change['d']:.1f} on last trimester ({change['prev']:.1f} → "
-                               f"{change['cur']:.1f}). Great work!"))
+                               f"{change['cur']:.1f})."))
         else:
             out.append(Insight(cs_id, "trimester_down", "attention", abs(change["z"]),
                                f"Down {-change['d']:.1f} compared with last trimester ({change['prev']:.1f} → "
@@ -250,17 +239,17 @@ def subject_insights(cs_id: int, marks: list[DatedMark], raw: Optional[Decimal],
     newest = ordered[-1] if ordered else None
     if newest and (today - newest.date).days <= RECENT_DAYS:
         label = CATEGORY_LABEL.get(newest.category, newest.category)
-        effect = _effect(marks, newest)
+        effect = _effect(marks, newest, trimesters)
         before = _values(ordered[:-1])
         usual = statistics.fmean(before) if before else None
         if effect is not None and effect >= 0.25:
             out.append(Insight(cs_id, "recent_lift", "positive", 1.0 + 2 * effect,
                                f"Your {label} on {_day(newest.date)} ({float(newest.value):g}) lifted your "
-                               f"average by {effect:.2f}. Nice job!"))
+                               f"average by {effect:.2f}."))
         elif usual is not None and len(before) >= MIN_HISTORY and float(newest.value) >= usual + 0.75:
             out.append(Insight(cs_id, "good_mark", "positive", 0.8,
-                               f"Nice result on your {label} on {_day(newest.date)} "
-                               f"({float(newest.value):g}) - above your usual level."))
+                               f"Your {label} on {_day(newest.date)} "
+                               f"({float(newest.value):g}) was above your usual level."))
 
     if len(ordered) >= MIN_HISTORY + 3:
         earlier = _values(ordered[:-3])

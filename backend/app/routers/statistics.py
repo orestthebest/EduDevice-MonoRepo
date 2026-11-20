@@ -40,6 +40,20 @@ V3 (November 2026):
                   noch moeglicher Bereich der Endnote; die Ausfallwahrscheinlichkeit
                   NUR fuer Lehrkraefte und Admin, nie fuer Schueler
   model           wann der naechtliche Lauf zuletzt erfolgreich war
+  
+V4 (November 2026):
+  Jahresnote nach Trimestern (services/final_range.py): M1 und M2 je Trimester
+                  gemittelt, dann das Mittel der Trimester; M3 einmal im Jahr.
+                  Gilt fuer Fachschnitt, Komponenten, Verlauf und Klassenvergleich.
+  possible        noch moeglicher Bereich der Endnote, live: offen sind die
+                  kommenden Trimester, der Rest des laufenden und fehlende Teile.
+                  Daraus auch required_remaining_avg, reachable und secured.
+  forecast.likely wahrscheinlicher Bereich (80 %) aus dem Prognosemodell
+                  (grade_forecasts, letzter erfolgreicher Lauf) - fuer alle Rollen
+  marks           alle Einzelnoten eines Fachs (Datum, Wert) fuer die Zeitleiste
+  trimesters      Beginn und Ende der Trimester (die Zeitleiste zeigt das Jahr)
+                  by_trimester entfaellt: die Zeitleiste zeigt den Verlauf
+                  statt nur den Stand am Trimesterende
 """
 
 from collections import defaultdict
@@ -54,6 +68,7 @@ from app import models as m
 from app.core.database import get_db
 from app.core.security import get_current_user, role_of
 from app.services import attendance_stats as att
+from app.services import final_range as fr
 from app.services import grade_stats as gs
 from app.services import trend_stats as trend
 
@@ -77,28 +92,26 @@ def _trimester_windows(db: Session) -> list[dict]:
     return [{"number": r[0], "start": r[1], "end": r[2]} for r in rows]
 
 
-def _trimester_of(day: date, windows: list[dict]):
-    for w in windows:
-        if w["start"] <= day <= w["end"]:
-            return w["number"]
-    return None
-
-
 RECENT_OVERALL = 6          # so viele neueste Noten im Kasten "Recent grades"
 NEW_DAYS = 7                # Noten der letzten 7 Tage bekommen die Markierung "new"
 INSIGHTS_SHOWN = 3          # so viele Beobachtungen pro Woche
 INSIGHTS_MAX_AGE_DAYS = 13  # aeltere Wochen werden nicht mehr gezeigt (Lauf ausgefallen)
 
 
-def _raw_grade(marks: list) -> Decimal | None:
+def _components(marks: list, tris: list) -> dict:
+    """M1, M2, M3 fuers Jahr: M1 und M2 je Trimester gemittelt, dann das Mittel
+    der Trimester (services/final_range.py - dieselbe Rechnung wie im Lauf)."""
+    return fr.year_components([(mk.component, mk.value, mk.weight, mk.date) for mk in marks], tris)
+
+
+def _raw_grade(marks: list, tris: list) -> Decimal | None:
     """Fachschnitt (ungerundet) aus Einzelnoten - dieselbe Rechnung wie ueberall."""
-    raw, _, _ = gs.subject_grade(gs.component_grade(marks, "M1"),
-                                 gs.component_grade(marks, "M2"),
-                                 gs.component_grade(marks, "M3"))
+    c = _components(marks, tris)
+    raw, _, _ = gs.subject_grade(c["M1"], c["M2"], c["M3"])
     return raw
 
 
-def _progression(rows) -> list[dict]:
+def _progression(rows, tris: list) -> list[dict]:
     """Fachschnitt nach jedem Notentag: so hat sich der Schnitt im Jahr entwickelt.
     Mehrere Noten am selben Tag ergeben einen Punkt."""
     points, seen = [], []
@@ -107,13 +120,13 @@ def _progression(rows) -> list[dict]:
         by_date[r.date].append(r)
     for day in sorted(by_date):
         seen += [gs.Mark(r.category, r.value, r.weight, r.date) for r in by_date[day]]
-        raw = _raw_grade(seen)
+        raw = _raw_grade(seen, tris)
         if raw is not None:
             points.append({"date": day.isoformat(), "raw": gs.as_float(raw)})
     return points
 
 
-def _recent_overall(grades, meta: dict, today: date) -> list[dict]:
+def _recent_overall(grades, meta: dict, today: date, tris: dict) -> list[dict]:
     """Die neuesten Noten ueber alle Faecher.
 
     effect = Fachschnitt mit dieser Note minus Fachschnitt ohne sie. Fuer die
@@ -128,9 +141,10 @@ def _recent_overall(grades, meta: dict, today: date) -> list[dict]:
     out = []
     for g in newest:
         rows = by_subject[g.class_subject_id]
-        with_it = _raw_grade([gs.Mark(r.category, r.value, r.weight, r.date) for r in rows])
+        t = tris.get(g.class_subject_id, [])
+        with_it = _raw_grade([gs.Mark(r.category, r.value, r.weight, r.date) for r in rows], t)
         without = _raw_grade([gs.Mark(r.category, r.value, r.weight, r.date)
-                              for r in rows if r.id != g.id])
+                              for r in rows if r.id != g.id], t)
         effect = None if with_it is None or without is None else gs.as_float(with_it - without)
         out.append({
             "class_subject_id": g.class_subject_id,
@@ -308,11 +322,29 @@ def _forecasts(db: Session, student_id: int, show_probability: bool) -> dict[int
         out[cs_id] = {
             "status": status,
             "predicted": float(final), "low": float(low), "high": float(high),
-            "computed_at": computed_at.isoformat(),
+            # MySQL liefert datetime, SQLite (Tests) einen Text
+            "computed_at": computed_at.isoformat() if hasattr(computed_at, "isoformat") else str(computed_at),
             "model_version": version,
         }
         if show_probability:
             out[cs_id]["fail_probability"] = None if p is None else float(p)
+            
+    # wahrscheinlicher Bereich (Prognosemodell, 80 %) - nur aus dem letzten erfolgreichen
+    # Lauf, damit nach Jahresende keine alte Prognose stehen bleibt
+    try:
+        likely = db.execute(text("""
+            SELECT f.class_subject_id, f.predicted_grade, f.predicted_low, f.predicted_high,
+                   f.model_version
+            FROM grade_forecasts f
+            WHERE f.student_id = :sid
+              AND f.run_id = (SELECT MAX(run_id) FROM pipeline_runs WHERE status = 'success')
+        """), {"sid": student_id}).all()
+    except Exception:
+        likely = []
+    for cs_id, grade, low, high, version in likely:
+        if cs_id in out and low is not None and high is not None:
+            out[cs_id]["likely"] = {"predicted": float(grade), "low": float(low),
+                                    "high": float(high), "model_version": version}
     return out
 
 
@@ -338,7 +370,22 @@ def _subject_names(db: Session, cs_ids: list[int]) -> dict[int, dict]:
             for r in rows}
 
 
-def _class_average(db: Session, cs_id: int, exclude_student: int):
+def _trimesters_per_subject(db: Session, cs_ids: list[int], windows: list[dict]) -> dict[int, list]:
+    """class_subject_id -> Trimester als (Beginn, Ende), gekuerzt auf den letzten
+    Unterrichtstag der Klasse (5. Klassen: 30.04.), sonst den des Schuljahres."""
+    base = [(w["start"], w["end"]) for w in windows]
+    if not cs_ids:
+        return {}
+    rows = (db.query(m.ClassSubject.id, m.SchoolClass.last_lesson_day, m.SchoolYear.last_lesson_day)
+            .join(m.SchoolClass, m.SchoolClass.id == m.ClassSubject.class_id)
+            .join(m.SchoolYear, m.SchoolYear.id == m.SchoolClass.school_year_id)
+            .filter(m.ClassSubject.id.in_(cs_ids))
+            .all())
+    last = {cs_id: class_last or year_last for cs_id, class_last, year_last in rows}
+    return {cs_id: fr.clip_to(base, last.get(cs_id)) for cs_id in cs_ids}
+
+
+def _class_average(db: Session, cs_id: int, exclude_student: int, tris: list):
     """Mittelwert der Fachnoten aller uebrigen Lernenden - nur als Aggregat.
 
     Rueckgabe (Mittelwert, Anzahl) oder (None, 0), wenn zu wenige Daten
@@ -355,9 +402,7 @@ def _class_average(db: Session, cs_id: int, exclude_student: int):
 
     finals = []
     for marks in by_student.values():
-        raw, _, _ = gs.subject_grade(gs.component_grade(marks, "M1"),
-                                     gs.component_grade(marks, "M2"),
-                                     gs.component_grade(marks, "M3"))
+        raw = _raw_grade(marks, tris)
         if raw is not None:
             finals.append(raw)
 
@@ -388,6 +433,7 @@ def student_statistics(student_id: int, db: Session = Depends(get_db),
     today = date.today()
     absences = _attendance(db, student_id, sorted(meta), today)
     forecasts = _forecasts(db, student_id, show_probability=role != "schueler")
+    tris = _trimesters_per_subject(db, sorted(meta), windows)
 
     by_subject = defaultdict(list)
     for g in grades:
@@ -396,9 +442,9 @@ def student_statistics(student_id: int, db: Session = Depends(get_db),
     subjects = []
     for cs_id, rows in by_subject.items():
         marks = [gs.Mark(r.category, r.value, r.weight, r.date) for r in rows]
-        m1 = gs.component_grade(marks, "M1")
-        m2 = gs.component_grade(marks, "M2")
-        m3 = gs.component_grade(marks, "M3")
+        t = tris.get(cs_id, [])
+        c = _components(marks, t)
+        m1, m2, m3 = c["M1"], c["M2"], c["M3"]
         raw, provisional, missing = gs.subject_grade(m1, m2, m3)
 
         # Komponenten einzeln, mit Anzahl der eingegangenen Einzelnoten
@@ -414,27 +460,7 @@ def student_statistics(student_id: int, db: Session = Depends(get_db),
                 "n_marks": n,
             })
 
-        # Entwicklung ueber die Trimester (nur M1 und M2 - M3 zaehlt fuers Jahr)
-        by_trimester = []
-        if windows:
-            for w in windows:
-                tri_marks = [mk for mk in marks
-                             if mk.date and _trimester_of(mk.date, windows) == w["number"]]
-                if not tri_marks:
-                    by_trimester.append({"trimester": w["number"], "raw": None,
-                                         "rounded": None, "n_marks": 0})
-                    continue
-                t1 = gs.component_grade(tri_marks, "M1")
-                t2 = gs.component_grade(tri_marks, "M2")
-                t_raw, _, _ = gs.subject_grade(t1, t2, None)
-                by_trimester.append({
-                    "trimester": w["number"],
-                    "raw": gs.as_float(t_raw),
-                    "rounded": None if t_raw is None else gs.round_grade(t_raw),
-                    "n_marks": len(tri_marks),
-                })
-
-        class_mean, n_compared = _class_average(db, cs_id, student_id)
+        class_mean, n_compared = _class_average(db, cs_id, student_id, t)
         comparison = None
         if class_mean is not None and raw is not None:
             comparison = {
@@ -443,7 +469,9 @@ def student_statistics(student_id: int, db: Session = Depends(get_db),
                 "n_compared": n_compared,
             }
 
-        needed = gs.required_remaining_avg(m1, m2, m3)
+        # noch offen: kommende Trimester, der Rest des laufenden und fehlende Teile
+        possible = fr.final_range([(mk.component, mk.value, mk.weight, mk.date) for mk in marks], t, today)
+        needed = possible.required
         info = meta.get(cs_id, {})
         subjects.append({
             "class_subject_id": cs_id,
@@ -457,15 +485,20 @@ def student_statistics(student_id: int, db: Session = Depends(get_db),
             },
             "standing": gs.standing(raw),
             "components": components,
-            "by_trimester": by_trimester,
             "required_remaining_avg": gs.as_float(needed),
             "reachable": needed is None or needed <= gs.GRADE_MAX,
             # schon sicher bestanden: selbst lauter 4er auf das Offene reichen
             # (dann ist der "noetige Schnitt" kleiner als die kleinste Note)
             "secured": needed is not None and needed <= gs.GRADE_MIN,
+            # noch moeglicher Bereich der Endnote (Regeln, live; services/final_range.py)
+            "possible": {"low": gs.as_float(possible.low), "high": gs.as_float(possible.high),
+                         "status": possible.status},
             "class_comparison": comparison,
             "n_marks": len(marks),
-            "progression": _progression(rows),
+            "progression": _progression(rows, t),
+            # alle Einzelnoten fuer die Zeitleiste (Punkte hinter der Schnittlinie)
+            "marks": [{"date": r.date.isoformat(), "value": float(r.value)}
+                      for r in sorted(rows, key=lambda r: r.date)],
             "attendance": absences.get(cs_id),
             "growth": trend.growth([(r.date, r.value) for r in rows]),
             "forecast": forecasts.get(cs_id),
@@ -492,6 +525,8 @@ def student_statistics(student_id: int, db: Session = Depends(get_db),
                   "pass_threshold": float(gs.PASS_THRESHOLD),
                   "fragile_below": float(gs.FRAGILE_BELOW)},
         "has_trimesters": bool(windows),
+        "trimesters": [{"number": w["number"], "start": w["start"].isoformat(),
+                        "end": w["end"].isoformat()} for w in windows],
         "overall": {
             "raw": gs.as_float(overall),
             "rounded": None if overall is None else gs.round_grade(overall),
@@ -505,7 +540,7 @@ def student_statistics(student_id: int, db: Session = Depends(get_db),
         },
         "model": {"updated_at": _last_run(db)},
         "notices": _notices(subjects),
-        "recent_overall": _recent_overall(grades, meta, today),
+        "recent_overall": _recent_overall(grades, meta, today, tris),
         "insights": _insights(db, student_id,
                               set(meta) if role == "lehrkraft" else None, today),
         "subjects": subjects,

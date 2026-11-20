@@ -4,30 +4,13 @@ from datetime import date, timedelta
 from decimal import Decimal as D
 
 import scoring
-from scoring import DatedMark, Insight, envelope
+from scoring import DatedMark, Envelope, Insight
 
 TODAY = date(2026, 11, 13)
 
 
 def mark(value, days_ago, category="mini_test", weight="1"):
     return DatedMark(category, D(str(value)), D(weight), TODAY - timedelta(days=days_ago))
-
-
-# ---------------------------------------------------------------- range and status
-
-def test_envelope_fills_missing_parts_with_4_and_10():
-    env = envelope({"M1": D("6"), "M2": D("5"), "M3": None}, D("5.5"))
-    assert env.low == D("0.4") * 6 + D("0.4") * 5 + D("0.2") * 4          # 5.2
-    assert env.high == D("0.4") * 6 + D("0.4") * 5 + D("0.2") * 10        # 6.4
-    assert env.status == "secured_pass"                                     # even a 4 in M3 passes
-    assert env.required == (D("4.6") - D("4.4")) / D("0.2")                 # 1.0 (below 4 = safe)
-
-
-def test_envelope_status_undecided_and_unavoidable():
-    assert envelope({"M1": D("4"), "M2": None, "M3": None}, D("4")).status == "undecided"
-    assert envelope({"M1": D("4"), "M2": D("4"), "M3": D("4.5")}, D("4.1")).status == "fail_unavoidable"
-    complete = envelope({"M1": D("7"), "M2": D("7"), "M3": D("7")}, D("7"))
-    assert complete.low == complete.high == D("7") and complete.required is None
 
 
 # ---------------------------------------------------------------- drops and alerts
@@ -42,13 +25,14 @@ def test_drop_must_be_large_compared_with_own_spread():
 
 
 def test_alerts_rules_model_and_attendance():
-    undecided = envelope({"M1": D("4.5"), "M2": None, "M3": None}, D("4.5"))
+    # the range itself is tested in backend/tests/test_final_range.py
+    undecided = Envelope(D("4.5"), D("4.3"), D("8.2"), "undecided", D("4.8"))
     types = [a.type for a in scoring.alerts_for(undecided, 0.62, None, [], TODAY, "m")]
     assert types == ["fail_risk"]
     assert scoring.alerts_for(undecided, 0.3, None, [], TODAY, "m") == []  # below the alert level
     absence = {"status": "trending", "rate": 0.07, "projected_rate": 0.21}
-    [a] = scoring.alerts_for(envelope({"M1": D("8"), "M2": None, "M3": None}, D("8")), None, absence,
-                             [], TODAY, "m")
+    secured = Envelope(D("8"), D("6.4"), D("9.2"), "secured_pass", D("1"))
+    [a] = scoring.alerts_for(secured, None, absence, [], TODAY, "m")
     assert a.type == "attendance_trend" and "21 %" in a.message
 
 
@@ -95,3 +79,11 @@ def test_attendance_clean_needs_enough_lessons():
     assert scoring.attendance_streak(lessons, TODAY).kind == "attendance_clean"
     assert scoring.attendance_streak(lessons[:5], TODAY) is None
     assert scoring.attendance_streak(lessons + [(TODAY - timedelta(days=2), 10)], TODAY) is None
+
+
+def test_subject_average_counts_each_trimester_the_same():
+    tris = [(date(2026, 9, 7), date(2026, 12, 4)), (date(2026, 12, 7), date(2027, 3, 19))]
+    marks = [DatedMark("mini_test", D("8"), D("1"), date(2026, 10, d)) for d in (1, 2, 3)]
+    marks.append(DatedMark("mini_test", D("5"), D("1"), date(2027, 1, 10)))
+    assert scoring.subject_raw(marks, tris) == D("6.5")      # (8 + 5) / 2, same rule as the page
+    assert scoring.subject_raw(marks) == D("7.25")           # without trimesters: one block

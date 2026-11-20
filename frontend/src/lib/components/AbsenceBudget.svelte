@@ -4,7 +4,7 @@
 	// (20 % = Prüfung nötig, 30 % = nicht beurteilbar).
 	//
 	// Ein Balken, eine Datenreihe: gefüllt = schon versäumt, Umriss = Hochrechnung.
-	// Die Grenzen sind direkt beschriftet, die Aussage steht zusätzlich im Text.
+	// Die Grenzen sind direkt beschriftet; darunter nur zwei kurze Zeilen.
 	let { absence } = $props();
 
 	const SCALE_MAX = 0.35; // Achse bis 35 %, damit die 30-%-Grenze sichtbar Luft hat
@@ -17,6 +17,8 @@
 	}
 	const fmt = (n) => n.toLocaleString('en-GB');
 
+	let missed = $derived(fmt(absence.missed_minutes));
+	let total = $derived(fmt(absence.total_minutes));
 	let lessonsLeft = $derived(
 		absence.lesson_minutes
 			? Math.floor(absence.minutes_left_before_exam / absence.lesson_minutes)
@@ -56,33 +58,29 @@
 				<span class="inline-block h-2 w-4 rounded-full bg-blue-violet"></span>missed so far
 			</span>
 			<span class="flex items-center gap-1.5">
-				<span class="inline-block h-2 w-4 rounded-full border border-dashed border-blue-violet/60"></span>
-				at your current pace by the end of the year
+				<span class="inline-block h-2 w-4 rounded-full border border-dashed border-blue-violet/60"
+				></span>
+				at this pace: {pct(absence.projected_rate, 0)} by year end
 			</span>
 		</p>
 	{/if}
 	<p class="mt-2 text-sm">
-		Missed <strong class="tabular-nums">{fmt(absence.missed_minutes)}</strong> of
-		{fmt(absence.total_minutes)} minutes this year ({pct(absence.rate)}).
+		Missed <strong class="tabular-nums">{missed}</strong> / {total} min ({pct(absence.rate)})
+	</p>
+	<p class="text-sm text-subtle">
 		{#if absence.status === 'not_assessable'}
-			That is over 30 % — this subject can no longer be graded normally.
+			Over 30 % — can no longer be graded normally
 		{:else if absence.status === 'exam_required'}
-			That is over 20 % — an extra exam is required in this subject.
+			Over 20 % — an extra exam is required
 		{:else}
-			About <strong class="tabular-nums">{fmt(absence.minutes_left_before_exam)}</strong> more
-			minutes
-			{#if lessonsLeft != null}(≈ {lessonsLeft} lessons){/if} before an extra exam is required.
+			<strong class="text-navy tabular-nums">{fmt(absence.minutes_left_before_exam)}</strong> more
+			min{#if lessonsLeft != null}&nbsp;(≈ {lessonsLeft} lessons){/if} before an extra exam
 		{/if}
 	</p>
-	{#if absence.projected_rate != null && absence.status !== 'not_assessable'}
-		<p class="mt-1 text-xs text-subtle">
-			At your current pace: about {pct(absence.projected_rate, 0)} by the end of the year.
-		</p>
-	{/if}
 	{#if absence.unknown_late}
 		<p class="mt-1 text-xs text-muted">
-			{absence.unknown_late} late arrival{absence.unknown_late === 1 ? '' : 's'} without minutes recorded
-			are not counted.
+			+ {absence.unknown_late} late arrival{absence.unknown_late === 1 ? '' : 's'} without minutes (not
+			counted)
 		</p>
 	{/if}
 </div>
