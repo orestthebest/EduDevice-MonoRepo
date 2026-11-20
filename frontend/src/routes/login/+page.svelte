@@ -1,5 +1,6 @@
 <script>
 	import AuthLayout from '$lib/components/AuthLayout.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	// form enthält eine Fehlermeldung vom Login-Action.
 	let { form } = $props();
@@ -7,21 +8,19 @@
 	let role = $state('student');
 
 	const roles = [
-		{ value: 'student', label: 'Student' },
-		{ value: 'teacher', label: 'Teacher' },
-		{ value: 'admin', label: 'Admin' }
+		{ value: 'student', label: m.role_student() },
+		{ value: 'teacher', label: m.role_teacher() },
+		{ value: 'admin', label: m.role_admin() }
 	];
 </script>
 
 <svelte:head>
-	<title>Log in · EduDevice</title>
+	<title>{m.login_title()} · EduDevice</title>
 </svelte:head>
 
 <AuthLayout>
-
-	<h1 class="text-center text-4xl font-bold">Log in</h1>
-	<p class="mt-2 text-center text-subtle">Welcome back! Log in with your school account.</p>
-	
+	<h1 class="text-center text-4xl font-bold">{m.login_title()}</h1>
+	<p class="mt-2 text-center text-subtle">{m.login_subtitle()}</p>
 
 	<!-- Fehlermeldung anzeigen, falls der Login fehlgeschlagen ist -->
 	{#if form?.error}
@@ -33,13 +32,13 @@
 	<!-- Login-Formular: schickt Username + Passwort an den login-Action -->
 	<form action="?/login" method="POST" class="mt-8 flex flex-col gap-6">
 		<div>
-			<label for="username" class="label">Username</label>
+			<label for="username" class="label">{m.username()}</label>
 			<input
 				type="text"
 				id="username"
 				name="username"
 				required
-				placeholder="e.g. elira.krasniqi"
+				placeholder={m.username_placeholder()}
 				autocomplete="username"
 				value={form?.username ?? ''}
 				class="input"
@@ -47,7 +46,7 @@
 		</div>
 
 		<div>
-			<label for="password" class="label">Password</label>
+			<label for="password" class="label">{m.password()}</label>
 			<input
 				type="password"
 				id="password"
@@ -61,7 +60,7 @@
 
 		<!-- Rollen-Auswahl: wird beim Login mit der Rolle in der DB verglichen -->
 		<fieldset>
-			<legend class="label">Sign in as</legend>
+			<legend class="label">{m.login_sign_in_as()}</legend>
 			<div class="grid grid-cols-3 gap-3">
 				{#each roles as r (r.value)}
 					<label
@@ -76,12 +75,12 @@
 				{/each}
 			</div>
 		</fieldset>
-		<button type="submit" class="btn-primary">Log in</button>
+		<button type="submit" class="btn-primary">{m.login_button()}</button>
 
 		<!-- Link zur Registrierung für User ohne Account -->
 		<p class="text-center text-sm text-subtle">
-			No account?
-			<a href="/register" class="font-medium text-accent hover:text-accent-darker">Register here</a>
+			{m.login_no_account()}
+			<a href="/register" class="font-medium text-accent hover:text-accent-darker">{m.login_register_link()}</a>
 		</p>
 	</form>
 </AuthLayout>
