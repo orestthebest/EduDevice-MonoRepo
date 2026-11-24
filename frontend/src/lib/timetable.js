@@ -1,5 +1,6 @@
 // frontend/src/lib/timetable.js
 // Stundenplan: Stundenraster der Schule + Hilfsfunktionen für Ansicht (M-3) und Verwaltung (M-4)
+import { m } from '$lib/paraglide/messages.js';
 
 // Stundenraster (wie in WebUntis). Eine Unterrichtseinheit = eine Stunde aus dieser Liste.
 export const PERIODS = [
@@ -17,12 +18,13 @@ export const PERIODS = [
 ];
 
 // Wochentage wie in der DB ('Mo' ...) + Anzeigename
+// label ist ein Getter: der Text kommt erst beim Zugriff in der aktuellen Sprache
 export const WEEKDAYS = [
-	{ key: 'Mo', label: 'Mon' },
-	{ key: 'Di', label: 'Tue' },
-	{ key: 'Mi', label: 'Wed' },
-	{ key: 'Do', label: 'Thu' },
-	{ key: 'Fr', label: 'Fri' }
+	{ key: 'Mo', get label() { return m.wd_mo(); } },
+	{ key: 'Di', get label() { return m.wd_di(); } },
+	{ key: 'Mi', get label() { return m.wd_mi(); } },
+	{ key: 'Do', get label() { return m.wd_do(); } },
+	{ key: 'Fr', get label() { return m.wd_fr(); } }
 ];
 
 // "07:45:00" oder "07:45" -> Stunde 1 (null, wenn die Zeit nicht im Raster liegt)
@@ -130,10 +132,12 @@ export function subjectColor(name = '') {
 }
 
 
-// "09:35:00" -> "3rd period" (liegt die Zeit nicht im Raster: einfach die Uhrzeit)
+// "09:35:00" -> "3rd period" / "3. Stunde" / "Ora 3" (liegt die Zeit nicht im Raster: einfach die Uhrzeit)
 export function periodLabel(time) {
 	const p = periodOf(time);
 	if (!p) return String(time).slice(0, 5);
-	const suffix = p === 1 ? 'st' : p === 2 ? 'nd' : p === 3 ? 'rd' : 'th';
-	return `${p}${suffix} period`;
+	if (p === 1) return m.period_label_1();
+	if (p === 2) return m.period_label_2();
+	if (p === 3) return m.period_label_3();
+	return m.period_label_n({ n: p });
 }
