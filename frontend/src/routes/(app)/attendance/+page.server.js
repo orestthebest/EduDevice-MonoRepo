@@ -2,11 +2,12 @@ import { error, fail } from '@sveltejs/kit';
 import { api, apiJson } from '$lib/server/api.js';
 import { errorText } from '$lib/server/quiz.js';
 import { todayISO } from '$lib/format.js';
+import { m } from '$lib/paraglide/messages.js';
 
 // Lehrerseite: Anwesenheit pro Stunde erfassen (Vertrag: backend/docs/API_FUER_OREST.md, V2.8)
 // Auswahl steht in der URL: ?subject=<class_subject_id>&date=YYYY-MM-DD&time=HH:MM
 export async function load({ locals, url }) {
-	if (locals.user.role === 'schueler') error(403, 'Only teachers can take attendance');
+	if (locals.user.role === 'schueler') error(403, m.att_err_teachers_only());
 	const token = locals.token;
 
 	// Lehrer sehen nur ihre eigenen Fächer, Admin alle
@@ -29,7 +30,7 @@ export async function load({ locals, url }) {
 
 	// 400 = Wochenende -> Meldung statt Fehlerseite
 	const slots = slotsRes.ok ? await slotsRes.json() : [];
-	const slotError = slotsRes.ok ? null : await errorText(slotsRes, 'Could not load the timetable');
+	const slotError = slotsRes.ok ? null : await errorText(slotsRes, m.att_err_timetable());
 
 	// Keine oder ungültige Uhrzeit gewählt -> erste Stunde des Tages laut Stundenplan
 	if (!slots.some((s) => s.start_time.slice(0, 5) === time)) time = slots[0]?.start_time.slice(0, 5) ?? '';
@@ -54,9 +55,9 @@ export const actions = {
 			status: form.get(`status-${id}`)?.toString()
 		}));
 
-		if (entries.length === 0) return fail(400, { error: 'There are no students in this subject' });
+		if (entries.length === 0) return fail(400, { error: m.att_no_students() });
 		if (entries.some((e) => !['anwesend', 'abwesend', 'verspaetet'].includes(e.status))) {
-			return fail(400, { error: 'Invalid attendance status' });
+			return fail(400, { error: m.att_err_invalid_status() });
 		}
 
 		const res = await api('/attendance', {
@@ -64,8 +65,8 @@ export const actions = {
 			token: locals.token,
 			json: { class_subject_id, date, start_time, entries }
 		});
-		if (!res.ok) return fail(res.status, { error: await errorText(res, 'Could not save attendance') });
+		if (!res.ok) return fail(res.status, { error: await errorText(res, m.att_err_save()) });
 
-		return { success: 'Attendance saved.' };
+		return { success: m.att_saved() };
 	}
 };
