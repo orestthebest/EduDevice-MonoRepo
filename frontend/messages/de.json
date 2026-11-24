@@ -632,5 +632,7 @@
 	"cls_assign_note": "Der Schüler wird zu allen bestehenden Fächern dieser Klasse hinzugefügt.",
 	"cls_err_add": "Schüler nicht gefunden oder in diesem Schuljahr schon in einer Klasse",
 	"cls_err_only_teachers": "Nur Lehrkräfte können Klassenvorstand sein",
-	"cls_err_save_teacher": "Klassenvorstand konnte nicht gespeichert werden"
+	"cls_err_save_teacher": "Klassenvorstand konnte nicht gespeichert werden",
+	"av_err_not_found": "Bild nicht gefunden",
+	"login_err_failed": "Anmeldung fehlgeschlagen"
 }

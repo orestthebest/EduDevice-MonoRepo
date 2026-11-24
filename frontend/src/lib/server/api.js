@@ -6,6 +6,7 @@
 // Der JWT kommt beim Login von der API und liegt im httpOnly-Cookie "token".
 import { env } from '$env/dynamic/private';
 import { error } from '@sveltejs/kit';
+import { m } from '$lib/paraglide/messages.js';
 
 const API_URL = env.API_URL || 'http://127.0.0.1:8000';
 
@@ -53,6 +54,6 @@ export async function login(username, password, clientIp) {
 		form: new URLSearchParams({ username, password })
 	});
 	if (res.status === 401) return null;
-	if (!res.ok) error(res.status, res.status === 429 ? 'Too many attempts, wait a minute' : 'Login failed');
+	if (!res.ok) error(res.status, res.status === 429 ? m.prof_err_too_many() : m.login_err_failed());
 	return res.json();
 }

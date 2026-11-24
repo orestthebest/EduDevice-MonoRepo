@@ -632,5 +632,7 @@
 	"cls_assign_note": "Nxënësi shtohet në të gjitha lëndët ekzistuese të kësaj klase.",
 	"cls_err_add": "Nxënësi nuk u gjet ose është tashmë në një klasë këtë vit shkollor",
 	"cls_err_only_teachers": "Vetëm mësuesit mund të jenë kujdestarë klase",
-	"cls_err_save_teacher": "Kujdestari i klasës nuk mund të ruhej"
+	"cls_err_save_teacher": "Kujdestari i klasës nuk mund të ruhej",
+	"av_err_not_found": "Fotoja nuk u gjet",
+	"login_err_failed": "Kyçja dështoi"
 }

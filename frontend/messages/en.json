@@ -632,5 +632,7 @@
 	"cls_assign_note": "The student is added to all existing subjects of this class.",
 	"cls_err_add": "Student not found or already in a class this school year",
 	"cls_err_only_teachers": "Only teachers can be class teachers",
-	"cls_err_save_teacher": "Could not save the class teacher"
+	"cls_err_save_teacher": "Could not save the class teacher",
+	"av_err_not_found": "Image not found",
+	"login_err_failed": "Login failed"
 }
