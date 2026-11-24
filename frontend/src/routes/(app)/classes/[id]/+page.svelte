@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import Icon from '$lib/components/Icon.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data, form } = $props();
 
@@ -19,15 +20,15 @@
 </script>
 
 <svelte:head>
-	<title>Class {c.name} · EduDevice</title>
+	<title>{m.class_name({ name: c.name })} · EduDevice</title>
 </svelte:head>
 
-<PageHeader title="Class {c.name}" subtitle="{c.school_year} · {data.students.length} {data.students.length === 1 ? 'student' : 'students'}" back="/classes" />
+<PageHeader title={m.class_name({ name: c.name })} subtitle="{c.school_year} · {data.students.length === 1 ? m.cls_n_student({ n: data.students.length }) : m.cls_n_students({ n: data.students.length })}" back="/classes" />
 
 <!-- Klassenvorstand: prüft die Entschuldigungen der Schüler dieser Klasse -->
 <section class="mb-6 rounded-2xl border border-line bg-white p-6">
-	<h2 class="text-lg font-semibold">Class teacher</h2>
-	<p class="mt-1 text-sm text-subtle">Reviews the excuses of all students in class {c.name}.</p>
+	<h2 class="text-lg font-semibold">{m.cls_class_teacher()}</h2>
+	<p class="mt-1 text-sm text-subtle">{m.cls_teacher_hint({ name: c.name })}</p>
 
 	<form method="POST" action="?/setClassTeacher" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
 		use:enhance={() => {
@@ -38,37 +39,37 @@
 			};
 		}}>
 		<div class="flex-1">
-			<label for="class_teacher" class="label">Teacher</label>
+			<label for="class_teacher" class="label">{m.cls_teacher()}</label>
 			<select id="class_teacher" name="class_teacher_id" class="input" value={c.class_teacher_id ?? ''}>
-				<option value="">No class teacher</option>
+				<option value="">{m.cls_no_teacher()}</option>
 				{#each data.teachers as t (t.id)}
 					<option value={t.id}>{t.last_name} {t.first_name} · {t.username}</option>
 				{/each}
 			</select>
 		</div>
 		<button type="submit" class="btn-primary sm:w-auto sm:px-6" disabled={savingTeacher}>
-			{savingTeacher ? 'Saving…' : 'Save'}
+			{savingTeacher ? m.saving() : m.save()}
 		</button>
 	</form>
 
 	{#if form?.teacherError}
 		<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.teacherError}</p>
 	{:else if form?.teacherSaved}
-		<p class="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-dark">Class teacher saved.</p>
+		<p class="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-dark">{m.cls_teacher_saved()}</p>
 	{/if}
 </section>
 
 <div class="grid items-start gap-6 lg:grid-cols-[1fr_340px]">
 	<!-- Links: Schüler in der Klasse -->
 	<section class="rounded-2xl border border-line bg-white p-6">
-		<h2 class="mb-4 text-lg font-semibold">Students in this class</h2>
+		<h2 class="mb-4 text-lg font-semibold">{m.cls_students_in()}</h2>
 
 		{#if form?.studentError}
 			<p class="mb-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.studentError}</p>
 		{/if}
 
 		{#if data.students.length === 0}
-			<p class="rounded-xl bg-surface px-4 py-10 text-center text-sm text-subtle">No students yet. Assign them on the right.</p>
+			<p class="rounded-xl bg-surface px-4 py-10 text-center text-sm text-subtle">{m.cls_no_students()}</p>
 		{:else}
 			<ul class="divide-y divide-divider">
 				{#each data.students as st (st.id)}
@@ -84,10 +85,10 @@
 							<input type="hidden" name="student_id" value={st.id} />
 							<button
 								type="submit"
-								title="Also removes the student from all subjects of this class"
+								title={m.cls_remove_hint()}
 								class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-ghost px-3 py-1.5 text-sm font-medium text-subtle transition hover:border-error hover:text-error"
 							>
-								<Icon name="x" /> Remove
+								<Icon name="x" /> {m.prof_remove()}
 							</button>
 						</form>
 					</li>
@@ -98,15 +99,15 @@
 
 	<!-- Rechts: Schüler ohne Klasse zuweisen -->
 	<section class="rounded-2xl border border-line bg-white p-6">
-		<h2 class="text-lg font-semibold">Assign student</h2>
-		<p class="mt-1 text-sm text-subtle">Students without a class in {c.school_year}</p>
+		<h2 class="text-lg font-semibold">{m.cls_assign()}</h2>
+		<p class="mt-1 text-sm text-subtle">{m.cls_assign_hint({ year: c.school_year })}</p>
 
 		<form method="POST" action="?/addStudent" class="mt-4 flex flex-col gap-3" use:enhance={() => async ({ update }) => { await update(); search = ''; }}>
-			<input bind:value={search} placeholder="Search name or username" class="input" autocomplete="off" />
+			<input bind:value={search} placeholder={m.subj_search()} class="input" autocomplete="off" />
 
 			{#if filteredStudents.length === 0}
 				<p class="rounded-xl bg-surface px-4 py-6 text-center text-sm text-subtle">
-					{data.assignableStudents.length === 0 ? 'Every student already has a class.' : 'No student found.'}
+					{data.assignableStudents.length === 0 ? m.cls_all_assigned() : m.subj_no_student_found()}
 				</p>
 			{:else}
 				<!-- size="7" macht aus dem Dropdown eine Liste -->
@@ -119,10 +120,10 @@
 
 			<button type="submit" disabled={filteredStudents.length === 0}
 				class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-50">
-				<Icon name="plus" /> Assign to class {c.name}
+				<Icon name="plus" /> {m.cls_assign_to({ name: c.name })}
 			</button>
 
-			<p class="text-xs text-subtle">The student is added to all existing subjects of this class.</p>
+			<p class="text-xs text-subtle">{m.cls_assign_note()}</p>
 		</form>
 	</section>
 </div>

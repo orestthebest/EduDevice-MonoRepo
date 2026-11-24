@@ -1,9 +1,10 @@
 import { error, fail } from '@sveltejs/kit';
 import { api, apiJson } from '$lib/server/api.js';
+import { m } from '$lib/paraglide/messages.js';
 
 // Eine Klasse mit ihren Schülern – nur für Admins
 export async function load({ params, locals }) {
-	if (locals.user.role !== 'admin') error(403, 'Only administrators can manage classes');
+	if (locals.user.role !== 'admin') error(403, m.cls_err_admins_only());
 
 	const token = locals.token;
 	const base = `/classes/${params.id}`;
@@ -30,7 +31,7 @@ export const actions = {
 		});
 
 		if (!res.ok) {
-			return fail(res.status, { studentError: 'Student not found or already in a class this school year' });
+			return fail(res.status, { studentError: m.cls_err_add() });
 		}
 		return { studentAdded: true };
 	},
@@ -44,7 +45,7 @@ export const actions = {
 		});
 
 		if (!res.ok) {
-			return fail(res.status, { studentError: 'Could not remove the student' });
+			return fail(res.status, { studentError: m.subj_err_student_remove() });
 		}
 		return { studentRemoved: true };
 	},
@@ -60,8 +61,8 @@ export const actions = {
 			json: { class_teacher_id: value ? Number(value) : null }
 		});
 
-		if (res.status === 400) return fail(400, { teacherError: 'Only teachers can be class teachers' });
-		if (!res.ok) return fail(res.status, { teacherError: 'Could not save the class teacher' });
+		if (res.status === 400) return fail(400, { teacherError: m.cls_err_only_teachers() });
+		if (!res.ok) return fail(res.status, { teacherError: m.cls_err_save_teacher() });
 		return { teacherSaved: true };
 	}
 };
