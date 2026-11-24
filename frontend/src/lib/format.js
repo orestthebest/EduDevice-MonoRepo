@@ -1,3 +1,6 @@
+import { m } from '$lib/paraglide/messages.js';
+import { getLocale } from '$lib/paraglide/runtime.js';
+
 // Dateigröße lesbar machen: 482133 -> "471 KB"
 export function formatSize(bytes) {
 	if (bytes < 1024) return `${bytes} B`;
@@ -10,9 +13,9 @@ export function formatDate(value) {
 	const date = new Date(value);
 	const today = new Date();
 	const days = Math.floor((today.setHours(0, 0, 0, 0) - new Date(date).setHours(0, 0, 0, 0)) / 86400000);
-	if (days === 0) return 'Today';
-	if (days === 1) return 'Yesterday';
-	return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+	if (days === 0) return m.date_today();
+	if (days === 1) return m.date_yesterday();
+	return date.toLocaleDateString(getLocale(), { day: 'numeric', month: 'short' });
 }
 
 // Farbe des Datei-Badges je nach Dateityp

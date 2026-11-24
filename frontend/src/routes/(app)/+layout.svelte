@@ -4,6 +4,8 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { NAV, SHARED_NAV, ROLE_LABEL } from '$lib/roles.js';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data, children } = $props();
 
@@ -22,13 +24,13 @@
 	<!-- Mobile Topbar -->
 	<header class="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-white px-4 py-3 lg:hidden">
 		<img src="/EduDeviceFlow.png" alt="EduDevice" class="h-8 w-auto" />
-		<button class="rounded-lg p-2 hover:bg-surface" onclick={() => (menuOpen = true)} aria-label="Open menu">
+		<button class="rounded-lg p-2 hover:bg-surface" onclick={() => (menuOpen = true)} aria-label={m.menu_open()}>
 			<Icon name="menu" class="size-5" />
 		</button>
 	</header>
 
 	{#if menuOpen}
-		<button class="fixed inset-0 z-40 bg-navy/30 lg:hidden" onclick={() => (menuOpen = false)} aria-label="Close menu"></button>
+		<button class="fixed inset-0 z-40 bg-navy/30 lg:hidden" onclick={() => (menuOpen = false)} aria-label={m.menu_close()}></button>
 	{/if}
 
 	<!-- Sidebar -->
@@ -46,7 +48,7 @@
 		<nav class="mt-10 flex-1">
 			{#each [nav, SHARED_NAV] as group (group.section)}
 				<p class="mb-2 px-3 text-[11px] font-semibold tracking-wider text-subtle uppercase {group === SHARED_NAV ? 'mt-6' : ''}">
-					{group.section}
+					{group.section()}
 				</p>
 				<ul class="space-y-1">
 					{#each group.items as item (item.href)}
@@ -59,7 +61,7 @@
 									: 'text-navy hover:bg-white/55'}"
 							>
 								<Icon name={item.icon} />
-								{item.label}
+								{item.label()}
 							</a>
 						</li>
 					{/each}
@@ -67,6 +69,8 @@
 			{/each}
 		</nav>
 
+		<LanguageSwitcher class="mb-3 self-start bg-white/55" />
+		
 		<!-- User-Karte unten -->
 				<div class="flex items-center gap-3 rounded-xl border border-white/60 bg-white/55 p-3">
 			<Avatar user={data.user} />
