@@ -5,6 +5,7 @@
 	// löst den Hinweis aus. slow = erst nach einer kurzen Pause, für Icons, die
 	// man beim Lesen nur streift. align: wo der Hinweis am Auslöser ansetzt
 	// (start / center / end), damit er am Rand der Karte nicht abgeschnitten wird.
+	import { m } from '$lib/paraglide/messages.js';
 	let { text, slow = false, align = 'center', children } = $props();
 	const id = $props.id();
 	const place = { start: 'left-0', center: 'left-1/2 -translate-x-1/2', end: 'right-0' };
@@ -23,7 +24,7 @@
 	{:else}
 		<button
 			type="button"
-			aria-label="More information"
+			aria-label={m.more_info()}
 			aria-describedby={id}
 			class="grid size-4 cursor-help place-items-center rounded-full border border-current text-[10px] leading-none font-semibold text-muted normal-case hover:text-navy focus-visible:text-navy"
 			>i</button

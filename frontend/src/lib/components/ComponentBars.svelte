@@ -8,6 +8,7 @@
 	// Würde eine noch nicht geschriebene Schularbeit als Null gewertet, sähe
 	// im Oktober die halbe Schule negativ aus.
 	import { scalePos, fmtGrade } from '$lib/grades.js';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { components = [] } = $props();
 </script>
@@ -25,7 +26,7 @@
 					<div
 						class="h-full rounded-r bg-blue-violet"
 						style="width: {Math.max(2, scalePos(c.raw) * 100)}%"
-						title="{c.label}: {fmtGrade(c.raw)} from {c.n_marks} mark{c.n_marks === 1 ? '' : 's'}"
+						title={c.n_marks === 1 ? m.grades_from_mark({ label: c.label, grade: fmtGrade(c.raw), count: c.n_marks }) : m.grades_from_marks({ label: c.label, grade: fmtGrade(c.raw), count: c.n_marks })}
 					></div>
 				{/if}
 			</div>
@@ -37,7 +38,7 @@
 						{Math.round(c.weight * 100)}% · {c.n_marks}
 					</span>
 				{:else}
-					<span class="text-[11px] text-muted">not graded yet</span>
+					<span class="text-[11px] text-muted">{m.grades_not_graded_lower()}</span>
 				{/if}
 			</div>
 		</div>

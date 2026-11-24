@@ -5,6 +5,8 @@
 // wird nur dargestellt. Wenn eine Zahl in dieser Datei berechnet würde, gäbe
 // es zwei Stellen mit Notenlogik, und die beiden würden irgendwann
 // auseinanderlaufen.
+import { m } from '$lib/paraglide/messages.js';
+import { getLocale } from '$lib/paraglide/runtime.js';
 
 export const SCALE_MIN = 4;
 export const SCALE_MAX = 10;
@@ -20,26 +22,26 @@ export function scalePos(grade) {
  *  Die Farbe steht nie allein — jedes Badge trägt zusätzlich diesen Text. */
 export const STANDING = {
 	failing: {
-		label: 'At risk',
-		hint: 'Below the pass mark',
+		get label() { return m.grades_at_risk(); },
+		get hint() { return m.grades_at_risk_hint(); },
 		chip: 'bg-error/12 text-error',
 		dot: 'bg-error'
 	},
 	fragile: {
-		label: 'Close to the line',
+		get label() { return m.grades_close(); },
 		hint: 'Passing, but only just',
 		chip: 'bg-warning/15 text-[#b4730f]',
 		dot: 'bg-warning'
 	},
 	ok: {
-		label: 'On track',
-		hint: 'Comfortably passing',
+		get label() { return m.grades_on_track(); },
+		get hint() { return m.grades_on_track_hint(); },
 		chip: 'bg-success/12 text-success-dark',
 		dot: 'bg-success'
 	},
 	unknown: {
-		label: 'Not graded yet',
-		hint: 'No marks so far',
+		get label() { return m.grades_not_graded(); },
+		get hint() { return m.grades_not_graded_hint(); },
 		chip: 'bg-surface text-subtle',
 		dot: 'bg-muted'
 	}
@@ -52,7 +54,7 @@ export function standingOf(key) {
 /** Note für die Anzeige: 7.224 -> "7.22", null -> "–" */
 export function fmtGrade(value, digits = 2) {
 	if (value == null) return '–';
-	return value.toFixed(digits).replace(/\.?0+$/, (m) => (m.includes('.') ? '' : m));
+	return value.toFixed(digits).replace(/\.?0+$/, (match) => (match.includes('.') ? '' : match));
 }
 
 /** Veränderung mit Vorzeichen: 0.88 -> "+0.88", -0.21 -> "−0.21" (echtes Minuszeichen) */
@@ -64,15 +66,15 @@ export function fmtSigned(value, digits = 2) {
 
 /** Kategorie aus der Datenbank -> lesbarer Name */
 export const CATEGORY_LABEL = {
-	homework: 'Homework',
-	mini_test: 'Mini test',
-	oral: 'Oral',
-	presentation: 'Presentation',
-	classwork: 'Classwork',
-	participation: 'Participation',
-	behaviour: 'Behaviour',
-	schularbeit: 'Written exam',
-	project: 'Project'
+	get homework() { return m.cat_homework(); },
+	get mini_test() { return m.cat_mini_test(); },
+	get oral() { return m.cat_oral(); },
+	get presentation() { return m.cat_presentation(); },
+	get classwork() { return m.cat_classwork(); },
+	get participation() { return m.cat_participation(); },
+	get behaviour() { return m.cat_behaviour(); },
+	get schularbeit() { return m.cat_schularbeit(); },
+	get project() { return m.cat_project(); }
 };
 
 export function categoryLabel(key) {
@@ -81,5 +83,5 @@ export function categoryLabel(key) {
 
 /** Datum kurz: "2027-01-20" -> "20 Jan" */
 export function shortDate(iso) {
-	return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+	return new Date(iso).toLocaleDateString('getLocale()', { day: 'numeric', month: 'short' });
 }
