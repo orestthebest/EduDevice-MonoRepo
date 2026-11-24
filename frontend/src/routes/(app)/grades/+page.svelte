@@ -23,7 +23,7 @@
 	// den Schnitt über das ganze Jahr statt nur den Stand je Trimester.
 	//
 	// Gerechnet wird nichts: alle Zahlen und Hinweise kommen fertig aus der API.
-	import PageHeader from '$lib/components/PageHeader.svelte';
+		import PageHeader from '$lib/components/PageHeader.svelte';
 	import Sparkline from '$lib/components/Sparkline.svelte';
 	import GradeTimeline from '$lib/components/GradeTimeline.svelte';
 	import ComponentBars from '$lib/components/ComponentBars.svelte';
@@ -32,6 +32,8 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Tip from '$lib/components/Tip.svelte';
 	import { fmtGrade, fmtSigned, standingOf, categoryLabel, shortDate } from '$lib/grades.js';
+	import { m } from '$lib/paraglide/messages.js';
+	import { getLocale } from '$lib/paraglide/runtime.js';
 
 	let { data } = $props();
 	let stats = $derived(data.stats);
@@ -44,17 +46,17 @@
 
 	// Kennzeichen der Hinweise: Notenstand oder Fehlzeiten
 	function noticeChip(kind) {
-		if (kind === 'absence_trend') return { label: 'Absence', chip: standingOf('fragile').chip };
-		if (kind.startsWith('absence')) return { label: 'Absence', chip: standingOf('failing').chip };
+		if (kind === 'absence_trend') return { label: m.grades_absence(), chip: standingOf('fragile').chip };
+		if (kind.startsWith('absence')) return { label: m.grades_absence(), chip: standingOf('failing').chip };
 		return standingOf(kind === 'unreachable' ? 'failing' : kind);
 	}
 	// Entwicklung der Noten: beschreibt die Noten, nicht den Menschen
 	const GROWTH = {
-		rising: { sign: '↗', label: 'Rising' },
-		steady: { sign: '→', label: 'Steady' },
-		falling: { sign: '↘', label: 'Falling' },
-		up_and_down: { sign: '↕', label: 'Up and down' },
-		too_early: { sign: '·', label: 'Too early to tell' }
+		rising: { sign: '↗', label: m.growth_rising() },
+		steady: { sign: '→', label: m.growth_steady() },
+		falling: { sign: '↘', label: m.growth_falling() },
+		up_and_down: { sign: '↕', label: m.growth_up_down() },
+		too_early: { sign: '·', label: m.growth_too_early() }
 	};
 	let growthSummary = $derived(
 		Object.entries(overall.growth ?? {})
@@ -63,7 +65,7 @@
 			.join(' · ')
 	);
 	const when = (iso) =>
-		new Date(iso).toLocaleString('en-GB', {
+		new Date(iso).toLocaleString(getLocale(), {
 			day: 'numeric',
 			month: 'short',
 			hour: '2-digit',
@@ -100,23 +102,23 @@
 	// je Art: Icon, Stichwort (Hinweis beim Icon) und eine kurze, freundliche
 	// Bemerkung vorne - auch bei den Achtung-Punkten ermutigend, nie ein Urteil
 	const INSIGHT = {
-		recent_lift: { icon: 'trend-up', keyword: 'Big step up', remark: 'Nice!' },
-		good_mark: { icon: 'star', keyword: 'Above your usual', remark: 'Well done!' },
-		streak: { icon: 'zap', keyword: 'On a roll', remark: 'Keep it up!' },
-		trimester_up: { icon: 'trend-up', keyword: 'Steadily improving', remark: 'Getting there!' },
-		attendance_clean: { icon: 'check', keyword: 'Full attendance', remark: 'Nice!' },
-		near_round_up: { icon: 'target', keyword: 'Almost a grade up', remark: 'So close!' },
+		recent_lift: { icon: 'trend-up', keyword: m.ins_kw_recent_lift(), remark: m.ins_nice() },
+		good_mark: { icon: 'star', keyword: m.ins_kw_good_mark(), remark: m.ins_well_done() },
+		streak: { icon: 'zap', keyword: m.ins_kw_streak(), remark: m.ins_keep_it_up() },
+		trimester_up: { icon: 'trend-up', keyword: m.ins_kw_trimester_up(), remark: m.ins_getting_there() },
+		attendance_clean: { icon: 'check', keyword: m.ins_kw_attendance_clean(), remark: m.ins_nice() },
+		near_round_up: { icon: 'target', keyword: m.ins_kw_near_round_up(), remark: m.ins_so_close() },
 		trimester_down: {
 			icon: 'trend-down',
-			keyword: 'Dipped this trimester',
-			remark: 'You can turn this around.'
+			keyword: m.ins_kw_trimester_down(),
+			remark: m.ins_turn_around()
 		},
 		unusual_drop: {
 			icon: 'trend-down',
-			keyword: 'Unusual dip',
-			remark: 'One mark is not the whole story.'
+			keyword: m.ins_kw_unusual_drop(),
+			remark: m.ins_not_whole_story()
 		},
-		absence_pace: { icon: 'clock', keyword: 'Watch your absences', remark: "There's still time." }
+		absence_pace: { icon: 'clock', keyword: m.ins_kw_absence_pace(), remark: m.ins_still_time() }
 	};
 	const failTone = (p) =>
 		p >= 0.5
@@ -126,29 +128,31 @@
 				: 'bg-surface text-navy';
 </script>
 
-<svelte:head><title>My grades · EduDevice</title></svelte:head>
+<svelte:head><title>{m.nav_my_grades()} · EduDevice</title></svelte:head>
 
 <PageHeader
-	title={data.isOwnView ? 'My grades' : stats.student.name}
-	subtitle="As of {new Date(stats.as_of).toLocaleDateString('en-GB', {
-		day: 'numeric',
-		month: 'long',
-		year: 'numeric'
-	})}"
+	title={data.isOwnView ? m.nav_my_grades() : stats.student.name}
+	subtitle={m.grades_as_of({
+		date: new Date(stats.as_of).toLocaleDateString(getLocale(), {
+			day: 'numeric',
+			month: 'long',
+			year: 'numeric'
+		})
+	})}
 />
 
 {#if stats.subjects.length === 0}
 	<div class="rounded-2xl border border-line bg-white p-10 text-center">
 		{#if !data.isOwnView && data.user.role === 'lehrkraft'}
 			<!-- Lehrkräfte sehen nur ihre eigenen Fächer -->
-			<p class="font-medium">No grades in your subjects</p>
+			<p class="font-medium">{m.grades_none_teacher_title()}</p>
 			<p class="mt-1 text-sm text-subtle">
-				{stats.student.name} has no marks in a subject you teach. Teachers only see their own subjects.
+				{m.grades_none_teacher_text({ name: stats.student.name })}
 			</p>
 		{:else}
-			<p class="font-medium">No grades yet</p>
+			<p class="font-medium">{m.grades_none_title()}</p>
 			<p class="mt-1 text-sm text-subtle">
-				As soon as your teachers enter marks, your results appear here.
+				{m.grades_none_text()}
 			</p>
 		{/if}
 	</div>
@@ -158,30 +162,30 @@
 		class="grid gap-6 rounded-2xl border border-sidebar-border bg-dash-gradient px-6 py-6 sm:px-8 md:grid-cols-[1fr_auto] md:items-center"
 	>
 		<div>
-			<p class="text-sm font-semibold text-accent-dark">Overall average</p>
+			<p class="text-sm font-semibold text-accent-dark">{m.grades_overall()}</p>
 			<div class="mt-1 flex items-baseline gap-3">
 				<span class="font-heading text-5xl font-bold tabular-nums">{fmtGrade(overall.raw)}</span>
 				{#if overall.rounded != null}
 					<span class="text-subtle"
-						>rounds to <strong class="text-navy">{overall.rounded}</strong></span
+						>{m.grades_rounds_to()} <strong class="text-navy">{overall.rounded}</strong></span
 					>
 				{/if}
 			</div>
 			<p class="mt-2 text-sm text-subtle">
-				Across {overall.n_subjects} subject{overall.n_subjects === 1 ? '' : 's'} ·
+				{overall.n_subjects === 1 ? m.grades_across_one({ n: overall.n_subjects }) : m.grades_across_many({ n: overall.n_subjects })} ·
 				{#if overall.attendance}
-					{pct(overall.attendance.rate)} of lessons missed ·
+					{m.grades_missed_pct({ rate: pct(overall.attendance.rate) })} ·
 				{/if}
 				<a
 					href="#how-grades-work"
 					onclick={() => (rulesOpen = true)}
 					class="font-medium text-accent-dark underline-offset-2 hover:text-accent-darker hover:underline"
 				>
-					How grades work
+					{m.grades_how_work()}
 				</a>
 			</p>
 			{#if growthSummary}
-				<p class="mt-1 text-sm text-subtle">Your marks: {growthSummary}</p>
+				<p class="mt-1 text-sm text-subtle">{m.grades_your_marks({ summary: growthSummary })}</p>
 			{/if}
 		</div>
 
@@ -205,7 +209,7 @@
 				? 'border-error/30 bg-error/[0.04]'
 				: 'border-warning/40 bg-warning/[0.06]'}"
 		>
-			<h2 class="text-lg font-semibold">Needs your attention</h2>
+			<h2 class="text-lg font-semibold">{m.grades_attention()}</h2>
 			<ul class="mt-3 space-y-2.5">
 				{#each notices as n (`${n.kind}-${n.class_subject_id}`)}
 					{@const st = noticeChip(n.kind)}
@@ -216,37 +220,33 @@
 						<p class="flex-1">
 							<strong>{n.subject_name}</strong>
 							{#if n.kind === 'absence_fail'}
-								— you have missed {pct(n.rate)} of this year's lessons. From 30 % the subject can no longer
-								be graded normally; talk to your teacher.
+								{m.notice_absence_fail({ rate: pct(n.rate) })}
 							{:else if n.kind === 'absence_exam'}
-								— you have missed {pct(n.rate)} of this year's lessons. From 20 % an extra exam is required.
+								{m.notice_absence_exam({ rate: pct(n.rate) })}
 							{:else if n.kind === 'absence_trend'}
-								— at your current pace you would miss about {pct(n.projected_rate, 0)} of this year's
-								lessons. From 20 % an extra exam is required.
+								{m.notice_absence_trend({ rate: pct(n.projected_rate, 0) })}
 							{:else if n.kind === 'unreachable'}
-								— even a 10 on everything still open would not reach the pass mark. Talk to your
-								teacher about what can still be done.
+								{m.notice_unreachable()}
 							{:else if n.kind === 'failing'}
-								is below the pass mark at {fmtGrade(n.current)}.
+								{m.notice_failing({ grade: fmtGrade(n.current) })}
 								{#if n.required_remaining_avg != null}
-									You need an average of <strong>{fmtGrade(n.required_remaining_avg)}</strong> on what's
-									still open to pass.
+									{m.notice_need_before()} <strong>{fmtGrade(n.required_remaining_avg)}</strong>
+									{m.notice_need_after()}
 								{/if}
 							{:else if n.secured}
-								is close to the line at {fmtGrade(n.current)}, but already safe: even 4s on
-								everything still open would pass.
+								{m.notice_secured({ grade: fmtGrade(n.current) })}
 							{:else}
-								is close to the line at {fmtGrade(n.current)}.
+								{m.notice_close({ grade: fmtGrade(n.current) })}
 								{#if n.required_remaining_avg != null}
-									An average of <strong>{fmtGrade(n.required_remaining_avg)}</strong> on what's still
-									open keeps you above it.
+									{m.notice_keep_before()} <strong>{fmtGrade(n.required_remaining_avg)}</strong>
+									{m.notice_keep_after()}
 								{/if}
 							{/if}
 						</p>
 						<a
 							href="#cs-{n.class_subject_id}"
 							onclick={() => openSubject(n.class_subject_id)}
-							class="shrink-0 text-sm font-medium text-accent-dark hover:text-accent-darker">View</a
+							class="shrink-0 text-sm font-medium text-accent-dark hover:text-accent-darker">{m.grades_view()}</a
 						>
 					</li>
 				{/each}
@@ -257,11 +257,11 @@
 	<!-- 3. Neueste Noten + Beobachtungen der Woche -->
 	<div class="mt-6 grid gap-6 lg:grid-cols-5">
 		<section class="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-3">
-			<h2 class="text-lg font-semibold">Recent grades</h2>
-			<p class="text-sm text-subtle">Your newest marks across all subjects</p>
+			<h2 class="text-lg font-semibold">{m.grades_recent()}</h2>
+			<p class="text-sm text-subtle">{m.grades_recent_sub()}</p>
 			{#if recent.length === 0}
 				<p class="mt-4 rounded-xl bg-surface px-4 py-6 text-center text-sm text-subtle">
-					No marks yet.
+					{m.grades_no_marks_yet()}.
 				</p>
 			{:else}
 				<ul class="mt-3 divide-y divide-divider">
@@ -278,12 +278,12 @@
 									{#if r.is_new}
 										<span
 											class="rounded-full bg-accent-light px-2 py-0.5 text-[11px] font-semibold text-accent-dark"
-											>New</span
+											>{m.grades_new()}</span
 										>
 									{/if}
 								</p>
 								<p class="truncate text-xs text-subtle">
-									{categoryLabel(r.category)}{r.weight !== 1 ? ` · weight ${r.weight}` : ''} · {shortDate(
+									{categoryLabel(r.category)}{r.weight !== 1 ? ` · ${m.grades_weight({ w: r.weight })}` : ''} · {shortDate(
 										r.date
 									)}
 								</p>
@@ -294,12 +294,12 @@
 								{r.effect > 0 ? 'text-success-dark' : r.effect < 0 ? 'text-error' : 'text-muted'}"
 							>
 								{#if r.effect == null}
-									first mark
+									{m.grades_first_mark()}
 								{:else if r.effect === 0}
-									no change
+									{m.grades_no_change()}
 								{:else}
 									<span class="font-semibold">{fmtSigned(r.effect)}</span>
-									<span class="block text-[11px] text-muted">to average</span>
+									<span class="block text-[11px] text-muted">{m.grades_to_average()}</span>
 								{/if}
 							</span>
 						</li>
@@ -309,12 +309,11 @@
 		</section>
 
 		<section class="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-2">
-			<h2 class="text-lg font-semibold">What we noticed</h2>
-			<p class="text-sm text-subtle">This week in your marks</p>
+			<h2 class="text-lg font-semibold">{m.grades_noticed()}</h2>
+			<p class="text-sm text-subtle">{m.grades_noticed_sub()}</p>
 			{#if insights.length === 0}
 				<p class="mt-4 rounded-xl bg-surface px-4 py-6 text-sm text-subtle">
-					Every week, up to three things that stand out in your marks show up here — what's going
-					well and what has changed.
+					{m.grades_noticed_empty()}
 				</p>
 			{:else}
 				<ul class="mt-3 space-y-2.5">
@@ -342,8 +341,8 @@
 	<!-- 4. Die Fächer -->
 	<section class="mt-6">
 		<div class="mb-3 flex items-baseline justify-between">
-			<h2 class="text-lg font-semibold">Subjects</h2>
-			<p class="text-xs text-muted">weakest first · line = your average over the year</p>
+			<h2 class="text-lg font-semibold">{m.grades_subjects()}</h2>
+			<p class="text-xs text-muted">{m.grades_subjects_hint()}</p>
 		</div>
 
 		<div class="space-y-3">
@@ -369,18 +368,18 @@
 								{#if s.growth}
 									<span
 										class="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-navy"
-										title="How your marks in this subject have developed this year"
+										title={m.grades_growth_title()}
 										>{GROWTH[s.growth.label].sign} {GROWTH[s.growth.label].label}</span
 									>
 								{/if}
 							</div>
 							<p class="mt-0.5 text-xs text-subtle">
-								{s.class_name} · {s.n_marks} mark{s.n_marks === 1 ? '' : 's'}
+								{s.class_name} · {s.n_marks === 1 ? m.grades_n_mark({ n: s.n_marks }) : m.grades_n_marks({ n: s.n_marks })}
 								{#if s.class_comparison}
-									· {fmtSigned(s.class_comparison.delta)} vs class average
+									· {m.grades_vs_class({ delta: fmtSigned(s.class_comparison.delta) })}
 								{/if}
 								{#if s.attendance}
-									· {pct(s.attendance.rate)} absent
+									· {m.grades_absent({ rate: pct(s.attendance.rate) })}
 								{/if}
 							</p>
 						</div>
@@ -394,7 +393,7 @@
 								{fmtGrade(s.current.raw)}
 							</div>
 							{#if s.current.rounded != null}
-								<div class="text-[11px] text-subtle">rounds to {s.current.rounded}</div>
+								<div class="text-[11px] text-subtle">{m.grades_rounds_to()} {s.current.rounded}</div>
 							{/if}
 						</div>
 						<span class="text-muted transition {open === i ? '-rotate-90' : 'rotate-180'}">
@@ -417,12 +416,12 @@
 													: 'bg-accent-light text-accent-dark'}"
 										>
 											{#if !s.reachable}
-												Even a 10 on everything still open would not reach the pass mark here.
+												{m.grades_unreachable()}
 											{:else if s.secured}
-												Already safe: even 4s on everything still open would pass this subject.
+												{m.grades_secured()}
 											{:else}
-												You need an average of <strong>{fmtGrade(s.required_remaining_avg)}</strong>
-												on what is still open to pass this subject.
+												{m.notice_need_before()} <strong>{fmtGrade(s.required_remaining_avg)}</strong>
+												{m.grades_need_after_subject()}
 											{/if}
 										</p>
 									{/if}
@@ -434,15 +433,14 @@
 											<span class="font-heading text-xl font-bold tabular-nums">{pct(fail, 0)}</span
 											>
 											<span class="flex-1">
-												chance to fail this subject
+												{m.grades_fail_chance()}
 												<span class="block text-xs opacity-80"
-													>Model estimate · only teachers see this</span
+													>{m.grades_model_estimate()}</span
 												>
 											</span>
 											<Tip
 												align="end"
-												text="From the same forecast as the likely band: how often its tested errors would put the final grade below {passMark}. Trained on simulated school years ({s
-													.forecast.model_version})."
+												text={m.grades_fail_tip({ pass: passMark, version: s.forecast.model_version })}
 											/>
 										</div>
 									{/if}
@@ -456,12 +454,12 @@
 									<h4
 										class="mb-2 flex items-center gap-1.5 text-xs font-medium tracking-wide text-subtle uppercase"
 									>
-										{likely ? 'Where the final grade is heading' : 'Final grade still possible'}
+										{likely ? m.grades_heading() : m.grades_still_possible()}
 										<Tip
 											align="start"
 											text={likely
-												? `“Likely” is a model estimate: in testing, 8 in 10 final grades landed in a range like this. “Still possible” means 4s or 10s on everything still open.${s.forecast.computed_at ? ` Updated ${when(s.forecast.computed_at)}.` : ''}`
-												: '“Still possible” means 4s or 10s on everything still open: the trimesters still to come, the rest of this one and any part without a mark yet.'}
+												? `${m.grades_likely_tip()}${s.forecast.computed_at ? ` ${m.grades_updated({ when: when(s.forecast.computed_at) })}` : ''}`
+												: m.grades_possible_tip()}
 										/>
 									</h4>
 									<RangeBar
@@ -478,7 +476,7 @@
 							<div class="grid gap-6 lg:grid-cols-2">
 								<div>
 									<h4 class="mb-3 text-xs font-medium tracking-wide text-subtle uppercase">
-										How the grade is made up
+										{m.grades_made_up()}
 									</h4>
 									<ComponentBars components={s.components} />
 								</div>
@@ -486,10 +484,10 @@
 									<h4
 										class="mb-1 flex items-center gap-1.5 text-xs font-medium tracking-wide text-subtle uppercase"
 									>
-										Over the year
+										{m.grades_over_year()}
 										<Tip
 											align="start"
-											text="The line is your average after each day with a new mark; the pale dots are the single marks."
+											text={m.grades_over_year_tip()}
 										/>
 									</h4>
 									<GradeTimeline
@@ -506,7 +504,7 @@
 								{#if s.attendance}
 									<div>
 										<h4 class="mb-3 text-xs font-medium tracking-wide text-subtle uppercase">
-											Attendance
+											{m.nav_attendance()}
 										</h4>
 										<AbsenceBudget absence={s.attendance} />
 									</div>
@@ -514,7 +512,7 @@
 								{#if s.recent.length}
 									<div>
 										<h4 class="mb-2 text-xs font-medium tracking-wide text-subtle uppercase">
-											Latest marks
+											{m.grades_latest()}
 										</h4>
 										<ul class="divide-y divide-divider text-sm">
 											{#each s.recent as r}
@@ -522,7 +520,7 @@
 													<span>
 														{categoryLabel(r.category)}
 														<span class="ml-1.5 text-[11px] text-muted">
-															{r.component}{r.weight !== 1 ? ` · weight ${r.weight}` : ''}
+															{r.component}{r.weight !== 1 ? ` · ${m.grades_weight({ w: r.weight })}` : ''}
 														</span>
 													</span>
 													<span class="flex items-center gap-3">
@@ -551,35 +549,25 @@
 		class="mt-6 scroll-mt-6 rounded-2xl border border-line bg-white"
 	>
 		<summary class="flex cursor-pointer list-none items-center justify-between p-5 font-semibold">
-			How grades work
+			{m.grades_how_work()}
 			<span class="text-muted transition {rulesOpen ? '-rotate-90' : 'rotate-180'}"
 				><Icon name="back" /></span
 			>
 		</summary>
 		<ul class="space-y-2 border-t border-divider p-5 text-sm text-subtle">
-			<li>Grades run from <strong class="text-navy">4 to 10</strong>; 10 is the best.</li>
+			<li>{m.rule1_before()} <strong class="text-navy">{m.rule1_range()}</strong>{m.rule1_after()}</li>
 			<li>
-				The pass mark is <strong class="text-navy">{passMark}</strong>. Averages round up only from
-				.6: 4.6 becomes a 5 (pass), 4.5 becomes a 4 (fail).
+				{m.rule2_before()} <strong class="text-navy">{passMark}</strong>{m.rule2_after()}
 			</li>
 			<li>
-				A subject grade is <strong class="text-navy">40 % Mitarbeit</strong>,
+				{m.rule3_before()} <strong class="text-navy">40 % Mitarbeit</strong>,
 				<strong class="text-navy">40 % Schularbeit</strong>
-				and <strong class="text-navy">20 % Projekt</strong>. Mitarbeit and Schularbeit are averaged
-				per trimester first, and every trimester counts the same. A part that has not been graded
-				yet is left out rather than counted as zero.
+				{m.rule3_and()} <strong class="text-navy">20 % Projekt</strong>{m.rule3_after()}
 			</li>
-			<li>
-				"Still open" means the trimesters still to come, the rest of the current one (at about the
-				pace so far) and any part without a mark yet. "Already safe" means even 4s on all of that
-				would pass.
-			</li>
-			<li>
-				The darker "likely" band is an estimate from a model, not a rule: it was tested on simulated
-				school years, where 8 in 10 final grades landed inside it.
-			</li>
-			<li>"Close to the line" means passing, but below {stats.scale.fragile_below}.</li>
-			<li>Class figures are averages only. You never see another student's marks.</li>
+			<li>{m.rule4()}</li>
+			<li>{m.rule5()}</li>
+			<li>{m.rule6({ value: stats.scale.fragile_below })}</li>
+			<li>{m.rule7()}</li>
 		</ul>
 	</details>
 {/if}
