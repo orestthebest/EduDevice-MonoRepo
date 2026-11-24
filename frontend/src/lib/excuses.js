@@ -1,22 +1,26 @@
 // frontend/src/lib/excuses.js
 // Anzeige-Hilfen für das Entschuldigungssystem (Schüler- und Lehrerseite)
+import { m } from '$lib/paraglide/messages.js';
+import { getLocale } from '$lib/paraglide/runtime.js';
+
 
 // Status-Badge: Funktionsfarben aus dem Corporate Design (Warning / Success / Error)
+// label ist ein Getter: der Text kommt erst beim Zugriff in der aktuellen Sprache
 export const EXCUSE_STATUS = {
-	pending: { label: 'Pending', class: 'bg-warning/15 text-[#b4730f]' },
-	accepted: { label: 'Accepted', class: 'bg-success/12 text-success-dark' },
-	rejected: { label: 'Rejected', class: 'bg-error/12 text-error' }
+	pending: { get label() { return m.excuse_pending(); }, class: 'bg-warning/15 text-[#b4730f]' },
+	accepted: { get label() { return m.excuse_accepted(); }, class: 'bg-success/12 text-success-dark' },
+	rejected: { get label() { return m.excuse_rejected(); }, class: 'bg-error/12 text-error' }
 };
 
 // attendance.status aus der DB -> Anzeigename
 export const ABSENCE_LABEL = {
-	abwesend: 'Absent',
-	verspaetet: 'Late'
+	get abwesend() { return m.absence_absent(); },
+	get verspaetet() { return m.absence_late(); }
 };
 
 // "2026-10-28" -> "Wed, 28 Oct"
 export function formatDay(value) {
-	return new Date(value + 'T00:00:00').toLocaleDateString('en-GB', {
+	return new Date(value + 'T00:00:00').toLocaleDateString(getLocale(), {
 		weekday: 'short',
 		day: 'numeric',
 		month: 'short'
