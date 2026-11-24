@@ -1,5 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { api, apiJson } from '$lib/server/api.js';
+import { m } from '$lib/paraglide/messages.js';
 
 // Fach + Materialien laden. Kein Zugriff -> API antwortet 404
 export async function load({ params, locals }) {
@@ -7,8 +8,8 @@ export async function load({ params, locals }) {
 	const base = `/subjects/${params.id}`;
 
 	const res = await api(base, { token });
-	if (res.status === 404) error(404, 'Subject not found');
-	if (!res.ok) error(res.status, 'Could not load the subject');
+	if (res.status === 404) error(404, m.subj_err_not_found());
+	if (!res.ok) error(res.status, m.subj_err_load());
 	const subject = await res.json();
 
 	// Schülerliste + Upload nur für den Lehrer des Fachs
@@ -40,10 +41,10 @@ export const actions = {
 		const title = form.get('title')?.toString().trim();
 
 		if (!(file instanceof File) || file.size === 0) {
-			return fail(400, { title, error: 'Please choose a file' });
+			return fail(400, { title, error: m.subj_err_choose_file() });
 		}
 		if (!title || title.length > 150) {
-			return fail(400, { title, error: 'Please enter a title (max. 150 characters)' });
+			return fail(400, { title, error: m.subj_err_title() });
 		}
 
 		const res = await api(`/subjects/${params.id}/materials`, {
@@ -52,10 +53,10 @@ export const actions = {
 			form
 		});
 
-		if (res.status === 413) return fail(400, { title, error: 'File is too big (max. 50 MB)' });
-		if (res.status === 400) return fail(400, { title, error: 'This file type is not allowed' });
-		if (res.status === 403) return fail(403, { title, error: 'You are not allowed to upload here' });
-		if (!res.ok) return fail(res.status, { title, error: 'Upload failed, please try again' });
+		if (res.status === 413) return fail(400, { title, error: m.subj_err_file_big() });
+		if (res.status === 400) return fail(400, { title, error: m.subj_err_file_type()});
+		if (res.status === 403) return fail(403, { title, error: m.subj_err_upload_forbidden()});
+		if (!res.ok) return fail(res.status, { title, error: m.prof_err_upload() });
 
 		return { uploaded: true };
 	},
@@ -64,7 +65,7 @@ export const actions = {
 	addStudent: async ({ request, params, locals }) => {
 		const form = await request.formData();
 		const studentId = Number(form.get('student_id'));
-		if (!studentId) return fail(400, { studentError: 'Please choose a student' });
+		if (!studentId) return fail(400, { studentError: m.subj_err_choose_student() });
 
 		const res = await api(`/subjects/${params.id}/students`, {
 			method: 'POST',
@@ -72,7 +73,7 @@ export const actions = {
 			json: { student_id: studentId }
 		});
 
-		if (!res.ok) return fail(res.status, { studentError: 'Student not found or already added' });
+		if (!res.ok) return fail(res.status, { studentError: m.subj_err_student_add() });
 		return { studentAdded: true };
 	},
 
@@ -84,7 +85,7 @@ export const actions = {
 			token: locals.token
 		});
 
-		if (!res.ok) return fail(res.status, { studentError: 'Could not remove the student' });
+		if (!res.ok) return fail(res.status, { studentError: m.subj_err_student_remove() });
 		return { studentRemoved: true };
 	},
 
@@ -96,8 +97,8 @@ export const actions = {
 			token: locals.token
 		});
 
-		if (res.status === 404) return fail(404, { deleteError: 'Material not found' });
-		if (!res.ok) return fail(res.status, { deleteError: 'You are not allowed to do this' });
+		if (res.status === 404) return fail(404, { deleteError: m.mat_err_not_found() });
+		if (!res.ok) return fail(res.status, { deleteError: m.err_forbidden() });
 		return { deleted: true };
 	},
 
@@ -110,10 +111,10 @@ export const actions = {
 
 		if (res.status === 409) {
 			return fail(409, {
-				deleteError: 'This subject already has grades, quizzes, homework or a timetable and cannot be deleted'
+				deleteError: m.subj_err_has_data()
 			});
 		}
-		if (!res.ok) return fail(res.status, { deleteError: 'You are not allowed to do this' });
+		if (!res.ok) return fail(res.status, { deleteError: m.err_forbidden() });
 
 		redirect(303, '/subjects');
 	}

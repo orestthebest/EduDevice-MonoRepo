@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import Icon from '$lib/components/Icon.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data, form } = $props();
 
@@ -9,11 +10,11 @@
 	const isTeacher = $derived(data.user.role === 'lehrkraft');
 
 	// Titel + Untertitel je nach Rolle
-	const title = $derived(isTeacher ? 'Subject management' : 'Subjects & materials');
+	const title = $derived(isTeacher ? m.subj_management() : m.nav_subjects_materials());
 	const subtitle = $derived(
-		isTeacher ? 'Create subjects, add students and share materials'
-		: isStudent ? 'All subjects you are enrolled in'
-		: 'All subjects of the school'
+		isTeacher ? m.subj_sub_teacher()
+		: isStudent ? m.subj_sub_student()
+		: m.subj_sub_admin()
 	);
     // "New subject"-Dialog (natives <dialog>-Element)
 	let dialog = $state();
@@ -31,7 +32,7 @@
 			onclick={() => dialog.showModal()}
 			class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-accent px-4 text-sm font-medium text-white transition hover:bg-accent-dark"
 		>
-			<Icon name="plus" /> New subject
+			<Icon name="plus" /> {m.subj_new()}
 		</button>
 	{/if}
 </PageHeader>
@@ -42,11 +43,9 @@
 		<span class="mx-auto grid size-12 place-items-center rounded-xl bg-accent-light text-accent-dark">
 			<Icon name="book" class="size-5" />
 		</span>
-		<p class="mt-4 font-semibold">No subjects yet</p>
+		<p class="mt-4 font-semibold">{m.subj_none()}</p>
 		<p class="mt-1 text-sm text-subtle">
-			{isTeacher ? 'Create your first subject to start sharing materials.'
-			: isStudent ? 'Your teachers have not added you to a subject yet.'
-			: 'Teachers have not created any subjects yet.'}
+				{isTeacher ? m.subj_none_teacher() : isStudent ? m.subj_none_student() : m.subj_none_admin()}
 		</p>
 	</div>
 {:else}
@@ -66,7 +65,7 @@
 							<Icon name="book" />
 						</span>
 						<span class="rounded-full bg-accent-light px-2.5 py-1 text-xs font-semibold text-accent-dark">
-							Class {s.class_name}
+							{m.class_name({ name: s.class_name })}
 						</span>
 					</div>
 
@@ -74,9 +73,9 @@
 					<p class="text-sm text-subtle">{s.teacher_name}</p>
 
 					<div class="mt-4 flex gap-4 border-t border-divider pt-3 text-xs text-subtle">
-						<span><strong class="text-navy">{s.file_count}</strong> files</span>
+						<span><strong class="text-navy">{s.file_count}</strong> {s.file_count === 1 ? m.subj_file() : m.subj_files()}</span>
 						{#if !isStudent}
-							<span><strong class="text-navy">{s.student_count}</strong> students</span>
+							<span><strong class="text-navy">{s.student_count}</strong> {m.subj_students()}</span>
 						{/if}
 					</div>
 				</div>
@@ -108,10 +107,10 @@
 		>
 			<div class="flex items-start justify-between">
 				<div>
-					<h2 class="text-xl font-bold">New subject</h2>
-					<p class="mt-1 text-sm text-subtle">All students of the class are added automatically.</p>
+					<h2 class="text-xl font-bold">{m.subj_new()}</h2>
+					<p class="mt-1 text-sm text-subtle">{m.subj_new_hint()}</p>
 				</div>
-				<button type="button" onclick={() => dialog.close()} class="cursor-pointer rounded-lg p-1 text-subtle hover:bg-surface" aria-label="Close">
+				<button type="button" onclick={() => dialog.close()} class="cursor-pointer rounded-lg p-1 text-subtle hover:bg-surface" aria-label={m.close()}>
 					<Icon name="x" class="size-5" />
 				</button>
 			</div>
@@ -122,9 +121,9 @@
 
 			<div class="mt-5 flex flex-col gap-4">
 				<div>
-					<label for="class_id" class="label">Class</label>
+					<label for="class_id" class="label">{m.class_label()}</label>
 					<select id="class_id" name="class_id" required class="input">
-						<option value="" disabled selected>Choose a class</option>
+						<option value="" disabled selected>{m.subj_choose_class()}</option>
 						{#each data.classes as c (c.id)}
 							<option value={c.id}>{c.name} · {c.school_year}</option>
 						{/each}
@@ -132,10 +131,10 @@
 				</div>
 
 				<div>
-					<label for="name" class="label">Subject name</label>
+					<label for="name" class="label">{m.subj_name()}</label>
 					<!-- list="subject-names" zeigt vorhandene Fächer als Vorschläge -->
 					<input id="name" name="name" list="subject-names" required maxlength="150"
-						placeholder="e.g. Mathematics" value={form?.name ?? ''} class="input" autocomplete="off" />
+						placeholder={m.subj_name_placeholder()} value={form?.name ?? ''} class="input" autocomplete="off" />
 					<datalist id="subject-names">
 						{#each data.subjectNames as n (n)}<option value={n}></option>{/each}
 					</datalist>
@@ -145,11 +144,11 @@
 			<div class="mt-6 flex justify-end gap-2">
 				<button type="button" onclick={() => dialog.close()}
 					class="cursor-pointer rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
-					Cancel
+					{m.cancel()}
 				</button>
 				<button type="submit" disabled={saving}
 					class="cursor-pointer rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60">
-					{saving ? 'Creating…' : 'Create subject'}
+					{saving ? m.subj_creating() : m.subj_create()}
 				</button>
 			</div>
 		</form>
