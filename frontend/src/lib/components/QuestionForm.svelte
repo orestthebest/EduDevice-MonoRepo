@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import Icon from '$lib/components/Icon.svelte';
 	import { TYPE_LABEL, gapIndexes } from '$lib/quiz.js';
+	import { m } from '$lib/paraglide/messages.js';
 
 	// question = bestehende Frage (bearbeiten) oder null (neue Frage)
 	// onDone   = wird nach dem Speichern oder bei "Cancel" aufgerufen
@@ -53,17 +54,17 @@
 
 	// Gleiche Regeln wie die API -> Fehler schon vor dem Absenden anzeigen
 	const problem = $derived.by(() => {
-		if (!text.trim()) return 'Please enter the question.';
-		if (!Number.isInteger(points) || points < 1 || points > 100) return 'Points must be a whole number from 1 to 100.';
+		if (!text.trim()) return m.quiz_err_q_text();
+		if (!Number.isInteger(points) || points < 1 || points > 100) return m.quiz_err_points();
 		if (type === 'mc') {
 			const filled = options.filter((o) => o.text.trim());
-			if (filled.length < 2) return 'Please enter at least 2 answers.';
-			if (!filled.some((o) => o.correct)) return 'Please mark at least one answer as correct.';
+			if (filled.length < 2) return m.quiz_err_two_answers();
+			if (!filled.some((o) => o.correct)) return m.quiz_err_one_correct();
 		}
 		if (type === 'gap') {
-			if (gapNumbers.length === 0) return 'Add at least one gap with "Insert gap".';
-			if (!gapNumbers.every((n, i) => n === i)) return 'Gaps must be numbered {{0}}, {{1}}, {{2}} … without missing numbers.';
-			if (gapNumbers.some((i) => !splitAnswers(gaps[i]).length)) return 'Every gap needs at least one accepted answer.';
+			if (gapNumbers.length === 0) return m.quiz_err_no_gap();
+			if (!gapNumbers.every((n, i) => n === i)) return m.quiz_err_gap_numbers({ example: '{{0}}, {{1}}, {{2}} …' });
+			if (gapNumbers.some((i) => !splitAnswers(gaps[i]).length)) return m.quiz_err_gap_answer();
 		}
 		return '';
 	});
@@ -114,31 +115,31 @@
 
 	<div>
 		<div class="mb-1.5 flex items-end justify-between gap-2">
-			<label for="q-text" class="text-sm font-medium">{type === 'tf' ? 'Statement' : 'Question'}</label>
+			<label for="q-text" class="text-sm font-medium">{type === 'tf' ? m.quiz_statement() : m.quiz_question_label()}</label>
 			{#if type === 'gap'}
 				<button type="button" onclick={insertGap}
 					class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-ghost px-2 py-1 text-xs font-medium transition hover:border-accent hover:text-accent-dark">
-					<Icon name="plus" class="size-3.5" /> Insert gap
+					<Icon name="plus" class="size-3.5" /> {m.quiz_insert_gap()}
 				</button>
 			{/if}
 		</div>
 		<textarea id="q-text" bind:this={textArea} bind:value={text} rows="3" class="input resize-y"
-			placeholder={type === 'gap' ? 'e.g. 3/4 as a decimal is {{0}}.' : type === 'tf' ? 'e.g. 1/3 is bigger than 1/4.' : 'e.g. Which fractions equal 1/2?'}
+			placeholder={type === 'gap' ? m.quiz_ph_gap({ gap: '{{0}}' }) : type === 'tf' ? m.quiz_ph_tf() : m.quiz_ph_mc()}
 		></textarea>
 	</div>
 
 	{#if type === 'mc'}
 		<div>
-			<p class="label">Answers <span class="font-normal text-subtle">– tick every correct one</span></p>
+			<p class="label">{m.quiz_answers()} <span class="font-normal text-subtle">{m.quiz_tick_correct()}</span></p>
 			<div class="flex flex-col gap-2">
 				{#each options as option, i (i)}
 					<div class="flex items-center gap-2">
-						<input type="checkbox" bind:checked={option.correct} aria-label="Answer {i + 1} is correct"
+						<input type="checkbox" bind:checked={option.correct} aria-label={m.quiz_answer_correct({ n: i + 1 })}
 							class="size-5 cursor-pointer rounded border-input text-success focus:ring-success/30" />
-						<input bind:value={option.text} placeholder="Answer {i + 1}" class="input py-2" />
+						<input bind:value={option.text} placeholder={m.quiz_answer_n({ n: i + 1 })} class="input py-2" />
 						<button type="button" onclick={() => options.splice(i, 1)} disabled={options.length <= 2}
 							class="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg border border-ghost text-subtle transition hover:border-error hover:text-error disabled:cursor-not-allowed disabled:opacity-40"
-							aria-label="Remove answer {i + 1}">
+							aria-label={m.quiz_remove_answer({ n: i + 1 })}>
 							<Icon name="x" />
 						</button>
 					</div>
@@ -146,14 +147,14 @@
 			</div>
 			<button type="button" onclick={() => options.push({ text: '', correct: false })}
 				class="mt-2 inline-flex cursor-pointer items-center gap-1 text-sm font-medium text-accent-dark hover:text-accent-darker">
-				<Icon name="plus" /> Add answer
+				<Icon name="plus" /> {m.quiz_add_answer()}
 			</button>
 		</div>
 	{:else if type === 'tf'}
 		<div>
-			<p class="label">Correct answer</p>
+			<p class="label">{m.quiz_correct_answer()}</p>
 			<div class="grid grid-cols-2 gap-2">
-				{#each [[true, 'True'], [false, 'False']] as [value, label] (label)}
+				{#each [[true, m.quiz_true()], [false, m.quiz_false()]] as [value, label] (label)}
 					<button type="button" onclick={() => (tfCorrect = value)}
 						class="cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition
 						{tfCorrect === value ? 'border-success bg-success/12 text-success-dark' : 'border-ghost hover:border-accent'}">
@@ -164,25 +165,25 @@
 		</div>
 	{:else}
 		<div>
-			<p class="label">Accepted answers <span class="font-normal text-subtle">– separate alternatives with ;</span></p>
+			<p class="label">{m.quiz_accepted()} <span class="font-normal text-subtle">{m.quiz_separate()}</span></p>
 			{#if gapNumbers.length === 0}
-				<p class="rounded-xl bg-surface px-4 py-4 text-center text-xs text-subtle">Click "Insert gap" where the student should type something.</p>
+				<p class="rounded-xl bg-surface px-4 py-4 text-center text-xs text-subtle">{m.quiz_gap_click_hint()}</p>
 			{:else}
 				<div class="flex flex-col gap-2">
 					{#each gapNumbers as n (n)}
 						<div class="flex items-center gap-2">
 							<span class="shrink-0 rounded-md bg-accent-light px-2 py-1 font-mono text-xs text-accent-dark">{`{{${n}}}`}</span>
-							<input bind:value={gaps[n]} placeholder="e.g. 0,75; 0.75" class="input py-2" />
+							<input bind:value={gaps[n]} placeholder={m.quiz_ph_gap_answers()} class="input py-2" />
 						</div>
 					{/each}
 				</div>
-				<p class="mt-2 text-xs text-subtle">Upper/lower case and spaces at the edges are ignored.</p>
+				<p class="mt-2 text-xs text-subtle">{m.quiz_case_hint()}</p>
 			{/if}
 		</div>
 	{/if}
 
 	<div class="w-28">
-		<label for="q-points" class="label">Points</label>
+		<label for="q-points" class="label">{m.quiz_points_label()}</label>
 		<input id="q-points" type="number" min="1" max="100" step="1" bind:value={points} class="input py-2" />
 	</div>
 
@@ -194,13 +195,13 @@
 		{#if question}
 			<button type="button" onclick={onDone}
 				class="cursor-pointer rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
-				Cancel
+				{m.cancel()}
 			</button>
 		{/if}
 		<button type="submit" disabled={saving}
 			class="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-50">
 			{#if !question}<Icon name="plus" />{/if}
-			{saving ? 'Saving…' : question ? 'Save question' : 'Add question'}
+			{saving ? m.saving() : question ? m.quiz_save_question() : m.quiz_add_question()}
 		</button>
 	</div>
 </form>
