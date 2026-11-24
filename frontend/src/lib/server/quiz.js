@@ -8,6 +8,7 @@
 import { env } from '$env/dynamic/private';
 import { api } from './api.js';
 import { mockApi } from './quiz-mock.js';
+import { m } from '$lib/paraglide/messages.js';
 
 export function quizApi(path, locals, { method = 'GET', json } = {}) {
 	if (env.QUIZ_MOCK === '1') return mockApi(path, { method, json, user: locals.user });
