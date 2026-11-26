@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { apiJson } from '$lib/server/api.js';
+import { m } from '$lib/paraglide/messages.js';
 
 // Notenstatistiken der Schülersicht (Ziel-M-3).
 //
@@ -21,7 +22,7 @@ export async function load({ locals, url }) {
 	const studentId = user.role === 'schueler' ? user.id : requested || user.id;
 
 	if (user.role !== 'schueler' && !requested) {
-		error(400, 'Please choose a student to show');
+		error(400, m.grades_err_choose_student());
 	}
 
 	const stats = await apiJson(`/statistics/student/${studentId}`, { token });

@@ -6,6 +6,7 @@
 	// Gestrichelt die Bestehensgrenze, der letzte Punkt (der aktuelle Schnitt)
 	// ist markiert. Eine Datenreihe, eine Farbe, keine Legende.
 	import { scalePos, fmtGrade, shortDate } from '$lib/grades.js';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { points = [], passMark = 4.6, width = 120, height = 36 } = $props();
 
@@ -24,7 +25,7 @@
 	let label = $derived(
 		points.length < 2
 			? ''
-			: `Average went from ${fmtGrade(points[0].raw)} to ${fmtGrade(last.raw)} over ${points.length} grading days`
+			: m.spark_label({ from: fmtGrade(points[0].raw), to: fmtGrade(last.raw), n: points.length })
 	);
 </script>
 
@@ -58,7 +59,7 @@
 		{#each points as p, i}
 			<!-- unsichtbare, größere Trefferfläche je Punkt für den Tooltip -->
 			<circle cx={x(i)} cy={y(p.raw)} r="6" fill="transparent">
-				<title>{shortDate(p.date)}: average {fmtGrade(p.raw)}</title>
+				<title>{m.spark_point({ date: shortDate(p.date), grade: fmtGrade(p.raw) })}</title>
 			</circle>
 		{/each}
 		<circle
@@ -71,5 +72,5 @@
 		/>
 	</svg>
 {:else}
-	<span class="text-xs text-muted">too few marks for a trend</span>
+	<span class="text-xs text-muted">{m.spark_too_few()}</span>
 {/if}

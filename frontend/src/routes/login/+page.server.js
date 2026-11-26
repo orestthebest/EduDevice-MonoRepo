@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { login } from '$lib/server/api.js';
+import { m } from '$lib/paraglide/messages.js';
 
 // Wer schon eingeloggt ist, braucht die Login-Seite nicht
 export function load({ locals }) {
@@ -19,7 +20,7 @@ export const actions = {
 		const role = ROLES[form.get('role')?.toString()];
 
 		if (!username || !password || !role) {
-			return fail(400, { username, error: 'Please fill in all fields' });
+			return fail(400, { username, error: m.error_fill_all() });
 		}
 
 		// getClientAddress(): echte IP mitschicken, damit das Login-Limit pro Benutzer gilt
@@ -27,12 +28,12 @@ export const actions = {
 
 		// Gleiche Meldung für "User existiert nicht" und "falsches Passwort"
 		if (!result) {
-			return fail(400, { username, error: 'Wrong username or password' });
+			return fail(400, { username, error: m.error_wrong_credentials() });
 		}
 
 		// Gewählte Rolle muss zur Rolle des Accounts passen
 		if (result.role !== role) {
-			return fail(400, { username, error: 'This account does not have the selected role' });
+			return fail(400, { username, error: m.error_wrong_role() });
 		}
 
 		// Token im Cookie speichern (so lange gültig wie das Token: 60 Minuten)

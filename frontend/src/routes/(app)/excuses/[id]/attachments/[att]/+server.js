@@ -1,21 +1,22 @@
 import { error } from '@sveltejs/kit';
 import { api } from '$lib/server/api.js';
+import { m } from '$lib/paraglide/messages.js';
 
 // Anhang einer Entschuldigung: /excuses/5/attachments/12
 // Mit ?view öffnet der Browser die Datei (PDF/Bild) direkt, ohne ?view wird sie heruntergeladen.
 // Wer sie sehen darf (SchülerIn selbst, Klassenvorstand, Admin), prüft die API.
 // +server.js läuft NICHT durch das (app)-Layout, daher Login hier selbst prüfen
 export async function GET({ params, locals, url }) {
-	if (!locals.user) error(401, 'Please log in');
+	if (!locals.user) error(401, m.err_login());
 
 	const id = Number(params.id);
 	const att = Number(params.att);
-	if (!Number.isInteger(id) || !Number.isInteger(att)) error(404, 'Attachment not found');
+	if (!Number.isInteger(id) || !Number.isInteger(att)) error(404, m.exc_err_att_not_found());
 
 	const res = await api(`/excuses/${id}/attachments/${att}/download`, { token: locals.token });
 
-	if (res.status === 404) error(404, 'Attachment not found');
-	if (!res.ok) error(res.status, 'Download failed');
+	if (res.status === 404) error(404, m.exc_err_att_not_found());
+	if (!res.ok) error(res.status, m.mat_err_download());
 
 	// Nur die wichtigen Header übernehmen: Dateityp, Größe, Originalname
 	const headers = new Headers();

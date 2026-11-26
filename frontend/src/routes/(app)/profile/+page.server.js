@@ -1,5 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import { api } from '$lib/server/api.js';
+import { m } from '$lib/paraglide/messages.js';
 
 // Profilseite: die Daten kommen schon von /auth/me (hooks.server.js -> locals.user),
 // deshalb ist hier kein extra API-Aufruf nötig.
@@ -19,16 +20,16 @@ export const actions = {
 
 		// Passwörter nie zurück an die Seite schicken, nur die Fehlermeldung
 		if (!current_password || !new_password) {
-			return fail(400, { passwordError: 'Please fill in all fields' });
+			return fail(400, { passwordError: m.error_fill_all() });
 		}
 		if (new_password.length < 8 || new_password.length > 72) {
-			return fail(400, { passwordError: 'The new password must be 8–72 characters long' });
+			return fail(400, { passwordError: m.prof_err_password_length() });
 		}
 		if (new_password !== confirm_password) {
-			return fail(400, { passwordError: 'The new passwords do not match' });
+			return fail(400, { passwordError: m.prof_err_password_mismatch() });
 		}
 		if (new_password === current_password) {
-			return fail(400, { passwordError: 'The new password must be different from the current one' });
+			return fail(400, { passwordError: m.prof_err_password_same() });
 		}
 
 		const res = await api('/users/me/password', {
@@ -37,10 +38,10 @@ export const actions = {
 			json: { current_password, new_password }
 		});
 
-		if (res.status === 400) return fail(400, { passwordError: 'Your current password is wrong' });
-		if (res.status === 422) return fail(400, { passwordError: 'The new password must be 8–72 characters long' });
-		if (res.status === 429) return fail(429, { passwordError: 'Too many attempts, please wait a minute' });
-		if (!res.ok) return fail(res.status, { passwordError: 'Could not change your password' });
+		if (res.status === 400) return fail(400, { passwordError: m.prof_err_password_wrong() });
+		if (res.status === 422) return fail(400, { passwordError: m.prof_err_password_length() });
+		if (res.status === 429) return fail(429, { passwordError: m.prof_err_too_many() });
+		if (!res.ok) return fail(res.status, { passwordError: m.prof_err_password_save()});
 
 		return { passwordSuccess: true };
 	},
@@ -51,17 +52,17 @@ export const actions = {
 		const username = form.get('username')?.toString().trim() ?? '';
 
 		if (username.length < 3 || username.length > 50) {
-			return fail(400, { username, usernameError: 'Username must be 3–50 characters long' });
+			return fail(400, { username, usernameError: m.prof_err_username_length() });
 		}
 		if (username === locals.user.username) {
-			return fail(400, { username, usernameError: 'This is already your username' });
+			return fail(400, { username, usernameError: m.prof_err_username_same() });
 		}
 
 		const res = await api('/users/me', { method: 'PATCH', token: locals.token, json: { username } });
 
-		if (res.status === 409) return fail(409, { username, usernameError: 'This username is already taken' });
-		if (res.status === 422) return fail(400, { username, usernameError: 'Username must be 3–50 characters long' });
-		if (!res.ok) return fail(res.status, { username, usernameError: 'Could not save your username' });
+		if (res.status === 409) return fail(409, { username, usernameError: m.error_username_taken() });
+		if (res.status === 422) return fail(400, { username, usernameError: m.prof_err_username_length() });
+		if (!res.ok) return fail(res.status, { username, usernameError: m.prof_err_username_save() });
 
 		// Token bleibt gültig (enthält die User-ID), /auth/me liefert danach den neuen Username
 		return { usernameSuccess: true };
@@ -74,17 +75,17 @@ export const actions = {
 
 		// Gleiche Regel wie in der API (schemas.py)
 		if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 255) {
-			return fail(400, { email, error: 'Please enter a valid email address' });
+			return fail(400, { email, error: m.prof_err_email_invalid() });
 		}
 		if (email === locals.user.email) {
-			return fail(400, { email, error: 'This is already your email address' });
+			return fail(400, { email, error: m.prof_err_email_same() });
 		}
 
 		const res = await api('/users/me', { method: 'PATCH', token: locals.token, json: { email } });
 
-		if (res.status === 409) return fail(409, { email, error: 'This email is already in use' });
-		if (res.status === 422) return fail(400, { email, error: 'Please enter a valid email address' });
-		if (!res.ok) return fail(res.status, { email, error: 'Could not save your email' });
+		if (res.status === 409) return fail(409, { email, error: m.prof_err_email_taken() });
+		if (res.status === 422) return fail(400, { email, error: m.prof_err_email_invalid() });
+		if (!res.ok) return fail(res.status, { email, error: m.prof_err_email_save() });
 
 		// Danach lädt SvelteKit die Seite neu -> hooks.server.js holt die neue E-Mail von /auth/me
 		return { success: true };
@@ -96,31 +97,31 @@ export const actions = {
 		const file = form.get('file');
 
 		if (!(file instanceof File) || file.size === 0) {
-			return fail(400, { avatarError: 'Please choose an image' });
+			return fail(400, { avatarError: m.prof_err_choose_image() });
 		}
 		if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-			return fail(400, { avatarError: 'Only JPG, PNG or WebP images are allowed' });
+			return fail(400, { avatarError: m.prof_err_image_type() });
 		}
 		if (file.size > 2 * 1024 * 1024) {
-			return fail(400, { avatarError: 'Image is too big (max. 2 MB)' });
+			return fail(400, { avatarError: m.prof_err_image_size() });
 		}
 
 		const body = new FormData();
 		body.append('file', file);
 		const res = await api('/users/me/avatar', { method: 'POST', token: locals.token, form: body });
 
-		if (res.status === 413) return fail(400, { avatarError: 'Image is too big (max. 2 MB)' });
-		if (res.status === 400) return fail(400, { avatarError: 'This file is not a valid image' });
-		if (!res.ok) return fail(res.status, { avatarError: 'Upload failed, please try again' });
+		if (res.status === 413) return fail(400, { avatarError: m.prof_err_image_size() });
+		if (res.status === 400) return fail(400, { avatarError: m.prof_err_image_invalid() });
+		if (!res.ok) return fail(res.status, { avatarError: m.prof_err_upload() });
 
-		return { avatarSuccess: 'Your profile picture has been updated.' };
+		return { avatarSuccess: m.prof_picture_updated() };
 	},
 
 	// Profilbild entfernen -> wieder Initialen
 	removeAvatar: async ({ locals }) => {
 		const res = await api('/users/me/avatar', { method: 'DELETE', token: locals.token });
-		if (!res.ok) return fail(res.status, { avatarError: 'Could not remove the picture' });
+		if (!res.ok) return fail(res.status, { avatarError: m.prof_err_remove() });
 
-		return { avatarSuccess: 'Your profile picture has been removed.' };
+		return { avatarSuccess: m.prof_picture_removed() };
 	}
 };

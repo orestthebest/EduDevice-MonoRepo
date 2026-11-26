@@ -6,6 +6,7 @@
 	import { periodLabel } from '$lib/timetable.js';
 	import { formatDate } from '$lib/format.js';
 	import Attachments from '$lib/components/Attachments.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data, form } = $props();
 
@@ -14,14 +15,14 @@
 </script>
 
 <svelte:head>
-	<title>Excuse review · EduDevice</title>
+	<title>{m.nav_excuse_review()} · EduDevice</title>
 </svelte:head>
 
-<PageHeader title="Excuse review" subtitle="Excuses from students of your class" />
+<PageHeader title={m.nav_excuse_review()} subtitle={m.rev_subtitle()} />
 
 <!-- Tabs -->
 <div class="mb-4 inline-flex rounded-xl border border-line bg-white p-1">
-	{#each [['pending', `Pending (${data.pending.length})`], ['reviewed', 'History']] as [key, label] (key)}
+	{#each [['pending', `${m.excuse_pending()} (${data.pending.length})`], ['reviewed', m.rev_history()]] as [key, label] (key)}
 		<button
 			type="button"
 			class="cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition
@@ -41,7 +42,7 @@
 	{#if data.pending.length === 0}
 		<section class="flex items-center gap-3 rounded-2xl border border-line bg-white p-6 text-sm text-subtle">
 			<Icon name="check" class="size-5 text-success" />
-			No excuses waiting for review.
+			{m.dash_no_pending()}
 		</section>
 	{:else}
 		<div class="space-y-4">
@@ -52,7 +53,7 @@
 						<div>
 							<h2 class="text-lg font-semibold">{e.student_name}</h2>
 							<p class="text-sm text-subtle">
-								Class {e.class_name} · {formatRange(e.date_from, e.date_to)} · submitted {formatDate(e.submitted_at)}
+								{m.class_name({ name: e.class_name })} · {formatRange(e.date_from, e.date_to)} · {m.quiz_submitted({ date: formatDate(e.submitted_at) })}
 							</p>
 						</div>
 						<span class="rounded-full px-3 py-1 text-xs font-semibold {EXCUSE_STATUS.pending.class}">
@@ -75,13 +76,13 @@
 					</ul>
 
 					<!-- Begründung des Schülers -->
-					<p class="mt-4 text-xs font-semibold tracking-wider text-subtle uppercase">Reason</p>
+					<p class="mt-4 text-xs font-semibold tracking-wider text-subtle uppercase">{m.exc_reason()}</p>
 					<p class="mt-1 text-sm">{e.reason}</p>
 
 					
 					<!-- Anhänge des Schülers (z. B. Arztbestätigung) -->
 					{#if e.attachments?.length}
-						<p class="mt-4 text-xs font-semibold tracking-wider text-subtle uppercase">Attachments</p>
+						<p class="mt-4 text-xs font-semibold tracking-wider text-subtle uppercase">{m.exc_attachments()}</p>
 						<Attachments excuseId={e.id} attachments={e.attachments} />
 					{/if}
 
@@ -99,9 +100,9 @@
 						}}
 					>
 						<input type="hidden" name="id" value={e.id} />
-						<label for="comment-{e.id}" class="label">Comment <span class="font-normal text-subtle">(required when rejecting)</span></label>
+						<label for="comment-{e.id}" class="label">{m.rev_comment()} <span class="font-normal text-subtle">{m.rev_comment_hint()}</span></label>
 						<textarea id="comment-{e.id}" name="comment" rows="2" maxlength="500" class="input resize-y"
-							placeholder="e.g. Please bring a doctor's note"
+							placeholder={m.rev_comment_placeholder()}
 							value={form?.id === e.id ? (form.comment ?? '') : ''}></textarea>
 
 						{#if form?.error && form?.id === e.id}
@@ -111,11 +112,11 @@
 						<div class="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
 							<button type="submit" name="status" value="rejected" disabled={busyId === e.id}
 								class="cursor-pointer rounded-lg border border-ghost px-5 py-2.5 text-sm font-medium transition hover:border-error hover:text-error">
-								Reject
+								{m.rev_reject()}
 							</button>
 							<button type="submit" name="status" value="accepted" disabled={busyId === e.id}
 								class="btn-primary text-sm sm:w-auto sm:px-6">
-								{busyId === e.id ? 'Saving…' : 'Accept'}
+								{busyId === e.id ? m.saving() : m.rev_accept()}
 							</button>
 						</div>
 					</form>
@@ -127,7 +128,7 @@
 	<!-- Bereits entschiedene Entschuldigungen -->
 	<section class="rounded-2xl border border-line bg-white p-6">
 		{#if data.reviewed.length === 0}
-			<p class="text-sm text-subtle">No reviewed excuses yet.</p>
+			<p class="text-sm text-subtle">{m.rev_none_reviewed()}</p>
 		{:else}
 			<ul class="divide-y divide-divider">
 				{#each data.reviewed as e (e.id)}
@@ -143,7 +144,7 @@
 						</div>
 						<p class="mt-1 text-xs text-subtle">
 							{formatRange(e.date_from, e.date_to)} · {e.absences.length}
-							{e.absences.length === 1 ? 'lesson' : 'lessons'} · reviewed {formatDate(e.reviewed_at)}
+							{e.absences.length === 1 ? m.exc_lesson() : m.exc_lessons()} · {m.rev_reviewed({ date: formatDate(e.reviewed_at) })}
 						</p>
 						<p class="mt-2 text-sm">{e.reason}</p>
 
@@ -151,7 +152,7 @@
 
 						{#if e.teacher_comment}
 							<p class="mt-2 rounded-lg bg-surface px-3 py-2 text-sm">
-								<span class="font-medium">Your comment:</span> {e.teacher_comment}
+								<span class="font-medium">{m.rev_your_comment()}</span> {e.teacher_comment}
 							</p>
 						{/if}
 					</li>

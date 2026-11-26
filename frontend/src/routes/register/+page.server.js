@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { api, login } from '$lib/server/api.js';
+import { m } from '$lib/paraglide/messages.js';
 
 export function load({ locals }) {
 	if (locals.user) redirect(303, '/');
@@ -22,13 +23,13 @@ export const actions = {
 		const role = ROLES[form.get('role')?.toString()];
 
 		if (!values.firstName || !values.lastName || !values.username || !values.email || !password) {
-			return fail(400, { values, error: 'Please fill in all fields' });
+			return fail(400, { values, error: m.error_fill_all() });
 		}
 		if (password.length < 8) {
-			return fail(400, { values, error: 'Password must be at least 8 characters' });
+			return fail(400, { values, error: m.error_password_short() });
 		}
 		if (!role) {
-			return fail(400, { values, error: 'Please choose Student or Teacher' });
+			return fail(400, { values, error: m.error_choose_role() });
 		}
 
 		const res = await api('/auth/register', {
@@ -47,15 +48,15 @@ export const actions = {
 		// 409 = username oder email existiert schon
 		if (res.status === 409) {
 			const { detail } = await res.json();
-			const error = detail.includes('E-Mail') ? 'E-mail is already registered' : 'Username is already taken';
+			const error = detail.includes('E-Mail') ? m.error_email_taken() : m.error_username_taken();
 			return fail(400, { values, error });
 		}
 		// 422 = Eingabe ungültig (z. B. Username zu kurz, E-Mail falsch)
 		if (res.status === 422) {
-			return fail(400, { values, error: 'Please check your input (username min. 3 characters, valid e-mail)' });
+			return fail(400, { values, error: m.error_invalid_input() });
 		}
 		if (!res.ok) {
-			return fail(res.status, { values, error: 'Registration failed, please try again' });
+			return fail(res.status, { values, error: m.error_register_failed() });
 		}
 
 		// Direkt einloggen und Token-Cookie setzen

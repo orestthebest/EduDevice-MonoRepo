@@ -3,12 +3,13 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { formatSize, formatDate, typeColor } from '$lib/format.js';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data, form } = $props();
 
 	const s = $derived(data.subject);
 	const subtitle = $derived(
-		`Class ${s.class_name} · ${s.teacher_name} · ${s.file_count} ${s.file_count === 1 ? 'file' : 'files'}`
+		`${m.class_name({ name: s.class_name })} · ${s.teacher_name} · ${s.file_count} ${s.file_count === 1 ? m.subj_file() : m.subj_files()}`
 	);
     	// Nur der Lehrer dieses Fachs darf hochladen
 	const canEdit = $derived(data.user.role === 'lehrkraft' && s.teacher_id === data.user.id);
@@ -72,16 +73,16 @@
 	{#if canEdit || data.user.role === 'schueler'}
 		<a href="/subjects/{s.id}/quizzes"
 			class="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-sm font-medium text-white transition hover:bg-accent-dark">
-			<Icon name="check" /> Quizzes
+			<Icon name="check" /> {m.quizzes()}
 		</a>
 	{/if}
 	{#if canEdit}
 		<button
 			type="button"
-			onclick={() => askDelete('deleteSubject', null, `Delete ${s.subject_name}?`, `This deletes the subject for class ${s.class_name} including all ${s.file_count} materials. Students lose access. This cannot be undone.`)}
+			onclick={() => askDelete('deleteSubject', null, m.subj_delete_title({ name: s.subject_name }), m.subj_delete_text({ className: s.class_name, count: s.file_count }))}
 			class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-medium text-subtle transition hover:border-error hover:text-error"
 		>
-			<Icon name="trash" /> Delete subject
+			<Icon name="trash" /> {m.subj_delete()}
 		</button>
 	{/if}
 </PageHeader>
@@ -90,7 +91,7 @@
 {#if canEdit}
 	<!-- Tabs: Materials | Students -->
 	<div class="mb-5 inline-flex gap-1 rounded-xl border border-line bg-white p-1">
-		{#each [['materials', 'Materials', data.materials.length], ['students', 'Students', data.students.length]] as [key, label, count] (key)}
+		{#each [['materials', m.materials(), data.materials.length], ['students', m.students(), data.students.length]] as [key, label, count] (key)}
 			<button
 				type="button"
 				onclick={() => (tab = key)}
@@ -110,38 +111,38 @@
 <div class="grid items-start gap-6 {canEdit ? 'lg:grid-cols-[1fr_340px]' : ''}">
 <!-- Materialien -->
 <section class="rounded-2xl border border-line bg-white p-6">
-	<h2 class="mb-4 text-lg font-semibold">Materials</h2>
+	<h2 class="mb-4 text-lg font-semibold">{m.materials()}</h2>
 
 	{#if data.materials.length === 0}
-		<p class="rounded-xl bg-surface px-4 py-10 text-center text-sm text-subtle">No materials uploaded yet.</p>
+		<p class="rounded-xl bg-surface px-4 py-10 text-center text-sm text-subtle">{m.dash_no_materials()}</p>
 	{:else}
 		<ul class="divide-y divide-divider">
-			{#each data.materials as m (m.id)}
+			{#each data.materials as mat (mat.id)}
 				<li class="flex items-center gap-4 py-3">
 					<!-- Farbiges Badge mit Dateityp -->
-					<span class="grid h-10 w-12 shrink-0 place-items-center rounded-lg text-[11px] font-bold uppercase {typeColor(m.ext)}">
-						{m.ext}
+					<span class="grid h-10 w-12 shrink-0 place-items-center rounded-lg text-[11px] font-bold uppercase {typeColor(mat.ext)}">
+						{mat.ext}
 					</span>
 
 					<div class="min-w-0 flex-1">
-						<p class="truncate font-medium">{m.title}</p>
-						<p class="text-xs text-subtle">Uploaded {formatDate(m.uploaded_at)} · {formatSize(m.size_bytes)}</p>
+						<p class="truncate font-medium">{mat.title}</p>
+						<p class="text-xs text-subtle">{m.subj_uploaded({ date: formatDate(mat.uploaded_at) })} · {formatSize(mat.size_bytes)}</p>
 					</div>
 
 					<!-- data-sveltekit-reload: normaler Browser-Download statt SvelteKit-Navigation -->
 					<a
-						href="/materials/{m.id}"
+						href="/materials/{mat.id}"
 						data-sveltekit-reload
 						class="inline-flex items-center gap-2 rounded-lg border border-ghost px-3 py-1.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark"
 					>
-						<Icon name="download" /> Download
+						<Icon name="download" /> {m.download()}
 					</a>
                     {#if canEdit}
 							<button
 								type="button"
-								onclick={() => askDelete('deleteMaterial', m.id, 'Delete material?', `"${m.title}" will be removed for all students.`)}
+								onclick={() => askDelete('deleteMaterial', mat.id, m.mat_delete_title(), m.mat_delete_text({ title: mat.title }))}
 								class="grid size-9 cursor-pointer place-items-center rounded-lg border border-ghost text-subtle transition hover:border-error hover:text-error"
-								title="Delete" aria-label="Delete {m.title}"
+								title={m.delete()} aria-label={m.delete_item({ name: mat.title })}
 							>
 								<Icon name="trash" />
 							</button>
@@ -156,7 +157,7 @@
 	{#if canEdit}
 		<!-- Upload (nur Lehrer des Fachs) -->
 		<section class="rounded-2xl border border-line bg-white p-6">
-			<h2 class="text-lg font-semibold">Upload material</h2>
+			<h2 class="text-lg font-semibold">{m.subj_upload_material()}</h2>
 
 			<form
 				method="POST"
@@ -176,7 +177,7 @@
 					<p class="rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.error}</p>
 				{/if}
 				{#if form?.uploaded}
-					<p class="rounded-lg border border-success/30 bg-success/12 px-4 py-3 text-sm text-success-dark">Material uploaded.</p>
+					<p class="rounded-lg border border-success/30 bg-success/12 px-4 py-3 text-sm text-success-dark">{m.subj_uploaded_ok()}</p>
 				{/if}
 
 				<!-- Drop-Zone: <label> öffnet beim Klick den Datei-Dialog -->
@@ -192,9 +193,9 @@
 					</span>
 					{#if selectedFile}
 						<span class="mt-3 max-w-full truncate text-sm font-semibold">{selectedFile.name}</span>
-						<span class="text-xs text-subtle">{formatSize(selectedFile.size)} · click to change</span>
+						<span class="text-xs text-subtle">{formatSize(selectedFile.size)} · {m.subj_click_change()}</span>
 					{:else}
-						<span class="mt-3 text-sm font-semibold">Drop a file or click to choose</span>
+						<span class="mt-3 text-sm font-semibold">{m.subj_drop()}</span>
 						<span class="mt-1 text-xs text-subtle">
 							{data.allowedExtensions.slice(0, 5).join(', ').toUpperCase()} … · max. {data.maxSizeMb} MB
 						</span>
@@ -211,17 +212,17 @@
 				</label>
 
 				<div>
-					<label for="title" class="label">Title</label>
+					<label for="title" class="label">{m.title()}</label>
 					<input id="title" name="title" bind:value={title} required maxlength="150"
-						placeholder="e.g. Exercise sheet 7" class="input" />
+						placeholder={m.subj_title_placeholder()} class="input" />
 				</div>
 
 				<button type="submit" disabled={uploading || !selectedFile}
 					class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-50">
-					<Icon name="upload" /> {uploading ? 'Uploading…' : 'Upload'}
+					<Icon name="upload" /> {uploading ? m.prof_uploading() : m.upload()}
 				</button>
 
-				<p class="text-xs text-subtle">Every student in this subject can download it.</p>
+				<p class="text-xs text-subtle">{m.subj_upload_hint()}</p>
 			</form>
 		</section>
 	{/if}
@@ -231,14 +232,14 @@
 	<!-- Schüler-Verwaltung (nur Lehrer des Fachs) -->
 	<div class="grid items-start gap-6 lg:grid-cols-[1fr_340px]">
 		<section class="rounded-2xl border border-line bg-white p-6">
-			<h2 class="mb-4 text-lg font-semibold">Students in this subject</h2>
+			<h2 class="mb-4 text-lg font-semibold">{m.subj_students_in()}</h2>
 
 			{#if form?.studentError}
 				<p class="mb-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.studentError}</p>
 			{/if}
 
 			{#if data.students.length === 0}
-				<p class="rounded-xl bg-surface px-4 py-10 text-center text-sm text-subtle">No students yet. Add them on the right.</p>
+				<p class="rounded-xl bg-surface px-4 py-10 text-center text-sm text-subtle">{m.subj_no_students()}</p>
 			{:else}
 				<ul class="divide-y divide-divider">
 					{#each data.students as st (st.id)}
@@ -256,7 +257,7 @@
 									type="submit"
 									class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-ghost px-3 py-1.5 text-sm font-medium text-subtle transition hover:border-error hover:text-error"
 								>
-									<Icon name="x" /> Remove
+									<Icon name="x" /> {m.prof_remove()}
 								</button>
 							</form>
 						</li>
@@ -266,16 +267,16 @@
 		</section>
 
 		<section class="rounded-2xl border border-line bg-white p-6">
-			<h2 class="text-lg font-semibold">Add student</h2>
+			<h2 class="text-lg font-semibold">{m.subj_add_student()}</h2>
 
 			<form method="POST" action="?/addStudent" class="mt-4 flex flex-col gap-3" use:enhance={() => async ({ update }) => { await update(); search = ''; }}>
-				<input bind:value={search} placeholder="Search name or username" class="input" autocomplete="off" />
+				<input bind:value={search} placeholder={m.subj_search()} class="input" autocomplete="off" />
 
 				{#if filteredStudents.length === 0}
 					<p class="rounded-xl bg-surface px-4 py-6 text-center text-sm text-subtle">
 						{data.addableStudents.length === 0
-						? `No more students in class ${s.class_name}. Students are assigned to classes by an administrator.`
-						: 'No student found.'}
+						? m.subj_no_more({ className: s.class_name })
+						: m.subj_no_student_found()}
 					</p>
 				{:else}
 					<!-- size="7" macht aus dem Dropdown eine Liste -->
@@ -288,7 +289,7 @@
 
 				<button type="submit" disabled={filteredStudents.length === 0}
 					class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-50">
-					<Icon name="plus" /> Add to subject
+					<Icon name="plus" /> {m.subj_add_to()}
 				</button>
 			</form>
 		</section>
@@ -331,11 +332,11 @@
 			<div class="mt-6 flex justify-end gap-2">
 				<button type="button" onclick={() => confirmDialog.close()}
 					class="cursor-pointer rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
-					Cancel
+					{m.cancel()}
 				</button>
 				<button type="submit" disabled={deleting}
 					class="cursor-pointer rounded-lg bg-error px-4 py-2.5 text-sm font-medium text-white transition hover:bg-error/90 disabled:opacity-60">
-					{deleting ? 'Deleting…' : 'Delete'}
+					{deleting ? m.deleting() : m.delete()}
 				</button>
 			</div>
 		</form>

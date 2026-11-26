@@ -1,19 +1,20 @@
 <script>
 	import Icon from '$lib/components/Icon.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 </script>
 
 <svelte:head>
-	<title>Classes & students · EduDevice</title>
+	<title>{m.nav_classes_students()} · EduDevice</title>
 </svelte:head>
 
-<PageHeader title="Classes & students" subtitle="Assign students to their class. They are added to all subjects of that class automatically." />
+<PageHeader title={m.nav_classes_students()} subtitle={m.cls_subtitle()} />
 
 {#if data.classes.length === 0}
 	<div class="rounded-2xl border border-dashed border-ghost bg-white px-6 py-14 text-center">
-		<p class="font-semibold">No classes yet</p>
+		<p class="font-semibold">{m.cls_none()}</p>
 	</div>
 {:else}
 	<!-- Klassen als Karten (gleicher Stil wie die Fächer) -->
@@ -33,9 +34,9 @@
 							{c.school_year}
 						</span>
 					</div>
-					<h2 class="mt-4 text-lg font-semibold">Class {c.name}</h2>
+					<h2 class="mt-4 text-lg font-semibold">{m.class_name({ name: c.name })}</h2>
 					<p class="mt-1 text-sm text-subtle">
-						{c.class_teacher_name ? `Class teacher: ${c.class_teacher_name}` : 'No class teacher yet'}
+						{c.class_teacher_name ? m.cls_teacher_is({ name: c.class_teacher_name }) : m.cls_no_teacher_yet()}
 					</p>
 				</div>
 			</a>

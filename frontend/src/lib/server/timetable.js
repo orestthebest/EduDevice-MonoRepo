@@ -14,3 +14,12 @@ export function timetableApi(path, locals, { method = 'GET', json, mock } = {}) 
 	if (env.TIMETABLE_MOCK === '1') return mockApi(path, { method, json, user: locals.user, extra: mock });
 	return api(path, { method, token: locals.token, json });
 }
+
+
+// "09:35:00" -> "3rd period" (liegt die Zeit nicht im Raster: einfach die Uhrzeit)
+export function periodLabel(time) {
+	const p = periodOf(time);
+	if (!p) return String(time).slice(0, 5);
+	const suffix = p === 1 ? 'st' : p === 2 ? 'nd' : p === 3 ? 'rd' : 'th';
+	return `${p}${suffix} period`;
+}

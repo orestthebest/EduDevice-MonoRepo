@@ -2,6 +2,7 @@ import { error, fail } from '@sveltejs/kit';
 import { excuseApi } from '$lib/server/excuses.js';
 import { errorText } from '$lib/server/quiz.js';
 import { api } from '$lib/server/api.js';
+import { m } from '$lib/paraglide/messages.js';
 
 // Anhänge: gleiche Regeln wie in der API (V2.11)
 const ATTACH_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -11,13 +12,13 @@ const ATTACH_COUNT = 3;
 // GET-Aufruf, wirft bei Fehlern direkt eine Fehlerseite
 async function getJson(path, locals) {
 	const res = await excuseApi(path, locals);
-	if (!res.ok) error(res.status, await errorText(res, 'Could not load your excuses'));
+	if (!res.ok) error(res.status, await errorText(res, m.exc_err_load()));
 	return res.json();
 }
 
 // Schülerseite: offene Fehlstunden + eigene Entschuldigungen
 export async function load({ locals }) {
-	if (locals.user.role !== 'schueler') error(403, 'Only students can submit excuses');
+	if (locals.user.role !== 'schueler') error(403, m.exc_err_students_only());
 
 	const [absences, excuses] = await Promise.all([
 		getJson('/attendance/me?unexcused=true', locals),
@@ -33,18 +34,18 @@ export const actions = {
 		const reason = form.get('reason')?.toString().trim() ?? '';
 		const ids = form.getAll('attendance_ids').map(Number);
 
-		if (ids.length === 0) return fail(400, { reason, error: 'Please select at least one absence' });
-		if (reason.length < 5) return fail(400, { reason, error: 'Please give a reason (at least 5 characters)' });
-		if (reason.length > 1000) return fail(400, { reason, error: 'Reason is too long (max. 1000 characters)' });
+		if (ids.length === 0) return fail(400, { reason, error: m.exc_err_select() });
+		if (reason.length < 5) return fail(400, { reason, error: m.exc_err_reason_short() });
+		if (reason.length > 1000) return fail(400, { reason, error: m.exc_err_reason_long() });
 
 		// Leere Einträge entfernen (Browser schickt ohne Auswahl eine leere Datei mit)
 		const files = form.getAll('files').filter((f) => f instanceof File && f.size > 0);
 		if (files.length > ATTACH_COUNT) {
-			return fail(400, { reason, error: `You can attach max. ${ATTACH_COUNT} files` });
+			return fail(400, { reason, error: m.exc_err_max_files({ n: ATTACH_COUNT }) });
 		}
 		for (const f of files) {
-			if (!ATTACH_TYPES.includes(f.type)) return fail(400, { reason, error: `${f.name}: only PDF, JPG or PNG allowed` });
-			if (f.size > ATTACH_MAX) return fail(400, { reason, error: `${f.name} is too big (max. 5 MB)` });
+			if (!ATTACH_TYPES.includes(f.type)) return fail(400, { reason, error: m.exc_err_file_type_named({ name: f.name }) });
+			if (f.size > ATTACH_MAX) return fail(400, { reason, error: m.exc_err_file_big_named({ name: f.name }) });
 		}
 
 		const res = await excuseApi('/excuses', locals, {
@@ -53,10 +54,10 @@ export const actions = {
 		});
 
 		if (res.status === 400) {
-			return fail(400, { reason, error: 'One of the selected lessons is already excused – please reload the page' });
+			return fail(400, { reason, error: m.exc_err_already_excused() });
 		}
 
-		if (!res.ok) return fail(res.status, { reason, error: await errorText(res, 'Could not submit your excuse') });
+		if (!res.ok) return fail(res.status, { reason, error: await errorText(res, m.exc_err_submit()) });
 
 		// Entschuldigung ist angelegt -> jetzt die Dateien einzeln hochladen
 		const excuse = await res.json();
@@ -79,8 +80,8 @@ export const actions = {
 
 		const res = await api(`/excuses/${id}/attachments/${att}`, { method: 'DELETE', token: locals.token });
 
-		if (res.status === 409) return fail(409, { attachId: id, attachError: 'This excuse has already been reviewed' });
-		if (!res.ok) return fail(res.status, { attachId: id, attachError: 'Could not remove the file' });
+		if (res.status === 409) return fail(409, { attachId: id, attachError: m.exc_err_reviewed() });
+		if (!res.ok) return fail(res.status, { attachId: id, attachError: m.exc_err_remove_file() });
 		return { attachId: id };
 	},
 
@@ -90,18 +91,18 @@ export const actions = {
 		const id = Number(form.get('excuse_id'));
 		const file = form.get('file');
 
-		if (!(file instanceof File) || file.size === 0) return fail(400, { attachId: id, attachError: 'Please choose a file' });
-		if (!ATTACH_TYPES.includes(file.type)) return fail(400, { attachId: id, attachError: 'Only PDF, JPG or PNG allowed' });
-		if (file.size > ATTACH_MAX) return fail(400, { attachId: id, attachError: 'File is too big (max. 5 MB)' });
+		if (!(file instanceof File) || file.size === 0) return fail(400, { attachId: id, attachError: m.subj_err_choose_file() });
+		if (!ATTACH_TYPES.includes(file.type)) return fail(400, { attachId: id, attachError: m.exc_err_file_type() });
+		if (file.size > ATTACH_MAX) return fail(400, { attachId: id, attachError: m.exc_err_file_big() });
 
 		const body = new FormData();
 		body.append('file', file);
 		const res = await api(`/excuses/${id}/attachments`, { method: 'POST', token: locals.token, form: body });
 
-		if (res.status === 409) return fail(409, { attachId: id, attachError: 'Max. 3 files, or the excuse has already been reviewed' });
-		if (res.status === 413) return fail(400, { attachId: id, attachError: 'File is too big (max. 5 MB)' });
-		if (res.status === 400) return fail(400, { attachId: id, attachError: 'This file is not a valid PDF, JPG or PNG' });
-		if (!res.ok) return fail(res.status, { attachId: id, attachError: 'Upload failed, please try again' });
+		if (res.status === 409) return fail(409, { attachId: id, attachError: m.exc_err_max_or_reviewed() });
+		if (res.status === 413) return fail(400, { attachId: id, attachError: m.exc_err_file_big() });
+		if (res.status === 400) return fail(400, { attachId: id, attachError: m.exc_err_invalid_file() });
+		if (!res.ok) return fail(res.status, { attachId: id, attachError: m.prof_err_upload() });
 		return { attachId: id };
 	}
 };

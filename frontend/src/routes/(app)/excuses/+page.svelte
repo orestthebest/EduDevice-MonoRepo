@@ -6,6 +6,7 @@
 	import { periodLabel } from '$lib/timetable.js';
 	import { formatSize } from '$lib/format.js';
 	import Attachments from '$lib/components/Attachments.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data, form } = $props();
 
@@ -42,20 +43,20 @@
 </script>
 
 <svelte:head>
-	<title>Excuses · EduDevice</title>
+	<title>{m.nav_excuses()} · EduDevice</title>
 </svelte:head>
 
-<PageHeader title="Excuses" subtitle="Excuse your absences – your class teacher reviews them" />
+<PageHeader title={m.nav_excuses()} subtitle={m.exc_subtitle()} />
 
 <!-- Neue Entschuldigung -->
 <section class="rounded-2xl border border-line bg-white p-6">
-	<h2 class="text-lg font-semibold">Submit an excuse</h2>
-	<p class="text-sm text-subtle">Select the lessons you missed and give a reason.</p>
+	<h2 class="text-lg font-semibold">{m.exc_submit_title()}</h2>
+	<p class="text-sm text-subtle">{m.exc_submit_hint()}</p>
 
 	{#if days.length === 0}
 		<div class="mt-5 flex items-center gap-3 rounded-xl bg-surface px-4 py-4 text-sm text-subtle">
 			<Icon name="check" class="size-5 text-success" />
-			You have no unexcused absences.
+			{m.exc_none_unexcused()}
 		</div>
 	{:else}
 		<form
@@ -84,7 +85,7 @@
 							<p class="text-sm font-semibold">{formatDay(day.date)}</p>
 							<button type="button" class="cursor-pointer text-xs font-medium text-accent hover:text-accent-darker"
 								onclick={() => toggleDay(day.items)}>
-								{day.items.every((a) => selected.includes(a.attendance_id)) ? 'Deselect day' : 'Whole day'}
+								{day.items.every((a) => selected.includes(a.attendance_id)) ? m.exc_deselect_day() : m.exc_whole_day()}
 							</button>
 						</div>
 
@@ -109,15 +110,15 @@
 
 			<!-- Begründung -->
 			<div class="mt-5">
-				<label for="reason" class="label">Reason</label>
+				<label for="reason" class="label">{m.exc_reason()}</label>
 				<textarea id="reason" name="reason" rows="3" required minlength="5" maxlength="1000"
-					class="input resize-y" placeholder="e.g. I was sick with a fever"
+					class="input resize-y" placeholder={m.exc_reason_placeholder()}
 					value={form?.reason ?? ''}></textarea>
 			</div>
 
 			<div class="mt-5">
-				<p class="label">Attachments <span class="font-normal text-subtle">(optional)</span></p>
-				<p class="text-xs text-subtle">e.g. a doctor's note · PDF, JPG or PNG · max. 5 MB each · up to 3 files</p>
+				<p class="label">{m.exc_attachments()} <span class="font-normal text-subtle">{m.optional()}</span></p>
+				<p class="text-xs text-subtle">{m.exc_attach_hint()}</p>
 
 				<!-- immer da (auch bei 3 Dateien), sonst fehlen die Dateien beim Abschicken -->
 				<input id="excuse-files" bind:this={fileInput} type="file" name="files" multiple
@@ -133,7 +134,7 @@
 								<span class="text-xs {f.size > 5 * 1024 * 1024 ? 'font-semibold text-error' : 'text-subtle'}">
 									{formatSize(f.size)}
 								</span>
-								<button type="button" onclick={() => removeFile(i)} aria-label="Remove {f.name}"
+								<button type="button" onclick={() => removeFile(i)} aria-label={m.remove_item({ name: f.name })}
 									class="cursor-pointer rounded-lg p-1 text-subtle transition hover:bg-surface hover:text-error">
 									<Icon name="x" class="size-4" />
 								</button>
@@ -145,17 +146,17 @@
 				{#if files.length < 3}
 					<label for="excuse-files"
 						class="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
-						<Icon name="upload" /> Add file
+						<Icon name="upload" /> {m.exc_add_file()}
 					</label>
 				{/if}
 			</div>
 
 			<div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<p class="text-sm text-subtle">
-					{selected.length} {selected.length === 1 ? 'lesson' : 'lessons'} selected
+					{selected.length === 1 ? m.exc_selected_one({ n: selected.length }) : m.exc_selected_many({ n: selected.length })}
 				</p>
 				<button type="submit" class="btn-primary sm:w-auto sm:px-6" disabled={sending || selected.length === 0}>
-					{sending ? 'Submitting…' : 'Submit excuse'}
+					{sending ? m.quiz_submitting() : m.exc_submit_button()}
 				</button>
 			</div>
 		</form>
@@ -165,11 +166,11 @@
 		<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.error}</p>
 	{:else if form?.success}
 		<p class="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-dark">
-			Your excuse has been sent to your class teacher.
+			{m.exc_sent()}
 		</p>
 		{#if form.failedFiles?.length}
 			<p class="mt-2 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
-				These files could not be uploaded: {form.failedFiles.join(', ')}. You can add them under "My excuses".
+				{m.exc_failed_files({ files: form.failedFiles.join(', ') })}
 			</p>
 		{/if}
 	{/if}
@@ -177,10 +178,10 @@
 
 <!-- Eigene Entschuldigungen -->
 <section class="mt-6 rounded-2xl border border-line bg-white p-6">
-	<h2 class="text-lg font-semibold">My excuses</h2>
+	<h2 class="text-lg font-semibold">{m.exc_mine()}</h2>
 
 	{#if data.excuses.length === 0}
-		<p class="mt-3 text-sm text-subtle">You haven't submitted any excuses yet.</p>
+		<p class="mt-3 text-sm text-subtle">{m.exc_none_yet()}</p>
 	{:else}
 		<ul class="mt-4 divide-y divide-divider">
 			{#each data.excuses as e (e.id)}
@@ -192,7 +193,7 @@
 						</span>
 					</div>
 					<p class="mt-1 text-xs text-subtle">
-						{e.absences.length} {e.absences.length === 1 ? 'lesson' : 'lessons'}:
+						{e.absences.length} {e.absences.length === 1 ? m.exc_lesson() : m.exc_lessons()}:
 						{e.absences.map((a) => a.subject_name).join(', ')}
 					</p>
 					<p class="mt-2 text-sm">{e.reason}</p>
@@ -212,7 +213,7 @@
 							<input type="hidden" name="excuse_id" value={e.id} />
 							<label class="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-accent hover:text-accent-darker">
 								<Icon name="plus" class="size-3.5" />
-								{uploadingId === e.id ? 'Uploading…' : 'Add file'}
+								{uploadingId === e.id ? m.prof_uploading() : m.exc_add_file()}
 								<input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
 									class="sr-only" disabled={uploadingId === e.id}
 									onchange={(ev) => ev.currentTarget.form.requestSubmit()} />
@@ -226,7 +227,7 @@
 
 					{#if e.teacher_comment}
 						<p class="mt-2 rounded-lg bg-surface px-3 py-2 text-sm">
-							<span class="font-medium">Class teacher:</span> {e.teacher_comment}
+							<span class="font-medium">{m.exc_class_teacher()}</span> {e.teacher_comment}
 						</p>
 					{/if}
 				</li>

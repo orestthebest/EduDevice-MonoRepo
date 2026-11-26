@@ -1,6 +1,7 @@
 <script>
 	import Icon from '$lib/components/Icon.svelte';
 	import { PERIODS, subjectColor, shortDate } from '$lib/timetable.js';
+	import { m } from '$lib/paraglide/messages.js';
 
 	// Wochenraster wie in WebUntis – für die Ansicht (M-3) und die Verwaltung (M-4)
 	// days:    [{ key: 'Mo', label: 'Mon', date?: '2026-11-09', off?: { label, note } }]
@@ -101,7 +102,7 @@
 					<div class="absolute inset-x-0 border-t border-divider" style="top: {top(p.start)}px"></div>
 					{#if editable && !d.off}
 						<button type="button" onclick={() => onCellClick({ day: d, period: p.period })}
-							aria-label="Add lesson on {d.label}, period {p.period}"
+							aria-label={m.tt_add_cell({ day: d.label, n: p.period })}
 							class="group absolute inset-x-1 grid cursor-pointer place-items-center rounded-lg border border-dashed border-transparent transition hover:border-accent/50 hover:bg-accent-light/40"
 							style="top: {top(p.start) + 2}px; height: {span(p.period, p.period) - 4}px">
 							<Icon name="plus" class="size-4 text-accent opacity-0 transition group-hover:opacity-100" />
@@ -114,7 +115,7 @@
 					<div class="absolute inset-1 grid place-items-center rounded-xl bg-surface p-3 text-center">
 						<div>
 							<Icon name="calendar" class="mx-auto size-5 text-subtle" />
-							<p class="mt-2 text-sm font-semibold">{d.off.label ?? 'No lessons'}</p>
+							<p class="mt-2 text-sm font-semibold">{d.off.label ?? m.tt_no_lessons()}</p>
 							{#if d.off.note}<p class="text-xs text-subtle">{d.off.note}</p>{/if}
 						</div>
 					</div>
@@ -140,7 +141,7 @@
 								{#if b[field]}<span class="block truncate text-xs text-subtle">{b[field]}</span>{/if}
 							{/each}
 							{#if b.cancelled}
-								<span class="mt-1 inline-block rounded bg-error/12 px-1.5 py-px text-[10px] font-semibold text-error">Cancelled</span>
+								<span class="mt-1 inline-block rounded bg-error/12 px-1.5 py-px text-[10px] font-semibold text-error">{m.lesson_cancelled()}</span>
 							{/if}
 						</span>
 					</svelte:element>

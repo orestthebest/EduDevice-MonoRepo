@@ -7,6 +7,7 @@
 	// x-Achse: das ganze Jahr, die Trimester als Bänder, keine Datumsangaben;
 	// die Strichlinie "today" zeigt, wie viel vom Jahr schon vorbei ist.
 	import { scalePos, fmtGrade } from '$lib/grades.js';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let {
 		progression = [],
@@ -47,16 +48,18 @@
 	let label = $derived.by(() => {
 		if (!progression.length) return '';
 		const values = progression.map((p) => p.raw);
-		return (
-			`Average over the year: from ${fmtGrade(values[0])} to ${fmtGrade(last.raw)} now, ` +
-			`lowest ${fmtGrade(Math.min(...values))}, highest ${fmtGrade(Math.max(...values))}`
-		);
+		return m.timeline_label({
+			first: fmtGrade(values[0]),
+			now: fmtGrade(last.raw),
+			low: fmtGrade(Math.min(...values)),
+			high: fmtGrade(Math.max(...values))
+		});
 	});
 </script>
 
 <div class="w-full" bind:clientWidth={width}>
 	{#if progression.length === 0}
-		<p class="py-6 text-center text-xs text-muted">No marks yet</p>
+		<p class="py-6 text-center text-xs text-muted">{m.grades_no_marks_yet()}</p>
 	{:else}
 		<svg {height} width="100%" viewBox="0 0 {width} {height}" role="img" aria-label={label}>
 			<!-- Trimester als Bänder; das mittlere hinterlegt, damit die Grenzen sichtbar sind -->
@@ -118,14 +121,14 @@
 					stroke-width="1"
 					stroke-dasharray="2 3"
 				/>
-				<text x={x(today) + 4} y={PAD_T + 9} class="fill-muted text-[10px]">today</text>
+				<text x={x(today) + 4} y={PAD_T + 9} class="fill-muted text-[10px]">{m.range_today()}</text>
 			{/if}
 
 			<!-- einzelne Noten, blass -->
-			{#each marks as m}
+			{#each marks as mark}
 				<circle
-					cx={x(m.date)}
-					cy={y(m.value)}
+					cx={x(mark.date)}
+					cy={y(mark.value)}
 					r="2.5"
 					fill="var(--color-blue-violet)"
 					opacity="0.25"
@@ -149,7 +152,7 @@
 				stroke="white"
 				stroke-width="2"
 			>
-				<title>Now: {fmtGrade(last.raw)}</title>
+				<title>{m.timeline_now({ grade: fmtGrade(last.raw) })}</title>
 			</circle>
 		</svg>
 	{/if}

@@ -6,6 +6,7 @@
 	// nur wenn es eine Prognose gibt. Punkt: heutiger Schnitt. Gestrichelt:
 	// Bestehensgrenze.
 	import { scalePos, fmtGrade } from '$lib/grades.js';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { low, high, current, likelyLow = null, likelyHigh = null, passMark = 4.6 } = $props();
 	const pos = (g) => `${scalePos(g) * 100}%`;
@@ -48,9 +49,9 @@
 	<div
 		class="relative h-3 rounded-full bg-surface"
 		role="img"
-		aria-label="Final grade still possible between {fmtGrade(low)} and {fmtGrade(high)}{hasLikely
-			? `, likely between ${fmtGrade(lLow)} and ${fmtGrade(lHigh)}`
-			: ''}, today {fmtGrade(current)}"
+		aria-label="{m.range_aria_possible({ low: fmtGrade(low), high: fmtGrade(high) })}{hasLikely
+			? m.range_aria_likely({ low: fmtGrade(lLow), high: fmtGrade(lHigh) })
+			: ''}{m.range_aria_today({ grade: fmtGrade(current) })}"
 	>
 		<div
 			class="absolute inset-y-0 rounded-full bg-blue-violet/20"
@@ -85,16 +86,16 @@
 	{#if hasLikely}
 		<p class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-subtle">
 			<span class="flex items-center gap-1.5">
-				<span class="inline-block h-2 w-4 rounded-full bg-blue-violet/55"></span>likely
+				<span class="inline-block h-2 w-4 rounded-full bg-blue-violet/55"></span>{m.range_likely()}
 			</span>
 			<span class="flex items-center gap-1.5">
-				<span class="inline-block h-2 w-4 rounded-full bg-blue-violet/20"></span>still possible
+				<span class="inline-block h-2 w-4 rounded-full bg-blue-violet/20"></span>{m.range_possible()}
 			</span>
 			<span class="flex items-center gap-1.5">
-				<span class="inline-block size-2 rounded-full bg-navy"></span>today
+				<span class="inline-block size-2 rounded-full bg-navy"></span>{m.range_today()}
 			</span>
 			<span class="flex items-center gap-1.5">
-				<span class="inline-block h-2.5 border-l border-dashed border-error/70"></span>pass mark
+				<span class="inline-block h-2.5 border-l border-dashed border-error/70"></span>{m.range_pass_mark()}
 			</span>
 		</p>
 	{/if}
