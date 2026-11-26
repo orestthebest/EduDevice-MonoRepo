@@ -47,3 +47,22 @@ PERIODS = {
     7: (_t(13, 0), _t(13, 45)),  8: (_t(13, 50), _t(14, 35)), 9: (_t(14, 40), _t(15, 25)),
     10: (_t(15, 30), _t(16, 15)), 11: (_t(16, 20), _t(17, 5)),
 }
+
+# E-Mail (V4.12, Ziel-M-1): die API gibt Mails an den lokalen Postfix (localhost:25) weiter,
+# Postfix signiert sie mit DKIM (OpenDKIM) und stellt sie selbst zu.
+# MAIL_ENABLED=0 (Standard, Tests/Entwicklung): nichts wird verschickt, Mails landen nur in mailer.OUTBOX.
+MAIL_ENABLED = os.getenv("EDUDEVICE_MAIL_ENABLED", "0") == "1"
+MAIL_FROM = os.getenv("EDUDEVICE_MAIL_FROM", "EduDevice <noreply@edudevice.htl-cloud.com>")
+SMTP_HOST = os.getenv("EDUDEVICE_SMTP_HOST", "localhost")
+SMTP_PORT = int(os.getenv("EDUDEVICE_SMTP_PORT", "25"))
+# Nur an diese Domains wird wirklich verschickt (Komma-Liste, leer = alle). Schutz davor,
+# dass Mails an erfundene Test-Adressen wie admin@edudevice.at bei fremden Leuten landen.
+MAIL_ALLOWED_DOMAINS = {d.strip().lower() for d in os.getenv("EDUDEVICE_MAIL_ALLOWED_DOMAINS", "").split(",")
+                        if d.strip()}
+# Adresse der WebApp, fuer Links in Mails (z. B. Passwort zuruecksetzen)
+FRONTEND_URL = os.getenv("EDUDEVICE_FRONTEND_URL", "https://edudevice.htl-cloud.com").rstrip("/")
+
+# Passwort zuruecksetzen (V4.12)
+RESET_LIMIT = "3/minute"          # pro IP
+RESET_TOKEN_MINUTES = 30          # so lange gilt ein Link
+RESET_MAX_PER_HOUR = 3            # pro Benutzer, danach werden keine Mails mehr verschickt

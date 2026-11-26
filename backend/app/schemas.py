@@ -65,6 +65,17 @@ class ProfileUpdateIn(BaseModel):
         return self
 
 
+class PasswordResetRequestIn(BaseModel):
+    """POST /auth/password-reset/request"""
+    email: str = Field(min_length=3, max_length=255)
+
+
+class PasswordResetConfirmIn(BaseModel):
+    """POST /auth/password-reset/confirm"""
+    token: str = Field(min_length=20, max_length=200)
+    new_password: str = Field(min_length=8, max_length=72)   # wie bei Register
+
+
 class PasswordChangeIn(BaseModel):
     """POST /users/me/password"""
     current_password: str = Field(min_length=1, max_length=72)

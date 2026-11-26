@@ -1,7 +1,7 @@
-# EduDevice REST-API V2.12 – Anleitung für die WebApp
+# EduDevice REST-API V2.13 – Anleitung für die WebApp
 
 Basis-URL am Server (nur intern): `http://127.0.0.1:8000`  ·  Swagger: `http://172.20.1.115:8000/docs`
-Alle Endpunkte außer Login/Register brauchen den Header `Authorization: Bearer <token>`.
+Alle Endpunkte außer Login/Register/Passwort-Reset brauchen den Header `Authorization: Bearer <token>`.
 Rollen wie in der DB: `schueler`, `lehrkraft`, `admin`.
 
 ## Welche Funktion wird durch welchen Endpunkt ersetzt
@@ -276,3 +276,26 @@ Neu: `valid_from` / `valid_to` – ein Eintrag gilt an einem Datum, wenn `valid_
 - **DELETE:** Hat der Eintrag schon Anwesenheiten → er endet gestern (`valid_to`), die Geschichte bleibt. Sonst wird er wirklich gelöscht. In beiden Fällen verschwinden künftige Stunden ohne Anwesenheit. Ändern = DELETE aller Zeilen des Blocks + POST.
 - Angepasst: `GET /timetable/{user_id}` liefert nur heute gültige Einträge (mit `period`), `GET /attendance/slots` nur die an dem Datum gültigen (mit `period`).
 - `ClassOut` (`/classes`, `/classes/{id}`) hat jetzt `class_teacher_id` und `class_teacher_name`.
+
+
+## Passwort vergessen (V2.13, Schema V4.12)
+
+Die API verschickt die Mails selbst über den eigenen Mailserver (Absender `EduDevice <noreply@edudevice.htl-cloud.com>`).
+Die WebApp braucht zwei Seiten: „Passwort vergessen“ (E-Mail eingeben) und `/reset-password` (neues Passwort setzen).
+
+| Endpunkt | Body | Antwort |
+|---|---|---|
+| `POST /auth/password-reset/request` | `{ "email": "..." }` | **immer** `202` `{ "detail": "Wenn es ein Konto mit dieser E-Mail-Adresse gibt, wurde ein Link verschickt." }` · `429` zu viele Versuche (3/min) |
+| `POST /auth/password-reset/confirm` | `{ "token": "...", "new_password": "..." }` | `204` · `400` Link ungültig, abgelaufen oder schon benutzt · `422` Passwort unter 8 Zeichen |
+
+- Der Link in der Mail sieht so aus: `https://edudevice.htl-cloud.com/reset-password#token=...`
+  Der Token steht **nach `#`**, nicht als `?token=`. Grund: der Teil nach `#` wird vom Browser nie an einen Server
+  geschickt und landet in keinem Log. Die Seite `/reset-password` liest ihn deshalb **im Browser** aus
+  (`new URLSearchParams(location.hash.slice(1)).get("token")`, z. B. in `onMount`) und schickt ihn mit dem
+  neuen Passwort an `/confirm`.
+- Die Antwort von `/request` ist absichtlich immer gleich, auch wenn es die Adresse nicht gibt. Bitte genau diesen Text anzeigen
+  und **nicht** „Konto nicht gefunden“, sonst kann man herausfinden, welche Adressen registriert sind.
+- Ein Link gilt **30 Minuten** und nur **einmal**. Pro Konto werden höchstens 3 Mails pro Stunde verschickt.
+- Nach jeder Passwortänderung (über den Link oder über `POST /users/me/password`) bekommt der Benutzer eine
+  Hinweis-Mail „Dein Passwort wurde geändert“.
+- Nach dem Zurücksetzen auf die Login-Seite weiterleiten. Schon ausgestellte Tokens bleiben bis zu ihrem Ablauf gültig.

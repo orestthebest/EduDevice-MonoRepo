@@ -1,5 +1,5 @@
 """
-EduDevice REST-API - Datenbankmodelle (ORM), Schema V4.11
+EduDevice REST-API - Datenbankmodelle (ORM), Schema V4.12
 Bildet die Tabellen aus Joriks Schema V4 ab, die von der API benutzt werden.
 Die Tabellen werden NICHT von der API erzeugt - das macht das SQL-Schema.
 """
@@ -45,6 +45,18 @@ class User(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+class PasswordReset(Base):
+    """V4.12: Link zum Passwort-Zuruecksetzen. Gespeichert wird nur der SHA-256-Hash des Tokens,
+    der Token selbst steht nur in der Mail (wer die DB liest, kann damit nichts anfangen)."""
+    __tablename__ = "password_resets"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token_hash = Column(String(64), nullable=False, unique=True)
+    created_at = Column(DateTime, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+
+
 # ---------------- Schulstruktur ----------------
 class SchoolYear(Base):
     __tablename__ = "school_years"
@@ -75,7 +87,6 @@ class SchoolClass(Base):
     name = Column(String(20), nullable=False)
     class_teacher_id = Column(Integer, ForeignKey("users.id"), nullable=True)   # V4.6: Klassenvorstand
     last_lesson_day = Column(Date, nullable=True)   # V4.10: frueher als das Schuljahr (z. B. 5. Klassen)
-
 
 
 class StudentClass(Base):

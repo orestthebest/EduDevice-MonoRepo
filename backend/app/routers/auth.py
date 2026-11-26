@@ -1,17 +1,23 @@
-"""Auth: Login (Ziel-M-4), Registrieren und eigener Benutzer."""
+"""Auth: Login (Ziel-M-4), Registrieren, eigener Benutzer, Passwort zuruecksetzen per Mail (V4.12)."""
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import models as m
-from app.core.config import LOGIN_LIMIT, REGISTER_LIMIT
+from app.core.config import (FRONTEND_URL, LOGIN_LIMIT, REGISTER_LIMIT, RESET_LIMIT,
+                             RESET_MAX_PER_HOUR, RESET_TOKEN_MINUTES)
 from app.core.database import get_db
 from app.core.security import (create_access_token, get_current_user, hash_password,
                                limiter, role_of, verify_password)
-from app.schemas import RegisterIn, TokenOut, UserOut
+from app.schemas import PasswordResetConfirmIn, PasswordResetRequestIn, RegisterIn, TokenOut, UserOut
+from app.services.mailer import send_mail
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -66,3 +72,79 @@ def register(request: Request, data: RegisterIn, db: Session = Depends(get_db)):
 def me(current: m.User = Depends(get_current_user)):
     """Wer bin ich? (ersetzt validateSession im Frontend)"""
     return user_out(current)
+
+
+# ---------------- Passwort zuruecksetzen (V4.12, Ziel-M-1) ----------------
+RESET_SENT = {"detail": "Wenn es ein Konto mit dieser E-Mail-Adresse gibt, wurde ein Link verschickt."}
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)      # wie DATETIME in MySQL: UTC, ohne Zone
+
+
+def _token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def password_changed_mail(user: m.User) -> tuple[str, str, str]:
+    """Hinweis-Mail nach jeder Passwortaenderung: falls es nicht der Benutzer selbst war, merkt er es."""
+    return (user.email, "EduDevice: Dein Passwort wurde geändert",
+            f"Hallo {user.first_name},\n\n"
+            "das Passwort deines EduDevice-Kontos wurde gerade geändert.\n\n"
+            "Warst du das nicht? Dann melde dich bitte sofort bei deinem Klassenvorstand "
+            "oder beim Administrator.\n\n"
+            "Diese Mail wurde automatisch verschickt, bitte nicht antworten.\n")
+
+
+@router.post("/password-reset/request", status_code=202)
+@limiter.limit(RESET_LIMIT)
+def request_password_reset(request: Request, data: PasswordResetRequestIn, background: BackgroundTasks,
+                           db: Session = Depends(get_db)):
+    """Schickt einen Link zum Zuruecksetzen an die E-Mail-Adresse des Kontos.
+    Antwortet IMMER gleich (202), auch wenn es die Adresse nicht gibt -> man kann nicht
+    herausfinden, welche Adressen registriert sind. Der Link gilt 30 Minuten und nur einmal."""
+    user = db.query(m.User).filter(m.User.email == data.email.strip().lower()).first()
+    if user is None:
+        return RESET_SENT
+    now = _now()
+    recent = (db.query(func.count(m.PasswordReset.id))
+              .filter(m.PasswordReset.user_id == user.id,
+                      m.PasswordReset.created_at >= now - timedelta(hours=1)).scalar())
+    if recent >= RESET_MAX_PER_HOUR:              # niemand soll ein Postfach mit Mails fluten koennen
+        return RESET_SENT
+    token = secrets.token_urlsafe(32)              # 256 Bit Zufall
+    db.add(m.PasswordReset(user_id=user.id, token_hash=_token_hash(token), created_at=now,
+                           expires_at=now + timedelta(minutes=RESET_TOKEN_MINUTES)))
+    db.commit()
+    # Token nach '#': der Teil nach '#' wird vom Browser nie an einen Server geschickt
+    # und landet so in keinem Log.
+    link = f"{FRONTEND_URL}/reset-password#token={token}"
+    background.add_task(send_mail, user.email, "EduDevice: Passwort zurücksetzen",
+                        f"Hallo {user.first_name},\n\n"
+                        "für dein EduDevice-Konto wurde ein neues Passwort angefordert.\n"
+                        f"Über diesen Link kannst du es in den nächsten {RESET_TOKEN_MINUTES} Minuten setzen:\n\n"
+                        f"{link}\n\n"
+                        "Hast du das nicht angefordert? Dann ignoriere diese Mail einfach, "
+                        "dein Passwort bleibt gleich.\n\n"
+                        "Diese Mail wurde automatisch verschickt, bitte nicht antworten.\n")
+    return RESET_SENT
+
+
+@router.post("/password-reset/confirm", status_code=204)
+@limiter.limit(LOGIN_LIMIT)
+def confirm_password_reset(request: Request, data: PasswordResetConfirmIn, background: BackgroundTasks,
+                           db: Session = Depends(get_db)):
+    """Setzt das neue Passwort. 400 wenn der Link ungueltig, abgelaufen oder schon benutzt ist."""
+    now = _now()
+    row = db.query(m.PasswordReset).filter(m.PasswordReset.token_hash == _token_hash(data.token)).first()
+    if row is None or row.used_at is not None or row.expires_at < now:
+        raise HTTPException(status_code=400, detail="Link ist ungültig oder abgelaufen")
+    user = db.get(m.User, row.user_id)
+    user.password_hash = hash_password(data.new_password)
+    # alle offenen Links dieses Benutzers sind damit verbraucht, auch aeltere
+    (db.query(m.PasswordReset)
+       .filter(m.PasswordReset.user_id == user.id, m.PasswordReset.used_at.is_(None))
+       .update({m.PasswordReset.used_at: now}, synchronize_session=False))
+    db.commit()
+    background.add_task(send_mail, *password_changed_mail(user))
+    return Response(status_code=204)

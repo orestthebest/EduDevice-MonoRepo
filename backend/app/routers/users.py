@@ -6,7 +6,7 @@ import re
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy.exc import IntegrityError
@@ -16,9 +16,10 @@ from app import models as m
 from app.core.config import AVATAR_DIR, AVATAR_MAX_BYTES, AVATAR_SIZE, LOGIN_LIMIT
 from app.core.database import get_db
 from app.core.security import get_current_user, hash_password, limiter, require_roles, verify_password
-from app.routers.auth import create_user, user_out
+from app.routers.auth import create_user, password_changed_mail, user_out
 from typing import Literal, Optional
 
+from app.services.mailer import send_mail
 from app.schemas import AvatarOut, PasswordChangeIn, ProfileUpdateIn, TeacherOut, UserCreateIn, UserOut
 
 router = APIRouter(prefix="/users", tags=["Benutzerprofil"])
@@ -105,13 +106,15 @@ def update_me(data: ProfileUpdateIn, db: Session = Depends(get_db), current: m.U
 
 @router.post("/me/password", status_code=204)
 @limiter.limit(LOGIN_LIMIT)                         # sonst koennte man mit einem Token das Passwort erraten
-def change_password(request: Request, data: PasswordChangeIn, db: Session = Depends(get_db),
-                    current: m.User = Depends(get_current_user)):
-    """Eigenes Passwort aendern. 400 wenn das aktuelle Passwort falsch ist."""
+def change_password(request: Request, data: PasswordChangeIn, background: BackgroundTasks,
+                    db: Session = Depends(get_db), current: m.User = Depends(get_current_user)):
+    """Eigenes Passwort aendern. 400 wenn das aktuelle Passwort falsch ist.
+    V4.12: danach geht eine Hinweis-Mail an den Benutzer."""
     if not verify_password(data.current_password, current.password_hash):
         raise HTTPException(status_code=400, detail="Aktuelles Passwort ist falsch")
     current.password_hash = hash_password(data.new_password)
     db.commit()
+    background.add_task(send_mail, *password_changed_mail(current))
     return Response(status_code=204)
 
 
