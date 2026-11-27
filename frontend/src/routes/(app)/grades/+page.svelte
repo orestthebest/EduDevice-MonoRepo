@@ -101,25 +101,73 @@
 	};
 	// je Art: Icon, Stichwort (Hinweis beim Icon) und eine kurze, freundliche
 	// Bemerkung vorne - auch bei den Achtung-Punkten ermutigend, nie ein Urteil
+	// Die Beobachtungen in der gewählten Sprache: der Lauf liefert nur die Zahlen (params)
+	const aboutMark = (p) => ({
+		category: categoryLabel(p.category),
+		date: shortDate(p.date),
+		value: fmtGrade(p.value)
+	});
 	const INSIGHT = {
-		recent_lift: { icon: 'trend-up', keyword: m.ins_kw_recent_lift(), remark: m.ins_nice() },
-		good_mark: { icon: 'star', keyword: m.ins_kw_good_mark(), remark: m.ins_well_done() },
-		streak: { icon: 'zap', keyword: m.ins_kw_streak(), remark: m.ins_keep_it_up() },
-		trimester_up: { icon: 'trend-up', keyword: m.ins_kw_trimester_up(), remark: m.ins_getting_there() },
-		attendance_clean: { icon: 'check', keyword: m.ins_kw_attendance_clean(), remark: m.ins_nice() },
-		near_round_up: { icon: 'target', keyword: m.ins_kw_near_round_up(), remark: m.ins_so_close() },
+		recent_lift: {
+			icon: 'trend-up',
+			keyword: m.ins_kw_recent_lift(),
+			remark: m.ins_nice(),
+			text: (p) => m.ins_msg_recent_lift({ ...aboutMark(p), effect: fmtGrade(p.effect) })
+		},
+		good_mark: {
+			icon: 'star',
+			keyword: m.ins_kw_good_mark(),
+			remark: m.ins_well_done(),
+			text: (p) => m.ins_msg_good_mark(aboutMark(p))
+		},
+		streak: {
+			icon: 'zap',
+			keyword: m.ins_kw_streak(),
+			remark: m.ins_keep_it_up(),
+			text: () => m.ins_msg_streak()
+		},
+		trimester_up: {
+			icon: 'trend-up',
+			keyword: m.ins_kw_trimester_up(),
+			remark: m.ins_getting_there(),
+			text: (p) =>
+				m.ins_msg_trimester_up({ diff: fmtGrade(p.diff), prev: fmtGrade(p.prev), cur: fmtGrade(p.cur) })
+		},
+		attendance_clean: {
+			icon: 'check',
+			keyword: m.ins_kw_attendance_clean(),
+			remark: m.ins_nice(),
+			text: () => m.ins_msg_attendance_clean()
+		},
+		near_round_up: {
+			icon: 'target',
+			keyword: m.ins_kw_near_round_up(),
+			remark: m.ins_so_close(),
+			text: (p) =>
+				m.ins_msg_near_round_up({ average: fmtGrade(p.average), gap: fmtGrade(p.gap), next: p.next })
+		},
 		trimester_down: {
 			icon: 'trend-down',
 			keyword: m.ins_kw_trimester_down(),
-			remark: m.ins_turn_around()
+			remark: m.ins_turn_around(),
+			text: (p) =>
+				m.ins_msg_trimester_down({ diff: fmtGrade(p.diff), prev: fmtGrade(p.prev), cur: fmtGrade(p.cur) })
 		},
 		unusual_drop: {
 			icon: 'trend-down',
 			keyword: m.ins_kw_unusual_drop(),
-			remark: m.ins_not_whole_story()
+			remark: m.ins_not_whole_story(),
+			text: (p) => m.ins_msg_unusual_drop({ ...aboutMark(p), usual: fmtGrade(p.usual) })
 		},
-		absence_pace: { icon: 'clock', keyword: m.ins_kw_absence_pace(), remark: m.ins_still_time() }
+		absence_pace: {
+			icon: 'clock',
+			keyword: m.ins_kw_absence_pace(),
+			remark: m.ins_still_time(),
+			text: (p) => m.ins_msg_absence_pace({ rate: p.rate })
+		}
 	};
+	// ältere Läufe ohne Zahlen: der englische Satz aus der Datenbank
+	const insightText = (i, kind) => (i.params != null && kind.text ? kind.text(i.params) : i.message);
 	const failTone = (p) =>
 		p >= 0.5
 			? 'bg-error/10 text-error'
@@ -329,7 +377,7 @@
 							<p class="text-sm">
 								{#if kind.remark}<strong class={tone.remark}>{kind.remark}</strong>{/if}
 								{#if i.subject_name}<span class="font-semibold">{i.subject_name}:</span>{/if}
-								{i.message}
+								{insightText(i, kind)}
 							</p>
 						</li>
 					{/each}
@@ -570,4 +618,4 @@
 			<li>{m.rule7()}</li>
 		</ul>
 	</details>
-{/if}
+{/if}

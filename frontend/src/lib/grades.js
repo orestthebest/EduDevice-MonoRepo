@@ -83,5 +83,5 @@ export function categoryLabel(key) {
 
 /** Datum kurz: "2027-01-20" -> "20 Jan" */
 export function shortDate(iso) {
-	return new Date(iso).toLocaleDateString('getLocale()', { day: 'numeric', month: 'short' });
+	return new Date(iso).toLocaleDateString(getLocale(), { day: 'numeric', month: 'short' });
 }

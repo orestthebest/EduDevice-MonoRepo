@@ -56,6 +56,7 @@ V4 (November 2026):
                   statt nur den Stand am Trimesterende
 """
 
+import json
 from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
@@ -211,7 +212,7 @@ def _insights(db: Session, student_id: int, visible_cs: set[int] | None, today: 
     """
     try:
         rows = db.execute(text("""
-            SELECT i.kind, i.tone, i.message, i.class_subject_id, s.name, i.week_start
+            SELECT i.kind, i.tone, i.message, i.class_subject_id, s.name, i.week_start, i.params
             FROM student_insights i
             LEFT JOIN class_subjects cs ON cs.id = i.class_subject_id
             LEFT JOIN subjects s ON s.id = cs.subject_id
@@ -222,12 +223,14 @@ def _insights(db: Session, student_id: int, visible_cs: set[int] | None, today: 
     except Exception:
         return []
     out = []
-    for kind, tone, message, cs_id, subject_name, week_start in rows:
+    for kind, tone, message, cs_id, subject_name, week_start, params in rows:
         if (today - week_start).days > INSIGHTS_MAX_AGE_DAYS:
             return []
         if visible_cs is not None and cs_id not in visible_cs:
             continue
-        out.append({"kind": kind, "tone": tone, "message": message,
+        if isinstance(params, str):                 # MySQL liefert JSON als Text
+            params = json.loads(params)
+        out.append({"kind": kind, "tone": tone, "message": message, "params": params,
                     "class_subject_id": cs_id, "subject_name": subject_name,
                     "week_start": week_start.isoformat()})
         if len(out) == INSIGHTS_SHOWN:

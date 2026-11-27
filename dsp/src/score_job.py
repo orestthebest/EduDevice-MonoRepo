@@ -41,6 +41,7 @@ and the job can never disagree about a percentage, an average or "secured".
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 import traceback
@@ -252,7 +253,8 @@ def compute(data: dict, absences: dict, held_per_student: dict, bundle, card, to
     for sid, cands in candidates.items():
         for i in scoring.pick(cands):
             insights.append({"student_id": sid, "class_subject_id": i.class_subject_id, "kind": i.kind,
-                             "tone": i.tone, "score": round(i.score, 3), "message": i.message})
+                             "tone": i.tone, "score": round(i.score, 3), "message": i.message,
+                             "params": json.dumps(i.params)})
     return {"assessments": assessments, "alerts": alerts, "forecasts": forecasts,
             "insights": insights, "version": version}
 
@@ -305,9 +307,9 @@ def write(con, run_id: int, result: dict, year_start: date, today: date,
         week = scoring.week_start(today)
         con.execute(text("""
             INSERT INTO student_insights (run_id, student_id, class_subject_id, week_start, kind, tone,
-                score, message, model_version)
+                score, message, params, model_version)
             VALUES (:run_id, :student_id, :class_subject_id, :week, :kind, :tone, :score, :message,
-                :model_version)"""),
+                :params, :model_version)"""),
             [dict(i, run_id=run_id, week=week, model_version=INSIGHT_MODEL) for i in result["insights"]])
     result["new_alerts"] = len(new_alerts)
     return len(result["assessments"])

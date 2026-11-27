@@ -1,5 +1,6 @@
 """Tests for scoring.py - the rules of the nightly scoring job."""
 
+import json
 from datetime import date, timedelta
 from decimal import Decimal as D
 
@@ -44,7 +45,10 @@ def test_recent_lift_and_no_subject_name_in_message():
     kinds = {i.kind: i for i in found}
     assert "recent_lift" in kinds and kinds["recent_lift"].tone == "positive"
     assert "Mathematics" not in kinds["recent_lift"].message and "10 Nov" in kinds["recent_lift"].message
-
+    # the numbers go along on their own, so the page can write the sentence in any language
+    p = kinds["recent_lift"].params
+    assert (p["category"], p["date"], p["value"]) == ("mini_test", "2026-11-10", 9.0) and p["effect"] > 0
+    assert json.dumps([i.params for i in found])                            # plain numbers and text only
 
 def test_trimester_change_needs_to_beat_own_noise():
     tri = lambda d: 1 if d < TODAY - timedelta(days=30) else 2
