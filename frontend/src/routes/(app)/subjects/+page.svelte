@@ -30,7 +30,7 @@
 		<button
 			type="button"
 			onclick={() => dialog.showModal()}
-			class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-accent px-4 text-sm font-medium text-white transition hover:bg-accent-dark"
+			class="inline-flex h-8 cursor-pointer items-center gap-2 rounded-lg bg-accent px-3 text-sm font-medium text-white transition hover:bg-accent-dark"
 		>
 			<Icon name="plus" /> {m.subj_new()}
 		</button>
@@ -39,45 +39,39 @@
 
 {#if data.subjects.length === 0}
 	<!-- Leerer Zustand -->
-	<div class="rounded-2xl border border-dashed border-ghost bg-white px-6 py-14 text-center">
-		<span class="mx-auto grid size-12 place-items-center rounded-xl bg-accent-light text-accent-dark">
+	<div class="rounded-xl border border-dashed border-ghost bg-white px-6 py-10 text-center">
+		<span class="mx-auto grid size-10 place-items-center rounded-lg bg-accent-light text-accent-dark">
 			<Icon name="book" class="size-5" />
 		</span>
-		<p class="mt-4 font-semibold">{m.subj_none()}</p>
+		<p class="mt-3 font-semibold">{m.subj_none()}</p>
 		<p class="mt-1 text-sm text-subtle">
 				{isTeacher ? m.subj_none_teacher() : isStudent ? m.subj_none_student() : m.subj_none_admin()}
 		</p>
 	</div>
 {:else}
-	<!-- Fächer als Karten -->
-	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+	<!-- Fächer als kompakte Karten: Symbol, Name + Lehrkraft, Klasse rechts -->
+	<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 		{#each data.subjects as s (s.id)}
-			<a
-				href="/subjects/{s.id}"
-				class="group overflow-hidden rounded-2xl border border-line bg-white transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-[0_8px_24px_rgb(27_20_100/0.08)]"
-			>
-				<!-- Farbstreifen im Marken-Verlauf -->
-				<div class="bg-brand-gradient h-1.5"></div>
-
-				<div class="p-5">
-					<div class="flex items-start justify-between">
-						<span class="grid size-10 place-items-center rounded-xl bg-surface text-navy transition group-hover:bg-accent-light group-hover:text-accent-dark">
-							<Icon name="book" />
-						</span>
-						<span class="rounded-full bg-accent-light px-2.5 py-1 text-xs font-semibold text-accent-dark">
-							{m.class_name({ name: s.class_name })}
-						</span>
+			<a href="/subjects/{s.id}"
+				class="group rounded-xl border border-line bg-white p-3.5 transition hover:border-accent/50">
+				<div class="flex items-center gap-3">
+					<span class="grid size-10 shrink-0 place-items-center rounded-lg bg-surface text-navy transition group-hover:bg-accent-light group-hover:text-accent-dark">
+						<Icon name="book" />
+					</span>
+					<div class="min-w-0 flex-1">
+						<h2 class="truncate text-sm font-semibold">{s.subject_name}</h2>
+						<p class="truncate text-xs text-subtle">{s.teacher_name}</p>
 					</div>
+					<span class="shrink-0 self-start rounded-md bg-accent-light px-2 py-0.5 text-xs font-semibold text-accent-dark">
+						{m.class_name({ name: s.class_name })}
+					</span>
+				</div>
 
-					<h2 class="mt-4 text-lg font-semibold">{s.subject_name}</h2>
-					<p class="text-sm text-subtle">{s.teacher_name}</p>
-
-					<div class="mt-4 flex gap-4 border-t border-divider pt-3 text-xs text-subtle">
-						<span><strong class="text-navy">{s.file_count}</strong> {s.file_count === 1 ? m.subj_file() : m.subj_files()}</span>
-						{#if !isStudent}
-							<span><strong class="text-navy">{s.student_count}</strong> {m.subj_students()}</span>
-						{/if}
-					</div>
+				<div class="mt-3 flex gap-4 border-t border-divider pt-2 text-xs text-subtle">
+					<span><strong class="text-navy">{s.file_count}</strong> {s.file_count === 1 ? m.subj_file() : m.subj_files()}</span>
+					{#if !isStudent}
+						<span><strong class="text-navy">{s.student_count}</strong> {m.subj_students()}</span>
+					{/if}
 				</div>
 			</a>
 		{/each}
@@ -89,12 +83,12 @@
 	<!-- Dialog: neues Fach anlegen -->
 	<dialog
 		bind:this={dialog}
-		class="m-auto w-full max-w-md rounded-2xl border border-line bg-white p-0 text-navy shadow-xl backdrop:bg-navy/35"
+		class="m-auto w-full max-w-md rounded-xl border border-line bg-white p-0 text-navy shadow-xl backdrop:bg-navy/35"
 	>
 		<form
 			method="POST"
 			action="?/create"
-			class="p-6"
+			class="p-5"
 			use:enhance={() => {
 				saving = true;
 				return async ({ result, update }) => {
@@ -107,8 +101,8 @@
 		>
 			<div class="flex items-start justify-between">
 				<div>
-					<h2 class="text-xl font-bold">{m.subj_new()}</h2>
-					<p class="mt-1 text-sm text-subtle">{m.subj_new_hint()}</p>
+					<h2 class="text-lg font-bold">{m.subj_new()}</h2>
+					<p class="text-sm text-subtle">{m.subj_new_hint()}</p>
 				</div>
 				<button type="button" onclick={() => dialog.close()} class="cursor-pointer rounded-lg p-1 text-subtle hover:bg-surface" aria-label={m.close()}>
 					<Icon name="x" class="size-5" />
@@ -116,10 +110,10 @@
 			</div>
 
 			{#if form?.error}
-				<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.error}</p>
+				<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{form.error}</p>
 			{/if}
 
-			<div class="mt-5 flex flex-col gap-4">
+			<div class="mt-4 flex flex-col gap-3">
 				<div>
 					<label for="class_id" class="label">{m.class_label()}</label>
 					<select id="class_id" name="class_id" required class="input">
@@ -141,16 +135,16 @@
 				</div>
 			</div>
 
-			<div class="mt-6 flex justify-end gap-2">
+			<div class="mt-4 flex justify-end gap-2">
 				<button type="button" onclick={() => dialog.close()}
-					class="cursor-pointer rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+					class="cursor-pointer rounded-lg border border-ghost px-4 py-2 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
 					{m.cancel()}
 				</button>
 				<button type="submit" disabled={saving}
-					class="cursor-pointer rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60">
+					class="cursor-pointer rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60">
 					{saving ? m.subj_creating() : m.subj_create()}
 				</button>
 			</div>
 		</form>
 	</dialog>
-{/if}
+{/if}

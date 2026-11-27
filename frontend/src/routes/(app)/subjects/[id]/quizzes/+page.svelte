@@ -18,29 +18,29 @@
 
 <PageHeader title={m.quizzes()} subtitle="{s.subject_name} · {m.class_name({ name: s.class_name })}" back="/subjects/{s.id}" />
 
-<div class="grid items-start gap-6 {data.isOwner ? 'lg:grid-cols-[1fr_340px]' : ''}">
-	<section class="rounded-2xl border border-line bg-white p-6">
-		<h2 class="mb-4 text-lg font-semibold">{data.isOwner ? m.quiz_all() : m.quiz_yours()}</h2>
+<div class="grid items-start gap-4 {data.isOwner ? 'lg:grid-cols-[1fr_340px]' : ''}">
+	<section class="rounded-xl border border-line bg-white p-4 sm:p-5">
+		<h2 class="mb-3 text-base font-semibold">{data.isOwner ? m.quiz_all() : m.quiz_yours()}</h2>
 
 		{#if data.quizzes.length === 0}
-			<p class="rounded-xl bg-surface px-4 py-10 text-center text-sm text-subtle">
+			<p class="rounded-lg bg-surface px-3 py-6 text-center text-sm text-subtle">
 				{data.isOwner ? m.quiz_none_owner() : m.quiz_none_student()}
 			</p>
 		{:else}
 			<ul class="divide-y divide-divider">
 				{#each data.quizzes as q (q.id)}
-					<li class="flex flex-wrap items-center gap-4 py-4">
+					<li class="flex flex-wrap items-center gap-3 py-3">
 						<div class="min-w-0 flex-1">
 							<div class="flex flex-wrap items-center gap-2">
-								<p class="truncate font-medium">{q.title}</p>
+								<p class="truncate text-sm font-medium">{q.title}</p>
 								{#if data.isOwner}
 									{#if q.is_published}
-										<span class="rounded-full bg-success/12 px-2 py-0.5 text-xs font-medium text-success-dark">{m.quiz_published()}</span>
+										<span class="rounded-md bg-success/12 px-2 py-0.5 text-xs font-medium text-success-dark">{m.quiz_published()}</span>
 									{:else}
-										<span class="rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-subtle">{m.quiz_draft()}</span>
+										<span class="rounded-md bg-surface px-2 py-0.5 text-xs font-medium text-subtle">{m.quiz_draft()}</span>
 									{/if}
 									{#if q.locked}
-										<span class="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-[#b4730f]">{m.quiz_locked()}</span>
+										<span class="rounded-md bg-warning/15 px-2 py-0.5 text-xs font-medium text-[#b4730f]">{m.quiz_locked()}</span>
 									{/if}
 								{/if}
 							</div>
@@ -57,7 +57,7 @@
 								{m.open()} <Icon name="arrow" />
 							</a>
 						{:else if q.my_result}
-							<span class="rounded-full bg-accent-light px-3 py-1 text-sm font-semibold text-accent-dark">
+							<span class="rounded-md bg-accent-light px-2 py-0.5 text-xs font-semibold text-accent-dark">
 								{q.my_result.score} / {q.my_result.max_score} · {percent(q.my_result.score, q.my_result.max_score)}%
 							</span>
 							<a href="/quizzes/{q.id}/take?s={s.id}"
@@ -78,8 +78,8 @@
 
 	{#if data.isOwner}
 		<!-- Neues Quiz (nur Lehrer des Fachs) -->
-		<section class="rounded-2xl border border-line bg-white p-6">
-			<h2 class="text-lg font-semibold">{m.quiz_new()}</h2>
+		<section class="rounded-xl border border-line bg-white p-4 sm:p-5">
+			<h2 class="text-base font-semibold">{m.quiz_new()}</h2>
 
 			<form method="POST" action="?/create" class="mt-4 flex flex-col gap-4"
 				use:enhance={() => {
@@ -90,7 +90,7 @@
 					};
 				}}>
 				{#if form?.error}
-					<p class="rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.error}</p>
+					<p class="rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{form.error}</p>
 				{/if}
 
 				<div>
@@ -103,11 +103,11 @@
 				</div>
 
 				<button type="submit" disabled={creating}
-					class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-50">
+					class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-50">
 					<Icon name="plus" /> {creating ? m.subj_creating() : m.quiz_create()}
 				</button>
 				<p class="text-xs text-subtle">{m.quiz_draft_hint()}</p>
 			</form>
 		</section>
 	{/if}
-</div>
+</div>
