@@ -49,12 +49,12 @@
 	const dayBlocks = (d) => blocks.filter((b) => b.day === d[dayKey]);
 </script>
 
-<div class="overflow-hidden rounded-2xl border border-line bg-white">
+<div class="overflow-hidden rounded-xl border border-line bg-white">
 	<!-- Handy: Tag auswählen -->
 	<div class="flex border-b border-line sm:hidden">
 		{#each days as d, i (d.key)}
 			<button type="button" onclick={() => (picked = i)}
-				class="flex-1 cursor-pointer py-2.5 text-sm font-medium transition
+				class="flex-1 cursor-pointer py-2 text-sm font-medium transition
 				{i === mobileDay ? 'bg-accent-light text-accent-dark' : 'text-subtle hover:text-navy'}">
 				{d.label}
 			</button>
@@ -156,4 +156,4 @@
 			</div>
 		{/each}
 	</div>
-</div>
+</div>

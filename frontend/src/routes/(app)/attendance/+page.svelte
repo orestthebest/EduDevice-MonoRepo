@@ -52,18 +52,18 @@
 <PageHeader title={m.nav_attendance()} subtitle={m.att_subtitle()} />
 
 {#if data.subjects.length === 0}
-	<div class="rounded-2xl border border-dashed border-ghost bg-white px-6 py-14 text-center">
-		<span class="mx-auto grid size-12 place-items-center rounded-xl bg-accent-light text-accent-dark">
+	<div class="rounded-xl border border-dashed border-ghost bg-white px-6 py-10 text-center">
+		<span class="mx-auto grid size-10 place-items-center rounded-lg bg-accent-light text-accent-dark">
 			<Icon name="calendar" class="size-5" />
 		</span>
-		<p class="mt-4 font-semibold">{m.subj_none()}</p>
+		<p class="mt-3 font-semibold">{m.subj_none()}</p>
 		<p class="mt-1 text-sm text-subtle">{m.att_no_subjects_hint()}</p>
 	</div>
 {:else}
-	<div class="grid gap-6 lg:grid-cols-[1fr_320px]">
-		<div class="space-y-6">
+	<div class="grid gap-4 lg:grid-cols-[1fr_320px]">
+		<div class="space-y-4">
 			<!-- Auswahl: Fach, Datum, Stunde -->
-			<section class="grid gap-4 rounded-2xl border border-line bg-white p-6 sm:grid-cols-3">
+			<section class="grid gap-3 rounded-xl border border-line bg-white p-4 sm:grid-cols-3">
 				<div>
 					<label for="subject" class="label">{m.att_subject()}</label>
 					<select id="subject" class="input" value={data.subjectId}
@@ -95,20 +95,20 @@
 
 			<!-- Schülerliste -->
 			{#if data.slotError}
-				<section class="flex items-center gap-3 rounded-2xl border border-line bg-white p-6 text-sm text-subtle">
+				<section class="flex items-center gap-3 rounded-xl border border-line bg-white p-4 sm:p-5 text-sm text-subtle">
 					<Icon name="calendar" class="size-5" />
 					{data.slotError}
 				</section>
 			{:else if !data.lesson}
-				<section class="flex items-center gap-3 rounded-2xl border border-line bg-white p-6 text-sm text-subtle">
+				<section class="flex items-center gap-3 rounded-xl border border-line bg-white p-4 sm:p-5 text-sm text-subtle">
 					<Icon name="calendar" class="size-5" />
 					{m.att_no_lesson_day({ subject: currentSubject?.subject_name ?? '', date: formatDay(data.date) })}
 				</section>
 			{:else}
-				<section class="rounded-2xl border border-line bg-white p-6">
-					<div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+				<section class="rounded-xl border border-line bg-white p-4 sm:p-5">
+					<div class="mb-3 flex flex-wrap items-start justify-between gap-3">
 						<div>
-							<h2 class="text-lg font-semibold">
+							<h2 class="text-base font-semibold">
 								{currentSubject?.subject_name} · {currentSubject?.class_name}
 							</h2>
 							<p class="text-sm text-subtle">
@@ -116,20 +116,20 @@
 								{data.lesson.room ? `· ${data.lesson.room}` : ''}
 							</p>
 						</div>
-						<span class="rounded-full px-3 py-1 text-xs font-semibold
+						<span class="rounded-md px-2 py-0.5 text-xs font-semibold
 							{recorded ? 'bg-success/12 text-success-dark' : 'bg-warning/15 text-[#b4730f]'}">
 							{recorded ? m.attendance_recorded() : m.att_not_recorded()}
 						</span>
 					</div>
 
 					{#if data.lesson.cancelled}
-						<p class="mb-4 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-[#b4730f]">
+						<p class="mb-3 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-[#b4730f]">
 							{m.att_cancelled()}
 						</p>
 					{/if}
 
 					{#if students.length === 0}
-						<p class="rounded-xl bg-surface px-4 py-6 text-center text-sm text-subtle">
+						<p class="rounded-lg bg-surface px-3 py-4 text-center text-sm text-subtle">
 							{m.att_no_students()}
 						</p>
 					{:else}
@@ -156,10 +156,10 @@
 								</button>
 							</div>
 
-							<ul class="divide-y divide-divider rounded-xl border border-line">
+							<ul class="divide-y divide-divider rounded-lg border border-line">
 								{#each students as s (s.student_id)}
 									{@const status = statuses[s.student_id]}
-									<li class="flex items-center gap-3 px-4 py-2.5">
+									<li class="flex items-center gap-3 px-3 py-2">
 										<input type="hidden" name="student_id" value={s.student_id} />
 										<input type="hidden" name="status-{s.student_id}" value={status} />
 
@@ -174,12 +174,12 @@
 
 										<div class="inline-flex shrink-0 rounded-lg border border-line p-0.5 text-sm">
 											<button type="button" onclick={() => (statuses[s.student_id] = 'anwesend')}
-												class="cursor-pointer rounded-md px-3 py-1.5 font-medium transition
+												class="cursor-pointer rounded-md px-2.5 py-1 font-medium transition
 												{status === 'anwesend' ? 'bg-success/12 text-success-dark' : 'text-subtle hover:text-navy'}">
 												{m.att_present()}
 											</button>
 											<button type="button" onclick={() => (statuses[s.student_id] = 'abwesend')}
-												class="cursor-pointer rounded-md px-3 py-1.5 font-medium transition
+												class="cursor-pointer rounded-md px-2.5 py-1 font-medium transition
 												{status === 'abwesend' ? 'bg-error/12 text-error' : 'text-subtle hover:text-navy'}">
 												{m.absence_absent()}
 											</button>
@@ -189,13 +189,13 @@
 							</ul>
 
 							{#if form?.error}
-								<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.error}</p>
+								<p class="mt-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{form.error}</p>
 							{:else if form?.success}
-								<p class="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-dark">{form.success}</p>
+								<p class="mt-3 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success-dark">{form.success}</p>
 							{/if}
 
-							<div class="mt-5 flex justify-end">
-								<button type="submit" disabled={saving} class="btn-primary text-sm sm:w-auto sm:px-6">
+							<div class="mt-3 flex justify-end">
+								<button type="submit" disabled={saving} class="btn-primary text-sm sm:w-auto sm:px-5">
 									{saving ? m.saving() : recorded ? m.att_save_changes() : m.att_save()}
 								</button>
 							</div>
@@ -206,8 +206,8 @@
 		</div>
 
 		<!-- Verlauf: bereits erfasste Stunden dieses Fachs -->
-		<aside class="h-fit rounded-2xl border border-line bg-white p-6">
-			<h2 class="mb-4 text-lg font-semibold">{m.rev_history()}</h2>
+		<aside class="h-fit rounded-xl border border-line bg-white p-4 sm:p-5">
+			<h2 class="mb-3 text-base font-semibold">{m.rev_history()}</h2>
 			{#if data.history.length === 0}
 				<p class="text-sm text-subtle">{m.att_none_history()}</p>
 			{:else}
@@ -223,7 +223,7 @@
 									<span class="font-medium">{formatDay(h.date)}</span>
 									<span class="text-subtle">· {periodLabel(h.start_time)}</span>
 								</span>
-								<span class="rounded-full px-2.5 py-0.5 text-xs font-semibold
+								<span class="rounded-md px-2 py-0.5 text-xs font-semibold
 									{absent > 0 ? 'bg-error/12 text-error' : 'bg-success/12 text-success-dark'}">
 									{absent > 0 ? m.att_n_absent({ n: absent }) : m.att_all_present()}
 								</span>
@@ -234,4 +234,4 @@
 			{/if}
 		</aside>
 	</div>
-{/if}
+{/if}

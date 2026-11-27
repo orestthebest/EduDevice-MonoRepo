@@ -54,36 +54,36 @@
 <PageHeader title={m.nav_timetable()} subtitle={isThisWeek ? m.tt_this_week({ range }) : m.tt_week({ range })}>
 	<div class="flex items-center gap-2">
 		<a href="?week={addDays(data.monday, -7)}" aria-label={m.tt_prev_week()}
-			class="grid size-10 place-items-center rounded-xl border border-line bg-white transition hover:border-accent hover:text-accent-dark">
+			class="grid size-8 place-items-center rounded-lg border border-line bg-white transition hover:border-accent hover:text-accent-dark">
 			<Icon name="back" />
 		</a>
 		{#if !isThisWeek}
 			<a href="/timetable"
-				class="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+				class="inline-flex h-8 items-center rounded-lg border border-line bg-white px-3 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
 				{m.date_today()}
 			</a>
 		{/if}
 		<a href="?week={addDays(data.monday, 7)}" aria-label={m.tt_next_week()}
-			class="grid size-10 place-items-center rounded-xl border border-line bg-white transition hover:border-accent hover:text-accent-dark">
+			class="grid size-8 place-items-center rounded-lg border border-line bg-white transition hover:border-accent hover:text-accent-dark">
 			<Icon name="next" />
 		</a>
 	</div>
 </PageHeader>
 
 {#if data.mock}
-	<p class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 text-sm">
+	<p class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
 		{m.tt_demo_view()}
 	</p>
 {/if}
 
 {#if data.timetable.lessons.length === 0 && days.every((d) => !d.off)}
-	<p class="mb-4 rounded-lg bg-surface px-4 py-3 text-sm text-subtle">{m.tt_none_week()}</p>
+	<p class="mb-4 rounded-lg bg-surface px-3 py-2 text-sm text-subtle">{m.tt_none_week()}</p>
 {/if}
 
 {#if outside > 0}
-	<p class="mb-4 rounded-lg bg-surface px-4 py-3 text-sm text-subtle">
+	<p class="mb-4 rounded-lg bg-surface px-3 py-2 text-sm text-subtle">
 		{outside === 1 ? m.tt_outside_one({ n: outside }) : m.tt_outside_many({ n: outside })}
 	</p>
 {/if}
 
-<TimetableGrid {days} {blocks} {details} {today} />
+<TimetableGrid {days} {blocks} {details} {today} />

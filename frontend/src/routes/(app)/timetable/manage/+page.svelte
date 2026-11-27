@@ -70,15 +70,15 @@
 <PageHeader title={m.tt_manage_title()} subtitle={m.tt_manage_subtitle()} />
 
 {#if data.classes.length === 0}
-	<section class="rounded-2xl border border-line bg-white p-6 text-sm text-subtle">
+	<section class="rounded-xl border border-line bg-white p-4 sm:p-5 text-sm text-subtle">
 		{m.tt_no_classes()} <a href="/classes" class="font-medium text-accent hover:underline">{m.nav_classes_students()}</a>.
 	</section>
 {:else}
 	<!-- Klasse auswählen -->
-	<div class="mb-4 flex flex-wrap gap-2">
+	<div class="mb-3 flex flex-wrap gap-2">
 		{#each data.classes as c (c.id)}
 			<a href="?class={c.id}"
-				class="rounded-xl border px-4 py-2 text-sm font-medium transition
+				class="rounded-lg border px-3 py-1.5 text-sm font-medium transition
 				{c.id === data.schoolClass.id ? 'border-accent bg-accent-light text-accent-dark' : 'border-line bg-white text-subtle hover:border-accent hover:text-navy'}">
 				{c.name}
 			</a>
@@ -86,13 +86,13 @@
 	</div>
 
 	{#if data.mock}
-		<p class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 text-sm">
+		<p class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
 			{m.tt_demo_manage()}
 		</p>
 	{/if}
 
 	{#if data.subjects.length === 0}
-		<p class="mb-4 flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 text-sm">
+		<p class="mb-4 flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
 			{m.tt_no_subjects_before({ name: data.schoolClass.name })}
 			<a href="/subjects" class="font-medium text-accent hover:underline">{m.nav_all_subjects()}</a>{m.tt_no_subjects_after()}
 		</p>
@@ -117,8 +117,8 @@
 
 	<!-- Dialog: neue Unterrichtseinheit anlegen / bearbeiten -->
 	<dialog bind:this={lessonDialog}
-		class="m-auto w-full max-w-md rounded-2xl border border-line bg-white p-0 text-navy shadow-xl backdrop:bg-navy/35">
-		<form method="POST" action={editing ? '?/update' : '?/create'} class="p-6"
+		class="m-auto w-full max-w-md rounded-xl border border-line bg-white p-0 text-navy shadow-xl backdrop:bg-navy/35">
+		<form method="POST" action={editing ? '?/update' : '?/create'} class="p-5"
 			use:enhance={() => {
 				saving = true;
 				return async ({ result, update }) => {
@@ -132,10 +132,10 @@
 
 			{#if editing}<input type="hidden" name="old" value={JSON.stringify(editing)} />{/if}
 
-			<h2 class="text-lg font-bold">{editing ? m.tt_edit_lesson() : m.tt_new_lesson()} · {data.schoolClass.name}</h2>
+			<h2 class="text-base font-bold">{editing ? m.tt_edit_lesson() : m.tt_new_lesson()} · {data.schoolClass.name}</h2>
 			<p class="mt-1 text-sm text-subtle">{summary}</p>
 
-			<div class="mt-5 space-y-4">
+			<div class="mt-3 space-y-3">
 				<div>
 					<label for="tt-subject" class="label">{m.att_subject()}</label>
 					<select id="tt-subject" name="class_subject_id" required class="input" bind:value={draft.class_subject_id}>
@@ -181,35 +181,35 @@
 			</div>
 
 			{#if dialogError}
-				<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{dialogError}</p>
+				<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{dialogError}</p>
 			{/if}
 
-			<div class="mt-6 flex items-center gap-2">
+			<div class="mt-4 flex items-center gap-2">
 				<!-- Löschen nur beim Bearbeiten, mit zweitem Klick als Bestätigung -->
 				{#if editing}
 					{#if confirmDelete}
 						<button type="submit" formaction="?/delete" formnovalidate disabled={saving}
-							class="cursor-pointer rounded-lg bg-error px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60">
+							class="cursor-pointer rounded-lg bg-error px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60">
 							{m.tt_really_delete()}
 						</button>
 					{:else}
 						<button type="button" onclick={() => (confirmDelete = true)} aria-label={m.tt_delete_lesson()}
-							class="cursor-pointer rounded-lg border border-ghost p-2.5 text-subtle transition hover:border-error hover:text-error">
+							class="cursor-pointer rounded-lg border border-ghost p-2 text-subtle transition hover:border-error hover:text-error">
 							<Icon name="trash" />
 						</button>
 					{/if}
 				{/if}
 
 				<button type="button" onclick={() => lessonDialog.close()}
-					class="ml-auto cursor-pointer rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+					class="ml-auto cursor-pointer rounded-lg border border-ghost px-4 py-2 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
 					{m.cancel()}
 				</button>
 				<button type="submit" disabled={saving}
-					class="cursor-pointer rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60">
+					class="cursor-pointer rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60">
 					{saving ? m.saving() : editing ? m.att_save_changes() : m.tt_add_lesson()}
 				</button>
 			</div>
 		</form>
 	</dialog>
 
-{/if}
+{/if}
