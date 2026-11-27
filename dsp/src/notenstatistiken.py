@@ -44,7 +44,7 @@ import os
 import statistics
 import sys
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal
 from typing import Optional
@@ -61,6 +61,9 @@ from grade_stats import (
     round_grade,
     subject_grade,
 )
+import backend_rules
+
+_YEAR = backend_rules.load("final_range")   # the year rule, shared with the page
 
 URL_ENV_VAR = "EDUDEVICE_DB_URL"
 DEFAULT_URL = "mysql+pymysql://root@localhost/edudevice_db"
@@ -182,15 +185,13 @@ def load(engine, school_year_id: int = 1):
             )
         ]
 
-    # Tag each mark with its trimester by date. A mark outside every window keeps
-    # trimester=None and is counted in the year figures but in no trimester.
+    # Tag each mark with its trimester by date, the same way as the page: a mark in
+    # the holidays between two trimesters counts to the one that began last.
+    windows = [(t["start_date"], t["end_date"]) for t in trimesters]
     tagged = []
     for r in rows:
-        num = None
-        for t in trimesters:
-            if t["start_date"] <= r.on <= t["end_date"]:
-                num = t["number"]
-                break
+        index = _YEAR.trimester_of(r.on, windows)
+        num = None if index is None else trimesters[index]["number"]
         tagged.append(
             GradeRow(r.student_id, r.class_subject_id, r.category, r.weight,
                      r.value, r.on, num)
@@ -198,6 +199,7 @@ def load(engine, school_year_id: int = 1):
 
     return {
         "trimesters": trimesters,
+        "windows": windows,
         "subjects": subjects,
         "students": students,
         "enrolled": enrolled,
@@ -213,13 +215,24 @@ def _marks(rows) -> list[Mark]:
     return [Mark(r.category, r.value, r.weight) for r in rows]
 
 
-def subject_report(rows: list[GradeRow]) -> dict:
-    """Everything about one student in one subject for the year."""
-    marks = _marks(rows)
+def _year_figure(marks: list[Mark], component: str, raw) -> Result:
+    """component_grade for the counts and category shares, the value from the year rule."""
+    figure = component_grade(marks, component)
+    return figure if raw is None else replace(figure, raw=raw, rounded=round_grade(raw))
 
-    m1_year = component_grade(marks, "M1")
-    m2_year = component_grade(marks, "M2")
-    m3_year = component_grade(marks, "M3")
+
+def subject_report(rows: list[GradeRow], windows=()) -> dict:
+    """Everything about one student in one subject for the year.
+    windows: the trimesters as [(start, end)]. M1 and M2 are averaged per trimester,
+    then over the trimesters (final_range.py, the same rule as the page).
+    Without windows the year is one block."""
+    marks = _marks(rows)
+    year = _YEAR.year_components([(m.component, m.value, m.weight, r.on) for m, r in zip(marks, rows)],
+                                 list(windows))
+
+    m1_year = _year_figure(marks, "M1", year["M1"])
+    m2_year = _year_figure(marks, "M2", year["M2"])
+    m3_year = _year_figure(marks, "M3", year["M3"])
 
     overall = subject_grade(m1_year.raw, m2_year.raw, m3_year.raw, n_marks=len(marks))
 
@@ -311,7 +324,7 @@ def class_subject_report(data: dict, class_subject_id: int,
 
     per_student = {}
     for sid, srows in by_student.items():
-        per_student[sid] = subject_report(srows)
+        per_student[sid] = subject_report(srows, data["windows"])
 
     finals = [
         (sid, rep["current"]["raw"])
@@ -410,7 +423,7 @@ def student_report(data: dict, student_id: int,
     subjects = []
     for cs_id, srows in sorted(by_subject.items()):
         meta = data["subjects"][cs_id]
-        rep = subject_report(srows)
+        rep = subject_report(srows, data["windows"])
         rep.update(
             {
                 "class_subject_id": cs_id,
@@ -428,7 +441,7 @@ def student_report(data: dict, student_id: int,
                          if r.student_id == other and r.class_subject_id == cs_id]
                 if not orows:
                     continue
-                v = subject_report(orows)["current"]["raw"]
+                v = subject_report(orows, data["windows"])["current"]["raw"]
                 if v is not None:
                     peers.append(v)
             if peers:
