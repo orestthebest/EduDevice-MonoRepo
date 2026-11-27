@@ -12,13 +12,6 @@
 	let savingPassword = $state(false);
     let uploading = $state(false);
 	const p = $derived(data.profile);
-
-	// Nur Anzeige – Name und Rolle verwaltet die Schule
-	const fields = $derived([
-		{ label: m.first_name(), value: p.first_name },
-		{ label: m.last_name(), value: p.last_name },
-		{ label: m.prof_role(), value: ROLE_LABEL[p.role] }
-	]);
 </script>
 
 <svelte:head>
@@ -28,14 +21,14 @@
 <PageHeader title={m.prof_title()} subtitle={m.prof_subtitle()} />
 
 <!-- Kopf-Karte: Bild/Initialen, Name, Rolle, Bild ändern -->
-<section class="rounded-2xl border border-line bg-white p-6">
-	<div class="flex flex-col gap-5 sm:flex-row sm:items-center">
-		<Avatar user={p} class="size-20 text-2xl" />
+<section class="rounded-xl border border-line bg-white p-4 sm:p-5">
+	<div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+		<Avatar user={p} class="size-16 text-xl" />
 
 		<div class="min-w-0 flex-1">
-			<h2 class="truncate text-xl font-semibold">{p.first_name} {p.last_name}</h2>
+			<h2 class="truncate text-lg font-semibold">{p.first_name} {p.last_name}</h2>
 			<p class="truncate text-sm text-subtle">@{p.username}</p>
-			<span class="mt-2 inline-block rounded-full bg-accent-light px-3 py-1 text-xs font-semibold text-accent-dark">
+			<span class="mt-1 inline-block rounded-md bg-accent-light px-2 py-0.5 text-xs font-semibold text-accent-dark">
 				{ROLE_LABEL[p.role]}
 			</span>
 		</div>
@@ -51,7 +44,7 @@
 					};
 				}}
 			>
-				<label class="flex cursor-pointer items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark">
+				<label class="flex cursor-pointer items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent-dark">
 					<Icon name="upload" />
 					{uploading ? m.prof_uploading() : p.profile_image ? m.prof_change_picture() : m.prof_upload_picture()}
 					<input type="file" name="file" accept="image/jpeg,image/png,image/webp" class="hidden"
@@ -62,7 +55,7 @@
 			{#if p.profile_image}
 				<form method="POST" action="?/removeAvatar" use:enhance>
 					<button type="submit"
-						class="flex cursor-pointer items-center gap-2 rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-error hover:text-error">
+						class="flex cursor-pointer items-center gap-2 rounded-lg border border-ghost px-3 py-1.5 text-sm font-medium transition hover:border-error hover:text-error">
 						<Icon name="trash" />
 						{m.prof_remove()}
 					</button>
@@ -71,141 +64,134 @@
 		</div>
 	</div>
 
-	<p class="mt-4 text-xs text-subtle">{m.prof_image_hint()}</p>
+	<!-- Name und Rolle verwaltet die Schule, daher hier nur der Hinweis statt einer eigenen Karte -->
+	<p class="mt-3 text-xs text-subtle">{m.prof_image_hint()} · {m.prof_account_hint()}</p>
 
 	{#if form?.avatarError}
-		<p class="mt-3 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.avatarError}</p>
+		<p class="mt-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{form.avatarError}</p>
 	{:else if form?.avatarSuccess}
-		<p class="mt-3 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-dark">{form.avatarSuccess}</p>
+		<p class="mt-3 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success-dark">{form.avatarSuccess}</p>
 	{/if}
 </section>
 
 
-<!-- Kontodaten -->
-<section class="mt-6 rounded-2xl border border-line bg-white p-6">
-	<h2 class="text-lg font-semibold">{m.prof_account_details()}</h2>
-	<p class="text-sm text-subtle">{m.prof_account_hint()}</p>
-
-	<dl class="mt-5 divide-y divide-line">
-		{#each fields as f (f.label)}
-			<div class="grid gap-1 py-3 sm:grid-cols-3">
-				<dt class="text-sm text-subtle">{f.label}</dt>
-				<dd class="text-sm font-medium break-all sm:col-span-2">{f.value}</dd>
-			</div>
-		{/each}
-	</dl>
-</section>
-
-<!-- Username ändern -->
-<section class="mt-6 rounded-2xl border border-line bg-white p-6">
-	<h2 class="text-lg font-semibold">{m.username()}</h2>
-	<p class="text-sm text-subtle">{m.prof_username_hint()}</p>
-
-	<form
-		method="POST"
-		action="?/updateUsername"
-		class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"
-		use:enhance={() => {
-			savingUsername = true;
-			return async ({ update }) => {
-				await update({ reset: false });
-				savingUsername = false;
-			};
-		}}
-	>
-		<div class="flex-1">
-			<label for="username" class="label">{m.username()}</label>
-			<input id="username" name="username" type="text" required minlength="3" maxlength="50"
-				autocomplete="username" class="input" value={form?.username ?? p.username} />
-		</div>
-		<button type="submit" class="btn-primary sm:w-auto sm:px-6" disabled={savingUsername}>
-			{savingUsername ? m.saving() : m.save()}
-		</button>
-	</form>
-
-	{#if form?.usernameError}
-		<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.usernameError}</p>
-	{:else if form?.usernameSuccess}
-		<p class="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-dark">{m.prof_username_updated()}</p>
-	{/if}
-</section>
-
-<!-- E-Mail ändern -->
-<section class="mt-6 rounded-2xl border border-line bg-white p-6">
-	<h2 class="text-lg font-semibold">{m.prof_email_title()}</h2>
-	<p class="text-sm text-subtle">{m.prof_email_hint()}</p>
-
-	<form
-		method="POST"
-		action="?/updateEmail"
-		class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"
-		use:enhance={() => {
-			saving = true;
-			return async ({ update }) => {
-				await update({ reset: false });
-				saving = false;
-			};
-		}}
-	>
-		<div class="flex-1">
-			<label for="email" class="label">{m.email()}</label>
-			<input id="email" name="email" type="email" required maxlength="255"
-				class="input" value={form?.email ?? p.email} />
-		</div>
-		<button type="submit" class="btn-primary sm:w-auto sm:px-6" disabled={saving}>
-			{saving ? m.saving() : m.save()}
-		</button>
-	</form>
-
-	{#if form?.error}
-		<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.error}</p>
-	{:else if form?.success}
-		<p class="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-dark">{m.prof_email_updated()}</p>
-	{/if}
-</section>
-
-<!-- Passwort ändern -->
-<section class="mt-6 rounded-2xl border border-line bg-white p-6">
-	<h2 class="text-lg font-semibold">{m.password()}</h2>
-	<p class="text-sm text-subtle">{m.prof_password_hint()}</p>
-
-	<form
-		method="POST"
-		action="?/updatePassword"
-		class="mt-5 grid gap-4 sm:grid-cols-3"
-		use:enhance={() => {
-			savingPassword = true;
-			return async ({ update }) => {
-				await update(); // leert die Felder nach Erfolg
-				savingPassword = false;
-			};
-		}}
-	>
+<!-- Benutzername, E-Mail, Passwort: eine Karte, je Zeile Titel links und Formular rechts -->
+<section class="mt-4 divide-y divide-divider rounded-xl border border-line bg-white px-4 sm:px-5">
+	<div class="grid gap-3 py-4 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-6">
 		<div>
-			<label for="current_password" class="label">{m.prof_current_password()}</label>
-			<input id="current_password" name="current_password" type="password" required
-				autocomplete="current-password" class="input" />
+			<h2 class="text-sm font-semibold">{m.username()}</h2>
+			<p class="text-xs text-subtle">{m.prof_username_hint()}</p>
 		</div>
 		<div>
-			<label for="new_password" class="label">{m.prof_new_password()}</label>
-			<input id="new_password" name="new_password" type="password" required minlength="8" maxlength="72"
-				autocomplete="new-password" class="input" />
+			<form
+				method="POST"
+				action="?/updateUsername"
+				class="flex flex-col gap-3 sm:flex-row sm:items-end"
+				use:enhance={() => {
+					savingUsername = true;
+					return async ({ update }) => {
+						await update({ reset: false });
+						savingUsername = false;
+					};
+				}}
+			>
+				<div class="flex-1">
+					<label for="username" class="sr-only">{m.username()}</label>
+					<input id="username" name="username" type="text" required minlength="3" maxlength="50"
+						autocomplete="username" class="input" value={form?.username ?? p.username} />
+				</div>
+				<button type="submit" class="btn-primary sm:w-auto sm:px-5" disabled={savingUsername}>
+					{savingUsername ? m.saving() : m.save()}
+				</button>
+			</form>
+
+			{#if form?.usernameError}
+				<p class="mt-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{form.usernameError}</p>
+			{:else if form?.usernameSuccess}
+				<p class="mt-3 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success-dark">{m.prof_username_updated()}</p>
+			{/if}
+		</div>
+	</div>
+	<div class="grid gap-3 py-4 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-6">
+		<div>
+			<h2 class="text-sm font-semibold">{m.prof_email_title()}</h2>
+			<p class="text-xs text-subtle">{m.prof_email_hint()}</p>
 		</div>
 		<div>
-			<label for="confirm_password" class="label">{m.prof_repeat_password()}</label>
-			<input id="confirm_password" name="confirm_password" type="password" required minlength="8" maxlength="72"
-				autocomplete="new-password" class="input" />
-		</div>
-		<div class="sm:col-span-3 sm:flex sm:justify-end">
-			<button type="submit" class="btn-primary sm:w-auto sm:px-6" disabled={savingPassword}>
-				{savingPassword ? m.saving() : m.prof_change_password()}
-			</button>
-		</div>
-	</form>
+			<form
+				method="POST"
+				action="?/updateEmail"
+				class="flex flex-col gap-3 sm:flex-row sm:items-end"
+				use:enhance={() => {
+					saving = true;
+					return async ({ update }) => {
+						await update({ reset: false });
+						saving = false;
+					};
+				}}
+			>
+				<div class="flex-1">
+					<label for="email" class="sr-only">{m.email()}</label>
+					<input id="email" name="email" type="email" required maxlength="255"
+						class="input" value={form?.email ?? p.email} />
+				</div>
+				<button type="submit" class="btn-primary sm:w-auto sm:px-5" disabled={saving}>
+					{saving ? m.saving() : m.save()}
+				</button>
+			</form>
 
-	{#if form?.passwordError}
-		<p class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.passwordError}</p>
-	{:else if form?.passwordSuccess}
-		<p class="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-dark">{m.prof_password_changed()}</p>
-	{/if}
-</section>
+			{#if form?.error}
+				<p class="mt-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{form.error}</p>
+			{:else if form?.success}
+				<p class="mt-3 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success-dark">{m.prof_email_updated()}</p>
+			{/if}
+		</div>
+	</div>
+	<div class="grid gap-3 py-4 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-6">
+		<div>
+			<h2 class="text-sm font-semibold">{m.password()}</h2>
+			<p class="text-xs text-subtle">{m.prof_password_hint()}</p>
+		</div>
+		<div>
+			<form
+				method="POST"
+				action="?/updatePassword"
+				class="grid gap-3 sm:grid-cols-3"
+				use:enhance={() => {
+					savingPassword = true;
+					return async ({ update }) => {
+						await update(); // leert die Felder nach Erfolg
+						savingPassword = false;
+					};
+				}}
+			>
+				<div>
+					<label for="current_password" class="label">{m.prof_current_password()}</label>
+					<input id="current_password" name="current_password" type="password" required
+						autocomplete="current-password" class="input" />
+				</div>
+				<div>
+					<label for="new_password" class="label">{m.prof_new_password()}</label>
+					<input id="new_password" name="new_password" type="password" required minlength="8" maxlength="72"
+						autocomplete="new-password" class="input" />
+				</div>
+				<div>
+					<label for="confirm_password" class="label">{m.prof_repeat_password()}</label>
+					<input id="confirm_password" name="confirm_password" type="password" required minlength="8" maxlength="72"
+						autocomplete="new-password" class="input" />
+				</div>
+				<div class="sm:col-span-3 sm:flex sm:justify-end">
+					<button type="submit" class="btn-primary sm:w-auto sm:px-5" disabled={savingPassword}>
+						{savingPassword ? m.saving() : m.prof_change_password()}
+					</button>
+				</div>
+			</form>
+
+			{#if form?.passwordError}
+				<p class="mt-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{form.passwordError}</p>
+			{:else if form?.passwordSuccess}
+				<p class="mt-3 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success-dark">{m.prof_password_changed()}</p>
+			{/if}
+		</div>
+	</div>
+</section>
