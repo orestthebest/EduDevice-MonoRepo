@@ -35,7 +35,7 @@
 
 	<!-- Sidebar -->
 	<aside
-		class="bg-dash-gradient-vertical fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-sidebar-border px-4 py-6 transition-transform
+		class="bg-dash-gradient-vertical fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-sidebar-border px-3 py-5 transition-transform
 		{menuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0"
 	>
 		<div class="flex items-center justify-between px-2">
@@ -45,7 +45,7 @@
 			</button>
 		</div>
 
-		<nav class="mt-10 flex-1">
+		<nav class="mt-6 flex-1">
 			{#each [nav, SHARED_NAV] as group (group.section)}
 				<p class="mb-2 px-3 text-[11px] font-semibold tracking-wider text-subtle uppercase {group === SHARED_NAV ? 'mt-6' : ''}">
 					{group.section()}
@@ -55,7 +55,7 @@
 						<li>
 							<a
 								href={item.href}
-								class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+								class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition
 								{isActive(item.href)
 									? 'bg-white text-accent-dark shadow-[0_2px_8px_rgb(67_56_150/0.12)]'
 									: 'text-navy hover:bg-white/55'}"
@@ -82,7 +82,7 @@
 	</aside>
 
 	<!-- Seiteninhalt -->
-	<main class="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-8">
+	<main class="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-5">
 		{@render children()}
 	</main>
 </div>

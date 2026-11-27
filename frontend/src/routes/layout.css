@@ -67,6 +67,36 @@
 	background-image: linear-gradient(135deg, var(--color-dash-start) 0%, var(--color-dash-middle) 55%, var(--color-dash-end) 100%);
 }
 
+/* Bewegter Verlauf (Begrüßungs-Banner): eigene, kräftigere Pastellfarben,
+   damit man die Bewegung sieht. Fläche 3x so groß, wird diagonal hin und her geschoben. */
+@utility bg-dash-animated {
+	background-image: linear-gradient(
+		135deg,
+		#ddc9ff 0%,
+		#c6e4ff 30%,
+		#f0d6ff 60%,
+		#d2d8ff 80%,
+		#ddc9ff 100%
+	);
+	background-size: 300% 300%;
+	animation: gradient-shift 14s ease-in-out infinite;
+
+	/* Wer im System "weniger Bewegung" eingestellt hat, bekommt einen stillen Verlauf */
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
+}
+
+@keyframes gradient-shift {
+	0%,
+	100% {
+		background-position: 0% 0%; /* oben links */
+	}
+	50% {
+		background-position: 100% 100%; /* unten rechts */
+	}
+}
+
 /* Dashboard-Verlauf: Sidebar von oben nach unten (180°) */
 @utility bg-dash-gradient-vertical {
 	background-image: linear-gradient(180deg, var(--color-dash-start) 0%, var(--color-dash-middle) 50%, var(--color-dash-end) 100%);
@@ -75,7 +105,7 @@
 /* Grundeinstellungen für die ganze Seite */
 @layer base {
 	body {
-		@apply bg-white font-sans text-navy;
+		@apply bg-white font-sans text-[15px] text-navy;
 	}
 	h1,
 	h2,
@@ -91,10 +121,10 @@
 		@apply mb-1.5 block text-sm font-medium;
 	}
 	.input {
-		@apply w-full rounded-lg border border-input bg-white px-4 py-3 text-navy outline-none transition placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent/15;
+		@apply w-full rounded-lg border border-input bg-white px-3 py-2 text-sm text-navy outline-none transition placeholder:text-muted focus:border-accent focus:ring-3 focus:ring-accent/15;
 	}
 	.btn-primary {
-		@apply w-full cursor-pointer rounded-lg bg-accent px-4 py-3 font-medium text-white transition hover:bg-accent-dark;
+		@apply w-full cursor-pointer rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-accent;
 	}
 }
 
