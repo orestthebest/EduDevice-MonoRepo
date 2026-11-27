@@ -209,6 +209,7 @@ class Insight:
     tone: str                         # positive | neutral | attention
     score: float
     message: str                      # never contains the subject name - the page adds it
+    params: dict = field(default_factory=dict)   # the numbers in the message, so the page can translate it
 
 
 def _effect(marks: list[DatedMark], mark: DatedMark, trimesters=()) -> Optional[float]:
@@ -230,11 +231,15 @@ def subject_insights(cs_id: int, marks: list[DatedMark], raw: Optional[Decimal],
         if change["d"] > 0:
             out.append(Insight(cs_id, "trimester_up", "positive", abs(change["z"]),
                                f"Up {change['d']:.1f} on last trimester ({change['prev']:.1f} → "
-                               f"{change['cur']:.1f})."))
+                               f"{change['cur']:.1f}).",
+                               params={"diff": round(change["d"], 1), "prev": round(change["prev"], 1),
+                                       "cur": round(change["cur"], 1)}))
         else:
             out.append(Insight(cs_id, "trimester_down", "attention", abs(change["z"]),
                                f"Down {-change['d']:.1f} compared with last trimester ({change['prev']:.1f} → "
-                               f"{change['cur']:.1f}). Worth a look before the next written exam."))
+                               f"{change['cur']:.1f}). Worth a look before the next written exam.",
+                               params={"diff": round(-change["d"], 1), "prev": round(change["prev"], 1),
+                                       "cur": round(change["cur"], 1)}))
 
     newest = ordered[-1] if ordered else None
     if newest and (today - newest.date).days <= RECENT_DAYS:
@@ -242,14 +247,17 @@ def subject_insights(cs_id: int, marks: list[DatedMark], raw: Optional[Decimal],
         effect = _effect(marks, newest, trimesters)
         before = _values(ordered[:-1])
         usual = statistics.fmean(before) if before else None
+        about = {"category": newest.category, "date": newest.date.isoformat(), "value": float(newest.value)}
         if effect is not None and effect >= 0.25:
             out.append(Insight(cs_id, "recent_lift", "positive", 1.0 + 2 * effect,
                                f"Your {label} on {_day(newest.date)} ({float(newest.value):g}) lifted your "
-                               f"average by {effect:.2f}."))
+                               f"average by {effect:.2f}.",
+                               params=dict(about, effect=round(effect, 2))))
         elif usual is not None and len(before) >= MIN_HISTORY and float(newest.value) >= usual + 0.75:
             out.append(Insight(cs_id, "good_mark", "positive", 0.8,
                                f"Your {label} on {_day(newest.date)} "
-                               f"({float(newest.value):g}) was above your usual level."))
+                               f"({float(newest.value):g}) was above your usual level.",
+                               params=about))
 
     if len(ordered) >= MIN_HISTORY + 3:
         earlier = _values(ordered[:-3])
@@ -264,7 +272,9 @@ def subject_insights(cs_id: int, marks: list[DatedMark], raw: Optional[Decimal],
         out.append(Insight(cs_id, "unusual_drop", "attention", 1.3,
                            f"Your {CATEGORY_LABEL.get(m.category, m.category)} on {_day(m.date)} "
                            f"({float(m.value):g}) was well below your usual level ({drop['usual']:.1f}). "
-                           f"One mark - but worth a look."))
+                           f"One mark - but worth a look.",
+                           params={"category": m.category, "date": m.date.isoformat(), "value": float(m.value),
+                                   "usual": round(drop["usual"], 1)}))
 
     if raw is not None:
         frac = float(raw) - int(raw)
@@ -273,12 +283,14 @@ def subject_insights(cs_id: int, marks: list[DatedMark], raw: Optional[Decimal],
             # a nudge, not news: weaker than any real change in the marks
             out.append(Insight(cs_id, "near_round_up", "neutral", 0.7 - gap,
                                f"Your average is {float(raw):.2f} - just {gap:.2f} short of rounding up "
-                               f"to {_a(int(raw) + 1)}."))
+                               f"to {_a(int(raw) + 1)}.",
+                               params={"average": round(float(raw), 2), "gap": gap, "next": int(raw) + 1}))
 
     if absence and absence.get("projected_rate") is not None and 0.15 <= absence["projected_rate"] < 0.20:
         out.append(Insight(cs_id, "absence_pace", "attention", 1.1,
                            f"At your current pace you'd miss about {_pct(absence['projected_rate'])} of this "
-                           f"year's lessons. From 20 % an extra exam is required."))
+                           f"year's lessons. From 20 % an extra exam is required.",
+                           params={"rate": round(absence["projected_rate"] * 100)}))
     return out
 
 
