@@ -142,7 +142,7 @@
 />
 
 {#if stats.subjects.length === 0}
-	<div class="rounded-2xl border border-line bg-white p-10 text-center">
+	<div class="rounded-xl border border-line bg-white p-8 text-center">
 		{#if !data.isOwnView && data.user.role === 'lehrkraft'}
 			<!-- Lehrkräfte sehen nur ihre eigenen Fächer -->
 			<p class="font-medium">{m.grades_none_teacher_title()}</p>
@@ -159,19 +159,19 @@
 {:else}
 	<!-- 1. Gesamtschnitt -->
 	<section
-		class="grid gap-6 rounded-2xl border border-sidebar-border bg-dash-gradient px-6 py-6 sm:px-8 md:grid-cols-[1fr_auto] md:items-center"
+		class="grid gap-4 rounded-xl border border-sidebar-border bg-dash-gradient px-5 py-4 sm:px-6 md:grid-cols-[1fr_auto] md:items-center"
 	>
 		<div>
 			<p class="text-sm font-semibold text-accent-dark">{m.grades_overall()}</p>
 			<div class="mt-1 flex items-baseline gap-3">
-				<span class="font-heading text-5xl font-bold tabular-nums">{fmtGrade(overall.raw)}</span>
+				<span class="font-heading text-4xl font-bold tabular-nums">{fmtGrade(overall.raw)}</span>
 				{#if overall.rounded != null}
 					<span class="text-subtle"
 						>{m.grades_rounds_to()} <strong class="text-navy">{overall.rounded}</strong></span
 					>
 				{/if}
 			</div>
-			<p class="mt-2 text-sm text-subtle">
+			<p class="mt-1 text-sm text-subtle">
 				{overall.n_subjects === 1 ? m.grades_across_one({ n: overall.n_subjects }) : m.grades_across_many({ n: overall.n_subjects })} ·
 				{#if overall.attendance}
 					{m.grades_missed_pct({ rate: pct(overall.attendance.rate) })} ·
@@ -192,8 +192,8 @@
 		<div class="grid grid-cols-3 gap-2 sm:gap-3">
 			{#each [['ok', overall.n_ok], ['fragile', overall.n_fragile], ['failing', overall.n_at_risk]] as [key, n]}
 				{@const st = standingOf(key)}
-				<div class="rounded-xl bg-white/70 px-3 py-3 sm:min-w-28 sm:px-4">
-					<p class="font-heading text-2xl font-bold tabular-nums">{n}</p>
+				<div class="rounded-lg bg-white/70 px-3 py-2 sm:min-w-24">
+					<p class="font-heading text-xl font-bold tabular-nums">{n}</p>
 					<p class="mt-0.5 flex items-center gap-1.5 text-xs text-subtle">
 						<span class="size-2 shrink-0 rounded-full {st.dot}"></span>{st.label}
 					</p>
@@ -205,16 +205,16 @@
 	<!-- 2. Hinweise: was Aufmerksamkeit braucht -->
 	{#if notices.length}
 		<section
-			class="mt-6 rounded-2xl border p-5 sm:p-6 {serious
+			class="mt-4 rounded-xl border p-4 sm:p-5 {serious
 				? 'border-error/30 bg-error/[0.04]'
 				: 'border-warning/40 bg-warning/[0.06]'}"
 		>
-			<h2 class="text-lg font-semibold">{m.grades_attention()}</h2>
+			<h2 class="text-base font-semibold">{m.grades_attention()}</h2>
 			<ul class="mt-3 space-y-2.5">
 				{#each notices as n (`${n.kind}-${n.class_subject_id}`)}
 					{@const st = noticeChip(n.kind)}
 					<li class="flex items-start gap-3 text-sm">
-						<span class="mt-0.5 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold {st.chip}"
+						<span class="mt-0.5 shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold {st.chip}"
 							>{st.label}</span
 						>
 						<p class="flex-1">
@@ -255,20 +255,20 @@
 	{/if}
 
 	<!-- 3. Neueste Noten + Beobachtungen der Woche -->
-	<div class="mt-6 grid gap-6 lg:grid-cols-5">
-		<section class="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-3">
-			<h2 class="text-lg font-semibold">{m.grades_recent()}</h2>
-			<p class="text-sm text-subtle">{m.grades_recent_sub()}</p>
+	<div class="mt-4 grid gap-4 lg:grid-cols-5">
+		<section class="rounded-xl border border-line bg-white p-4 sm:p-5 lg:col-span-3">
+			<h2 class="text-base font-semibold">{m.grades_recent()}</h2>
+			<p class="text-xs text-subtle">{m.grades_recent_sub()}</p>
 			{#if recent.length === 0}
-				<p class="mt-4 rounded-xl bg-surface px-4 py-6 text-center text-sm text-subtle">
+				<p class="mt-3 rounded-lg bg-surface px-3 py-4 text-center text-sm text-subtle">
 					{m.grades_no_marks_yet()}.
 				</p>
 			{:else}
 				<ul class="mt-3 divide-y divide-divider">
 					{#each recent as r}
-						<li class="flex items-center gap-3 py-2.5">
+						<li class="flex items-center gap-3 py-2">
 							<span
-								class="grid size-10 shrink-0 place-items-center rounded-xl bg-surface font-heading text-lg font-bold tabular-nums"
+								class="grid size-9 shrink-0 place-items-center rounded-lg bg-surface font-heading text-base font-bold tabular-nums"
 							>
 								{fmtGrade(r.value, 1)}
 							</span>
@@ -277,7 +277,7 @@
 									{r.subject_name}
 									{#if r.is_new}
 										<span
-											class="rounded-full bg-accent-light px-2 py-0.5 text-[11px] font-semibold text-accent-dark"
+											class="rounded-md bg-accent-light px-1.5 py-0.5 text-[11px] font-semibold text-accent-dark"
 											>{m.grades_new()}</span
 										>
 									{/if}
@@ -308,11 +308,11 @@
 			{/if}
 		</section>
 
-		<section class="rounded-2xl border border-line bg-white p-5 sm:p-6 lg:col-span-2">
-			<h2 class="text-lg font-semibold">{m.grades_noticed()}</h2>
-			<p class="text-sm text-subtle">{m.grades_noticed_sub()}</p>
+		<section class="rounded-xl border border-line bg-white p-4 sm:p-5 lg:col-span-2">
+			<h2 class="text-base font-semibold">{m.grades_noticed()}</h2>
+			<p class="text-xs text-subtle">{m.grades_noticed_sub()}</p>
 			{#if insights.length === 0}
-				<p class="mt-4 rounded-xl bg-surface px-4 py-6 text-sm text-subtle">
+				<p class="mt-3 rounded-lg bg-surface px-3 py-4 text-sm text-subtle">
 					{m.grades_noticed_empty()}
 				</p>
 			{:else}
@@ -320,9 +320,9 @@
 					{#each insights as i}
 						{@const tone = TONE[i.tone] ?? TONE.neutral}
 						{@const kind = INSIGHT[i.kind] ?? { icon: 'arrow', keyword: '', remark: '' }}
-						<li class="flex items-start gap-3 rounded-xl border p-3 {tone.card}">
+						<li class="flex items-start gap-3 rounded-lg border p-2.5 {tone.card}">
 							<Tip text={kind.keyword} slow align="start">
-								<span class="grid size-9 shrink-0 place-items-center rounded-lg {tone.box}">
+								<span class="grid size-8 shrink-0 place-items-center rounded-md {tone.box}">
 									<Icon name={kind.icon} />
 								</span>
 							</Tip>
@@ -339,9 +339,9 @@
 	</div>
 
 	<!-- 4. Die Fächer -->
-	<section class="mt-6">
+	<section class="mt-4">
 		<div class="mb-3 flex items-baseline justify-between">
-			<h2 class="text-lg font-semibold">{m.grades_subjects()}</h2>
+			<h2 class="text-base font-semibold">{m.grades_subjects()}</h2>
 			<p class="text-xs text-muted">{m.grades_subjects_hint()}</p>
 		</div>
 
@@ -350,24 +350,24 @@
 				{@const st = standingOf(s.standing)}
 				<article
 					id="cs-{s.class_subject_id}"
-					class="scroll-mt-6 overflow-hidden rounded-2xl border border-line bg-white"
+					class="scroll-mt-6 overflow-hidden rounded-xl border border-line bg-white"
 				>
 					<button
 						type="button"
-						class="flex w-full cursor-pointer items-center gap-4 p-4 text-left transition hover:bg-surface/60 sm:p-5"
+						class="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition hover:bg-surface/60"
 						onclick={() => (open = open === i ? -1 : i)}
 						aria-expanded={open === i}
 					>
-						<span class="h-10 w-1 shrink-0 rounded-full {st.dot}" aria-hidden="true"></span>
+						<span class="h-8 w-1 shrink-0 rounded-full {st.dot}" aria-hidden="true"></span>
 						<div class="min-w-0 flex-1">
 							<div class="flex flex-wrap items-center gap-2">
-								<h3 class="truncate font-semibold">{s.subject_name}</h3>
-								<span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {st.chip}"
+								<h3 class="truncate text-sm font-semibold">{s.subject_name}</h3>
+								<span class="rounded-md px-2 py-0.5 text-xs font-semibold {st.chip}"
 									>{st.label}</span
 								>
 								{#if s.growth}
 									<span
-										class="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-navy"
+										class="rounded-md bg-surface px-1.5 py-0.5 text-[11px] font-medium text-navy"
 										title={m.grades_growth_title()}
 										>{GROWTH[s.growth.label].sign} {GROWTH[s.growth.label].label}</span
 									>
@@ -389,7 +389,7 @@
 						</div>
 
 						<div class="w-16 text-right">
-							<div class="font-heading text-2xl font-bold tabular-nums">
+							<div class="font-heading text-xl font-bold tabular-nums">
 								{fmtGrade(s.current.raw)}
 							</div>
 							{#if s.current.rounded != null}
@@ -405,11 +405,11 @@
 						{@const fail = s.forecast?.fail_probability}
 						<div class="border-t border-divider p-4 sm:p-5">
 							{#if s.required_remaining_avg != null || fail != null}
-								<div class="mb-5 space-y-2">
+								<div class="mb-4 space-y-2">
 									{#if s.required_remaining_avg != null}
 										<!-- Handlungsspielraum statt Urteil -->
 										<p
-											class="rounded-xl px-4 py-3 text-sm {!s.reachable
+											class="rounded-lg px-3 py-2 text-sm {!s.reachable
 												? 'bg-error/10 text-error'
 												: s.secured
 													? 'bg-success/12 text-success-dark'
@@ -428,7 +428,7 @@
 									{#if fail != null}
 										<!-- nur Lehrkräfte/Admin: die API liefert das Feld Schülern nicht -->
 										<div
-											class="flex items-center gap-3 rounded-xl px-4 py-3 text-sm {failTone(fail)}"
+											class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm {failTone(fail)}"
 										>
 											<span class="font-heading text-xl font-bold tabular-nums">{pct(fail, 0)}</span
 											>
@@ -450,9 +450,9 @@
 							{#if s.possible && s.possible.low !== s.possible.high}
 								{@const likely = s.forecast?.likely}
 								<!-- Hell: noch möglich (Regeln, live). Dunkel: wahrscheinlich (Prognosemodell, 80 %) -->
-								<div class="mb-6">
+								<div class="mb-4">
 									<h4
-										class="mb-2 flex items-center gap-1.5 text-xs font-medium tracking-wide text-subtle uppercase"
+										class="mb-2 flex items-center gap-1.5 text-xs font-medium text-subtle"
 									>
 										{likely ? m.grades_heading() : m.grades_still_possible()}
 										<Tip
@@ -473,16 +473,16 @@
 								</div>
 							{/if}
 
-							<div class="grid gap-6 lg:grid-cols-2">
+							<div class="grid gap-4 lg:grid-cols-2">
 								<div>
-									<h4 class="mb-3 text-xs font-medium tracking-wide text-subtle uppercase">
+									<h4 class="mb-3 text-xs font-medium text-subtle">
 										{m.grades_made_up()}
 									</h4>
 									<ComponentBars components={s.components} />
 								</div>
 								<div>
 									<h4
-										class="mb-1 flex items-center gap-1.5 text-xs font-medium tracking-wide text-subtle uppercase"
+										class="mb-1 flex items-center gap-1.5 text-xs font-medium text-subtle"
 									>
 										{m.grades_over_year()}
 										<Tip
@@ -500,10 +500,10 @@
 								</div>
 							</div>
 
-							<div class="mt-6 grid gap-6 lg:grid-cols-2">
+							<div class="mt-4 grid gap-4 lg:grid-cols-2">
 								{#if s.attendance}
 									<div>
-										<h4 class="mb-3 text-xs font-medium tracking-wide text-subtle uppercase">
+										<h4 class="mb-3 text-xs font-medium text-subtle">
 											{m.nav_attendance()}
 										</h4>
 										<AbsenceBudget absence={s.attendance} />
@@ -511,7 +511,7 @@
 								{/if}
 								{#if s.recent.length}
 									<div>
-										<h4 class="mb-2 text-xs font-medium tracking-wide text-subtle uppercase">
+										<h4 class="mb-2 text-xs font-medium text-subtle">
 											{m.grades_latest()}
 										</h4>
 										<ul class="divide-y divide-divider text-sm">
@@ -546,15 +546,15 @@
 	<details
 		id="how-grades-work"
 		bind:open={rulesOpen}
-		class="mt-6 scroll-mt-6 rounded-2xl border border-line bg-white"
+		class="mt-4 scroll-mt-6 rounded-xl border border-line bg-white"
 	>
-		<summary class="flex cursor-pointer list-none items-center justify-between p-5 font-semibold">
+		<summary class="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold">
 			{m.grades_how_work()}
 			<span class="text-muted transition {rulesOpen ? '-rotate-90' : 'rotate-180'}"
 				><Icon name="back" /></span
 			>
 		</summary>
-		<ul class="space-y-2 border-t border-divider p-5 text-sm text-subtle">
+		<ul class="space-y-2 border-t border-divider px-4 py-3 text-sm text-subtle">
 			<li>{m.rule1_before()} <strong class="text-navy">{m.rule1_range()}</strong>{m.rule1_after()}</li>
 			<li>
 				{m.rule2_before()} <strong class="text-navy">{passMark}</strong>{m.rule2_after()}
@@ -570,4 +570,4 @@
 			<li>{m.rule7()}</li>
 		</ul>
 	</details>
-{/if}
+{/if}
