@@ -4,6 +4,7 @@
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { formatSize, formatDate, typeColor } from '$lib/format.js';
 	import { m } from '$lib/paraglide/messages.js';
+	import SubjectIcon from '$lib/components/SubjectIcon.svelte';
 
 	let { data, form } = $props();
 
@@ -20,6 +21,7 @@
 	let title = $state('');
 	let dragging = $state(false);
 	let uploading = $state(false);
+	let uploadingImage = $state(false); // Fachbild wird gerade hochgeladen
 
 	// Datei ausgewählt (per Klick oder Drag & Drop): Titel automatisch aus dem Dateinamen
 	function pickFile(file) {
@@ -70,6 +72,38 @@
 </svelte:head>
 
 <PageHeader title={s.subject_name} {subtitle} back="/subjects">
+	<!-- Fachbild links vom Titel -->
+	{#snippet lead()}<SubjectIcon subject={s} />{/snippet}
+
+	{#if canEdit}
+		<!-- Fachbild ändern: Datei wählen -> Formular schickt sich sofort ab (wie beim Profilbild) -->
+		<form method="POST" action="?/uploadImage" enctype="multipart/form-data"
+			use:enhance={() => {
+				uploadingImage = true;
+				return async ({ update }) => {
+					await update();
+					uploadingImage = false;
+				};
+			}}>
+			<label title={m.prof_image_hint()}
+				class="inline-flex h-8 cursor-pointer items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-medium text-subtle transition hover:border-accent hover:text-accent-dark">
+				<Icon name="upload" />
+				<span class="hidden sm:inline">
+					{uploadingImage ? m.prof_uploading() : s.image ? m.prof_change_picture() : m.prof_upload_picture()}
+				</span>
+				<input type="file" name="file" accept="image/jpeg,image/png,image/webp" class="hidden"
+					disabled={uploadingImage} onchange={(e) => e.currentTarget.form.requestSubmit()} />
+			</label>
+		</form>
+		{#if s.image}
+			<form method="POST" action="?/removeImage" use:enhance>
+				<button type="submit" title={m.prof_remove()} aria-label={m.prof_remove()}
+					class="grid size-8 cursor-pointer place-items-center rounded-lg border border-line bg-white text-subtle transition hover:border-error hover:text-error">
+					<Icon name="x" class="size-4" />
+				</button>
+			</form>
+		{/if}
+	{/if}
 	{#if canEdit || data.user.role === 'schueler'}
 		<a href="/subjects/{s.id}/quizzes"
 			class="inline-flex h-8 items-center gap-2 rounded-lg bg-accent px-3 text-sm font-medium text-white transition hover:bg-accent-dark">
@@ -87,6 +121,9 @@
 	{/if}
 </PageHeader>
 
+{#if form?.imageError}
+	<p class="mb-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{form.imageError}</p>
+{/if}
 
 {#if canEdit}
 	<!-- Tabs: Materials | Students -->
@@ -341,4 +378,4 @@
 			</div>
 		</form>
 	</dialog>
-{/if}
+{/if}

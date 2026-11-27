@@ -3,6 +3,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { m } from '$lib/paraglide/messages.js';
+	import SubjectIcon from '$lib/components/SubjectIcon.svelte';
 
 	let { data, form } = $props();
 
@@ -55,9 +56,7 @@
 			<a href="/subjects/{s.id}"
 				class="group rounded-xl border border-line bg-white p-3.5 transition hover:border-accent/50">
 				<div class="flex items-center gap-3">
-					<span class="grid size-10 shrink-0 place-items-center rounded-lg bg-surface text-navy transition group-hover:bg-accent-light group-hover:text-accent-dark">
-						<Icon name="book" />
-					</span>
+					<SubjectIcon subject={s} />
 					<div class="min-w-0 flex-1">
 						<h2 class="truncate text-sm font-semibold">{s.subject_name}</h2>
 						<p class="truncate text-xs text-subtle">{s.teacher_name}</p>
@@ -147,4 +146,4 @@
 			</div>
 		</form>
 	</dialog>
-{/if}
+{/if}

@@ -4,7 +4,8 @@
 
 	// title = Seitentitel, subtitle = kleiner Text darunter, children = optionale Buttons rechts
     // back = optionaler Link für den Zurück-Button (z.B. "/subjects")
-	let { title, subtitle = '', back = '', children } = $props();
+	// lead = optionales Bild/Symbol links vom Titel (z.B. Fachbild)
+	let { title, subtitle = '', back = '', lead, children } = $props();	
 </script>
 
 <div class="mb-4 flex items-start justify-between gap-4">
@@ -14,6 +15,7 @@
 				<Icon name="back" />
 			</a>
 		{/if}
+		{@render lead?.()}
 		<div>
 			<h1 class="text-xl leading-8 font-bold">{title}</h1>
 			{#if subtitle}<p class="text-sm text-subtle">{subtitle}</p>{/if}

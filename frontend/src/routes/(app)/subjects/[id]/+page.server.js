@@ -117,5 +117,38 @@ export const actions = {
 		if (!res.ok) return fail(res.status, { deleteError: m.err_forbidden() });
 
 		redirect(303, '/subjects');
+	},
+
+	// Fachbild hochladen (nur die Lehrkraft des Fachs – die API prüft das auch)
+	uploadImage: async ({ request, params, locals }) => {
+		const file = (await request.formData()).get('file');
+
+		if (!(file instanceof File) || file.size === 0) {
+			return fail(400, { imageError: m.prof_err_choose_image() });
+		}
+		if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+			return fail(400, { imageError: m.prof_err_image_type() });
+		}
+		if (file.size > 2 * 1024 * 1024) {
+			return fail(400, { imageError: m.prof_err_image_size() });
+		}
+
+		const body = new FormData();
+		body.append('file', file);
+		const res = await api(`/subjects/${params.id}/image`, { method: 'PUT', token: locals.token, form: body });
+
+		if (res.status === 413) return fail(400, { imageError: m.prof_err_image_size() });
+		if (res.status === 400) return fail(400, { imageError: m.prof_err_image_invalid() });
+		if (!res.ok) return fail(res.status, { imageError: m.prof_err_upload() });
+
+		return { imageUpdated: true };
+	},
+
+	// Fachbild entfernen -> wieder Buch-Symbol
+	removeImage: async ({ params, locals }) => {
+		const res = await api(`/subjects/${params.id}/image`, { method: 'DELETE', token: locals.token });
+		if (!res.ok) return fail(res.status, { imageError: m.prof_err_remove() });
+
+		return { imageRemoved: true };
 	}
 };
