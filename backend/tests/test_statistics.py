@@ -123,3 +123,34 @@ def test_forecast_likely_range_and_probability_by_role():
         db.close()
     assert teacher["fail_probability"] == 0.41 and "fail_probability" not in student
     assert student["likely"] == {"predicted": 5.4, "low": 4.6, "high": 6.5, "model_version": "p"}  # Lauf 902
+
+
+# ---------------------------------------------------------------- Trimester je Schuljahr
+
+def test_trimester_nur_aus_dem_eigenen_schuljahr():
+    from app.routers.statistics import _windows_of_year, _year_now
+    windows = [{"year": 1, "number": 1, "start": date(2025, 9, 8), "end": date(2025, 12, 5)},
+               {"year": 1, "number": 2, "start": date(2025, 12, 9), "end": date(2026, 3, 20)},
+               {"year": 2, "number": 1, "start": date(2026, 9, 7), "end": date(2026, 12, 4)},
+               {"year": 2, "number": 2, "start": date(2026, 12, 7), "end": date(2027, 3, 19)}]
+    assert _windows_of_year(windows, 2) == [(date(2026, 9, 7), date(2026, 12, 4)),
+                                            (date(2026, 12, 7), date(2027, 3, 19))]
+    assert _year_now(windows, date(2026, 11, 27)) == 2          # das zuletzt begonnene
+    assert _year_now(windows, date(2026, 7, 10)) == 1           # Sommerferien: noch das alte
+    assert _year_now(windows, date(2025, 1, 1)) == 1            # vor allem: das erste
+    assert _year_now([], date(2026, 11, 27)) is None
+
+
+def test_fach_bekommt_die_trimester_seines_schuljahres():
+    """Mathe 4A (class_subject 1) gehoert zum Schuljahr 1; Schuljahr 99 darf nicht mitzaehlen."""
+    from app.core.database import SessionLocal
+    from app.routers.statistics import _trimesters_per_subject
+    windows = [{"year": 99, "number": 1, "start": date(2025, 9, 8), "end": date(2025, 12, 5)},
+               {"year": 1, "number": 1, "start": date(2026, 9, 7), "end": date(2026, 12, 4)},
+               {"year": 1, "number": 2, "start": date(2026, 12, 7), "end": date(2027, 3, 19)}]
+    db = SessionLocal()
+    try:
+        tris = _trimesters_per_subject(db, [1], windows)
+    finally:
+        db.close()
+    assert [start for start, _ in tris[1]] == [date(2026, 9, 7), date(2026, 12, 7)]

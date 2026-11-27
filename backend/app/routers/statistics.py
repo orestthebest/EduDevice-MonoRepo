@@ -76,7 +76,8 @@ router = APIRouter(prefix="/statistics", tags=["Notenstatistiken"])
 
 
 def _trimester_windows(db: Session) -> list[dict]:
-    """Die Trimesterzeitraeume aus der Tabelle trimesters.
+    """Die Trimesterzeitraeume aus der Tabelle trimesters, aller Schuljahre
+    (year = school_year_id); welches Schuljahr gilt, entscheiden die Aufrufer.
 
     Die Tabelle gehoert zum Schema, hat in models.py aber noch kein ORM-Modell,
     deshalb hier als einfache Abfrage. Ist sie leer, liefert die Funktion eine
@@ -85,11 +86,28 @@ def _trimester_windows(db: Session) -> list[dict]:
     """
     try:
         rows = db.execute(text(
-            "SELECT number, start_date, end_date FROM trimesters ORDER BY number"
+            "SELECT school_year_id, number, start_date, end_date FROM trimesters "
+            "ORDER BY school_year_id, number"
         )).all()
     except Exception:
         return []
-    return [{"number": r[0], "start": r[1], "end": r[2]} for r in rows]
+    return [{"year": r[0], "number": r[1], "start": r[2], "end": r[3]} for r in rows]
+
+
+def _windows_of_year(windows: list[dict], year_id) -> list[tuple]:
+    """Die Trimester eines Schuljahres als (Beginn, Ende)."""
+    return [(w["start"], w["end"]) for w in windows if w["year"] == year_id]
+
+
+def _year_now(windows: list[dict], today: date):
+    """Das laufende Schuljahr: das zuletzt begonnene; vor dem ersten das erste."""
+    starts = {}
+    for w in windows:
+        starts[w["year"]] = min(starts.get(w["year"], w["start"]), w["start"])
+    begun = [y for y, start in starts.items() if start <= today]
+    if begun:
+        return max(begun, key=starts.get)
+    return min(starts, key=starts.get, default=None)
 
 
 RECENT_OVERALL = 6          # so viele neueste Noten im Kasten "Recent grades"
@@ -371,18 +389,19 @@ def _subject_names(db: Session, cs_ids: list[int]) -> dict[int, dict]:
 
 
 def _trimesters_per_subject(db: Session, cs_ids: list[int], windows: list[dict]) -> dict[int, list]:
-    """class_subject_id -> Trimester als (Beginn, Ende), gekuerzt auf den letzten
-    Unterrichtstag der Klasse (5. Klassen: 30.04.), sonst den des Schuljahres."""
-    base = [(w["start"], w["end"]) for w in windows]
+    """class_subject_id -> Trimester des Schuljahres seiner Klasse als (Beginn, Ende),
+    gekuerzt auf den letzten Unterrichtstag der Klasse (5. Klassen: 30.04.), sonst
+    den des Schuljahres."""
     if not cs_ids:
         return {}
-    rows = (db.query(m.ClassSubject.id, m.SchoolClass.last_lesson_day, m.SchoolYear.last_lesson_day)
+    rows = (db.query(m.ClassSubject.id, m.SchoolClass.school_year_id,
+                     m.SchoolClass.last_lesson_day, m.SchoolYear.last_lesson_day)
             .join(m.SchoolClass, m.SchoolClass.id == m.ClassSubject.class_id)
             .join(m.SchoolYear, m.SchoolYear.id == m.SchoolClass.school_year_id)
             .filter(m.ClassSubject.id.in_(cs_ids))
             .all())
-    last = {cs_id: class_last or year_last for cs_id, class_last, year_last in rows}
-    return {cs_id: fr.clip_to(base, last.get(cs_id)) for cs_id in cs_ids}
+    return {cs_id: fr.clip_to(_windows_of_year(windows, year_id), class_last or year_last)
+            for cs_id, year_id, class_last, year_last in rows}
 
 
 def _class_average(db: Session, cs_id: int, exclude_student: int, tris: list):
@@ -431,6 +450,8 @@ def student_statistics(student_id: int, db: Session = Depends(get_db),
     windows = _trimester_windows(db)
     meta = _subject_names(db, sorted({g.class_subject_id for g in grades}))
     today = date.today()
+    year = _year_now(windows, today)
+    shown = [w for w in windows if w["year"] == year]      # fuer die Zeitleiste: das laufende Schuljahr
     absences = _attendance(db, student_id, sorted(meta), today)
     forecasts = _forecasts(db, student_id, show_probability=role != "schueler")
     tris = _trimesters_per_subject(db, sorted(meta), windows)
@@ -524,9 +545,9 @@ def student_statistics(student_id: int, db: Session = Depends(get_db),
         "scale": {"min": 4, "max": 10, "best": 10,
                   "pass_threshold": float(gs.PASS_THRESHOLD),
                   "fragile_below": float(gs.FRAGILE_BELOW)},
-        "has_trimesters": bool(windows),
+        "has_trimesters": bool(shown),
         "trimesters": [{"number": w["number"], "start": w["start"].isoformat(),
-                        "end": w["end"].isoformat()} for w in windows],
+                        "end": w["end"].isoformat()} for w in shown],
         "overall": {
             "raw": gs.as_float(overall),
             "rounded": None if overall is None else gs.round_grade(overall),
