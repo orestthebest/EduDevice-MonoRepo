@@ -84,7 +84,7 @@
 <form
 	method="POST"
 	action="?/saveQuestion"
-	class="flex flex-col gap-4"
+	class="flex flex-col gap-3"
 	use:enhance={({ cancel }) => {
 		if (problem) {
 			showError = true;
@@ -103,10 +103,10 @@
 	<input type="hidden" name="payload" value={JSON.stringify(payload)} />
 
 	<!-- Fragetyp -->
-	<div class="grid grid-cols-3 gap-1 rounded-xl border border-line bg-surface p-1">
+	<div class="grid grid-cols-3 gap-0.5 rounded-lg border border-line bg-surface p-0.5">
 		{#each Object.entries(TYPE_LABEL) as [key, label] (key)}
 			<button type="button" onclick={() => (type = key)}
-				class="cursor-pointer rounded-lg px-2 py-2 text-xs font-medium transition
+				class="cursor-pointer rounded-md px-2 py-1.5 text-xs font-medium transition
 				{type === key ? 'bg-white text-accent-dark shadow-sm' : 'text-subtle hover:text-navy'}">
 				{label}
 			</button>
@@ -138,7 +138,7 @@
 							class="size-5 cursor-pointer rounded border-input text-success focus:ring-success/30" />
 						<input bind:value={option.text} placeholder={m.quiz_answer_n({ n: i + 1 })} class="input py-2" />
 						<button type="button" onclick={() => options.splice(i, 1)} disabled={options.length <= 2}
-							class="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg border border-ghost text-subtle transition hover:border-error hover:text-error disabled:cursor-not-allowed disabled:opacity-40"
+							class="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg border border-ghost text-subtle transition hover:border-error hover:text-error disabled:cursor-not-allowed disabled:opacity-40"
 							aria-label={m.quiz_remove_answer({ n: i + 1 })}>
 							<Icon name="x" />
 						</button>
@@ -156,7 +156,7 @@
 			<div class="grid grid-cols-2 gap-2">
 				{#each [[true, m.quiz_true()], [false, m.quiz_false()]] as [value, label] (label)}
 					<button type="button" onclick={() => (tfCorrect = value)}
-						class="cursor-pointer rounded-lg border px-4 py-2.5 text-sm font-medium transition
+						class="cursor-pointer rounded-lg border px-4 py-2 text-sm font-medium transition
 						{tfCorrect === value ? 'border-success bg-success/12 text-success-dark' : 'border-ghost hover:border-accent'}">
 						{label}
 					</button>
@@ -167,7 +167,7 @@
 		<div>
 			<p class="label">{m.quiz_accepted()} <span class="font-normal text-subtle">{m.quiz_separate()}</span></p>
 			{#if gapNumbers.length === 0}
-				<p class="rounded-xl bg-surface px-4 py-4 text-center text-xs text-subtle">{m.quiz_gap_click_hint()}</p>
+				<p class="rounded-lg bg-surface px-3 py-3 text-center text-xs text-subtle">{m.quiz_gap_click_hint()}</p>
 			{:else}
 				<div class="flex flex-col gap-2">
 					{#each gapNumbers as n (n)}
@@ -188,20 +188,20 @@
 	</div>
 
 	{#if showError && problem}
-		<p class="rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{problem}</p>
+		<p class="rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{problem}</p>
 	{/if}
 
 	<div class="flex gap-2">
 		{#if question}
 			<button type="button" onclick={onDone}
-				class="cursor-pointer rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+				class="cursor-pointer rounded-lg border border-ghost px-4 py-2 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
 				{m.cancel()}
 			</button>
 		{/if}
 		<button type="submit" disabled={saving}
-			class="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-50">
+			class="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-50">
 			{#if !question}<Icon name="plus" />{/if}
 			{saving ? m.saving() : question ? m.quiz_save_question() : m.quiz_add_question()}
 		</button>
 	</div>
-</form>
+</form>

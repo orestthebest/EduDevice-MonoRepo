@@ -49,60 +49,60 @@
 		<input type="hidden" name="publish" value={!quiz.is_published} />
 		<button type="submit" disabled={!quiz.is_published && quiz.questions.length === 0}
 			title={!quiz.is_published && quiz.questions.length === 0 ? m.quiz_add_question_first() : ''}
-			class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl px-4 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50
+			class="inline-flex h-8 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50
 			{quiz.is_published ? 'border border-line bg-white text-subtle hover:border-accent hover:text-accent-dark' : 'bg-accent text-white hover:bg-accent-dark'}">
 			{quiz.is_published ? m.quiz_hide() : m.quiz_publish()}
 		</button>
 	</form>
 	{#if !quiz.locked}
 		<button type="button" onclick={() => confirmDialog.showModal()}
-			class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-medium text-subtle transition hover:border-error hover:text-error">
+			class="inline-flex h-8 cursor-pointer items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-medium text-subtle transition hover:border-error hover:text-error">
 			<Icon name="trash" /> {m.delete()}
 		</button>
 	{/if}
 </PageHeader>
 
 {#if form?.error}
-	<p class="mb-5 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{form.error}</p>
+	<p class="mb-3 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{form.error}</p>
 {:else if form?.saved}
-	<p class="mb-5 rounded-lg border border-success/30 bg-success/12 px-4 py-3 text-sm text-success-dark">{form.saved}</p>
+	<p class="mb-3 rounded-lg border border-success/30 bg-success/12 px-3 py-2 text-sm text-success-dark">{form.saved}</p>
 {/if}
 
 {#if quiz.locked}
-	<p class="mb-5 rounded-lg border border-warning/40 bg-warning/12 px-4 py-3 text-sm text-[#8a5a0c]">
+	<p class="mb-3 rounded-lg border border-warning/40 bg-warning/12 px-3 py-2 text-sm text-[#8a5a0c]">
 		{m.quiz_locked_hint()}
 	</p>
 {/if}
 
 <!-- Tabs: Questions | Results -->
-<div class="mb-5 inline-flex gap-1 rounded-xl border border-line bg-white p-1">
+<div class="mb-3 inline-flex gap-0.5 rounded-lg border border-line bg-white p-0.5">
 	{#each [['questions', m.quiz_tab_questions(), quiz.questions.length], ['results', m.quiz_tab_results(), data.attempts.length]] as [key, label, count] (key)}
 		<button type="button" onclick={() => (tab = key)}
-			class="inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition
-			{tab === key ? 'bg-accent text-white' : 'text-subtle hover:bg-surface hover:text-navy'}">
+			class="inline-flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition
+			{tab === key ? 'bg-accent-light text-accent-dark' : 'text-subtle hover:bg-surface hover:text-navy'}">
 			{label}
-			<span class="rounded-full px-2 py-0.5 text-xs {tab === key ? 'bg-white/20' : 'bg-surface'}">{count}</span>
+			<span class="rounded-md px-2 py-0.5 text-xs {tab === key ? 'bg-white/70' : 'bg-surface'}">{count}</span>
 		</button>
 	{/each}
 </div>
 
 {#if tab === 'questions'}
-	<div class="grid items-start gap-6 {quiz.locked ? '' : 'lg:grid-cols-[1fr_380px]'}">
+	<div class="grid items-start gap-4 {quiz.locked ? '' : 'lg:grid-cols-[1fr_380px]'}">
 		<!-- Fragenliste mit Lösungen -->
-		<section class="rounded-2xl border border-line bg-white p-6">
-			<h2 class="mb-4 text-lg font-semibold">{m.quiz_tab_questions()}</h2>
+		<section class="rounded-xl border border-line bg-white p-4 sm:p-5">
+			<h2 class="mb-3 text-base font-semibold">{m.quiz_tab_questions()}</h2>
 
 			{#if quiz.questions.length === 0}
-				<p class="rounded-xl bg-surface px-4 py-10 text-center text-sm text-subtle">{m.quiz_no_questions()}</p>
+				<p class="rounded-lg bg-surface px-3 py-6 text-center text-sm text-subtle">{m.quiz_no_questions()}</p>
 			{:else}
 				<ol class="flex flex-col gap-3">
 					{#each quiz.questions as q, i (q.id)}
-						<li class="rounded-xl border p-4 {editing?.id === q.id ? 'border-accent bg-accent-xlight' : 'border-line'}">
+						<li class="rounded-lg border p-3 {editing?.id === q.id ? 'border-accent bg-accent-xlight' : 'border-line'}">
 							<div class="flex items-start gap-3">
 								<span class="grid size-7 shrink-0 place-items-center rounded-lg bg-surface text-xs font-bold">{i + 1}</span>
 								<div class="min-w-0 flex-1">
 									<p class="text-xs text-subtle">{TYPE_LABEL[q.type]} · {q.points} {q.points === 1 ? m.quiz_point() : m.quiz_points()}</p>
-									<p class="mt-1 font-medium">
+									<p class="mt-0.5 text-sm font-medium">
 										{#each splitGaps(q.question_text) as part, p (p)}
 											{#if part.gap !== undefined}
 												<span class="mx-0.5 rounded bg-accent-light px-1.5 text-accent-dark">{q.options.filter((o) => o.gap_index === part.gap).map((o) => o.option_text).join(' / ')}</span>
@@ -132,7 +132,7 @@
 										}}>
 											<input type="hidden" name="question_id" value={q.id} />
 											<button type="submit" aria-label={m.quiz_delete_question({ n: i + 1 })}
-												class="grid size-9 cursor-pointer place-items-center rounded-lg border border-ghost text-subtle transition hover:border-error hover:text-error">
+												class="grid size-8 cursor-pointer place-items-center rounded-lg border border-ghost text-subtle transition hover:border-error hover:text-error">
 												<Icon name="trash" />
 											</button>
 										</form>
@@ -146,10 +146,10 @@
 		</section>
 
 		{#if !quiz.locked}
-			<div class="flex flex-col gap-6">
+			<div class="flex flex-col gap-3">
 				<!-- Frage anlegen / bearbeiten -->
-				<section class="rounded-2xl border border-line bg-white p-6">
-					<h2 class="mb-4 text-lg font-semibold">
+				<section class="rounded-xl border border-line bg-white p-4 sm:p-5">
+					<h2 class="mb-3 text-base font-semibold">
 						{editing ? m.quiz_edit_question({ n: quiz.questions.findIndex((q) => q.id === editing.id) + 1 }) : m.quiz_new_question()}
 					</h2>
 					{#key formKey}
@@ -158,9 +158,9 @@
 				</section>
 
 				<!-- Titel + Beschreibung -->
-				<section class="rounded-2xl border border-line bg-white p-6">
-					<h2 class="mb-4 text-lg font-semibold">{m.details()}</h2>
-					<form method="POST" action="?/details" class="flex flex-col gap-4" use:enhance={() => async ({ update }) => update({ reset: false })}>
+				<section class="rounded-xl border border-line bg-white p-4 sm:p-5">
+					<h2 class="mb-3 text-base font-semibold">{m.details()}</h2>
+					<form method="POST" action="?/details" class="flex flex-col gap-3" use:enhance={() => async ({ update }) => update({ reset: false })}>
 						<div>
 							<label for="title" class="label">{m.title()}</label>
 							<input id="title" name="title" value={quiz.title} required maxlength="150" class="input" />
@@ -170,7 +170,7 @@
 							<input id="description" name="description" value={quiz.description ?? ''} class="input" />
 						</div>
 						<button type="submit"
-							class="cursor-pointer rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+							class="cursor-pointer rounded-lg border border-ghost px-4 py-2 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
 							{m.quiz_save_details()}
 						</button>
 					</form>
@@ -180,30 +180,30 @@
 	</div>
 {:else}
 	<!-- Ergebnisse aller Schüler -->
-	<section class="rounded-2xl border border-line bg-white p-6">
-		<div class="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-			<h2 class="text-lg font-semibold">{m.quiz_tab_results()}</h2>
+	<section class="rounded-xl border border-line bg-white p-4 sm:p-5">
+		<div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+			<h2 class="text-base font-semibold">{m.quiz_tab_results()}</h2>
 			{#if data.attempts.length}
 				<p class="text-sm text-subtle">{m.quiz_average()} <span class="font-semibold text-navy">{average}%</span></p>
 			{/if}
 		</div>
 
 		{#if data.attempts.length === 0}
-			<p class="rounded-xl bg-surface px-4 py-10 text-center text-sm text-subtle">
+			<p class="rounded-lg bg-surface px-3 py-6 text-center text-sm text-subtle">
 				{quiz.is_published ? m.quiz_no_submissions() : m.quiz_publish_hint()}
 			</p>
 		{:else}
 			<ul class="divide-y divide-divider">
 				{#each [...data.attempts].sort((a, b) => a.last_name.localeCompare(b.last_name)) as a (a.student_id)}
-					<li class="flex items-center gap-3 py-3">
-						<span class="bg-brand-gradient grid size-9 shrink-0 place-items-center rounded-full text-xs font-semibold text-white">
+					<li class="flex items-center gap-3 py-2">
+						<span class="bg-brand-gradient grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold text-white">
 							{(a.first_name[0] + a.last_name[0]).toUpperCase()}
 						</span>
 						<div class="min-w-0 flex-1">
-							<p class="truncate font-medium">{a.first_name} {a.last_name}</p>
+							<p class="truncate text-sm font-medium">{a.first_name} {a.last_name}</p>
 							<p class="text-xs text-subtle">{a.username} · {m.quiz_submitted({ date: formatDate(a.submitted_at) })}</p>
 						</div>
-						<span class="rounded-full bg-accent-light px-3 py-1 text-sm font-semibold text-accent-dark">
+						<span class="rounded-md bg-accent-light px-2 py-0.5 text-xs font-semibold text-accent-dark">
 							{a.score} / {a.max_score} · {percent(a.score, a.max_score)}%
 						</span>
 					</li>
@@ -215,8 +215,8 @@
 
 <!-- Bestätigungs-Dialog: Quiz löschen -->
 <dialog bind:this={confirmDialog}
-	class="m-auto w-full max-w-sm rounded-2xl border border-line bg-white p-0 text-navy shadow-xl backdrop:bg-navy/35">
-	<form method="POST" action="?/deleteQuiz" class="p-6"
+	class="m-auto w-full max-w-sm rounded-xl border border-line bg-white p-0 text-navy shadow-xl backdrop:bg-navy/35">
+	<form method="POST" action="?/deleteQuiz" class="p-5"
 		use:enhance={() => {
 			deleting = true;
 			return async ({ update }) => {
@@ -226,21 +226,21 @@
 			};
 		}}>
 		<input type="hidden" name="class_subject_id" value={quiz.class_subject_id} />
-		<span class="grid size-11 place-items-center rounded-xl bg-error/12 text-error">
+		<span class="grid size-10 place-items-center rounded-lg bg-error/12 text-error">
 			<Icon name="trash" class="size-5" />
 		</span>
-		<h2 class="mt-4 text-lg font-bold">{m.quiz_delete_title({ title: quiz.title })}</h2>
+		<h2 class="mt-3 text-base font-bold">{m.quiz_delete_title({ title: quiz.title })}</h2>
 		<p class="mt-1 text-sm text-subtle">{m.quiz_delete_text()}</p>
 
-		<div class="mt-6 flex justify-end gap-2">
+		<div class="mt-4 flex justify-end gap-2">
 			<button type="button" onclick={() => confirmDialog.close()}
-				class="cursor-pointer rounded-lg border border-ghost px-4 py-2.5 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
+				class="cursor-pointer rounded-lg border border-ghost px-4 py-2 text-sm font-medium transition hover:border-accent hover:text-accent-dark">
 				{m.cancel()}
 			</button>
 			<button type="submit" disabled={deleting}
-				class="cursor-pointer rounded-lg bg-error px-4 py-2.5 text-sm font-medium text-white transition hover:bg-error/90 disabled:opacity-60">
+				class="cursor-pointer rounded-lg bg-error px-4 py-2 text-sm font-medium text-white transition hover:bg-error/90 disabled:opacity-60">
 				{deleting ? m.deleting() : m.delete()}
 			</button>
 		</div>
 	</form>
-</dialog>
+</dialog>
