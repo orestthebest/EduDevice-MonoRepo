@@ -472,6 +472,7 @@
 	"exc_reason": "Reason",
 	"exc_reason_placeholder": "e.g. I was sick with a fever",
 	"exc_attachments": "Attachments",
+	"exc_preview": "Preview {name}",
 	"exc_attach_hint": "e.g. a doctor's note · PDF, JPG or PNG · max. 5 MB each · up to 3 files",
 	"exc_add_file": "Add file",
 	"exc_selected_one": "{n} lesson selected",

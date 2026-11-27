@@ -472,6 +472,7 @@
 	"exc_reason": "Grund",
 	"exc_reason_placeholder": "z. B. Ich hatte Fieber",
 	"exc_attachments": "Anhänge",
+	"exc_preview": "Vorschau: {name}",
 	"exc_attach_hint": "z. B. eine Arztbestätigung · PDF, JPG oder PNG · max. 5 MB pro Datei · bis zu 3 Dateien",
 	"exc_add_file": "Datei hinzufügen",
 	"exc_selected_one": "{n} Stunde ausgewählt",

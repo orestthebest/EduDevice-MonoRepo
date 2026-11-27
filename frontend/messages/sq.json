@@ -472,6 +472,7 @@
 	"exc_reason": "Arsyeja",
 	"exc_reason_placeholder": "p.sh. Isha i sëmurë me temperaturë",
 	"exc_attachments": "Bashkëngjitjet",
+	"exc_preview": "Shiko: {name}",
 	"exc_attach_hint": "p.sh. një vërtetim mjekësor · PDF, JPG ose PNG · maks. 5 MB secili · deri në 3 skedarë",
 	"exc_add_file": "Shto skedar",
 	"exc_selected_one": "{n} orë e zgjedhur",
