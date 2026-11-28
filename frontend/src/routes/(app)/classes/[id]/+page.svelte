@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import Icon from '$lib/components/Icon.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import { SPLIT_GROUPS, ELECTIVES } from '$lib/groups.js';
 	import { m } from '$lib/paraglide/messages.js';
 
 	let { data, form } = $props();
@@ -9,6 +10,21 @@
 	const c = $derived(data.schoolClass);
 
 	let savingTeacher = $state(false);
+
+	// ---------- Gruppe (X/Y) + Wahlfach ----------
+	// data.groups = null -> die API kann das noch nicht, Spalten ausblenden
+	const hasGroups = $derived(data.groups !== null);
+	const assigned = $derived(new Map((data.groups ?? []).map((g) => [g.student_id, g])));
+	let groupsDirty = $state(false); // ungespeicherte Änderungen?
+	let savingGroups = $state(false);
+
+	// Wie viele SchülerInnen sind in X, Y, MED, ...? (Kurzübersicht über der Liste)
+	const groupCounts = $derived(
+		[...SPLIT_GROUPS, ...ELECTIVES.map((e) => e.key)].map((key) => ({
+			key,
+			n: (data.groups ?? []).filter((g) => g.group === key || g.elective === key).length
+		}))
+	);
 
 	// Suche im "Assign student"-Feld
 	let search = $state('');
@@ -62,7 +78,26 @@
 <div class="grid items-start gap-4 lg:grid-cols-[1fr_340px]">
 	<!-- Links: Schüler in der Klasse -->
 	<section class="rounded-xl border border-line bg-white p-4 sm:p-5">
-		<h2 class="mb-3 text-base font-semibold">{m.cls_students_in()}</h2>
+		<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+			<h2 class="text-base font-semibold">{m.cls_students_in()}</h2>
+			{#if hasGroups && data.students.length > 0}
+				<p class="text-xs text-subtle">
+					{#each groupCounts as g, i (g.key)}{i > 0 ? ' · ' : ''}<span class="font-semibold text-navy">{g.key}</span> {g.n}{/each}
+				</p>
+			{/if}
+		</div>
+
+		<!-- Gruppen-Formular: die Auswahlfelder in den Zeilen gehören über form="groups-form" dazu
+		     (eigene <form> pro Zeile geht nicht, weil dort schon das Entfernen-Formular ist) -->
+		<form id="groups-form" method="POST" action="?/saveGroups" class="hidden"
+			use:enhance={() => {
+				savingGroups = true;
+				return async ({ result, update }) => {
+					await update({ reset: false });
+					savingGroups = false;
+					if (result.type === 'success') groupsDirty = false;
+				};
+			}}></form>
 
 		{#if form?.studentError}
 			<p class="mb-4 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">{form.studentError}</p>
@@ -81,6 +116,21 @@
 							<p class="truncate text-sm font-medium">{st.first_name} {st.last_name}</p>
 							<p class="text-xs text-subtle">{st.username}</p>
 						</div>
+						{#if hasGroups}
+							<!-- Gruppe X/Y und Wahlfach -->
+							<select name="group_{st.id}" form="groups-form" value={assigned.get(st.id)?.group ?? ''}
+								onchange={() => (groupsDirty = true)} aria-label={m.cls_group_of({ name: st.first_name })}
+								class="input w-auto py-1 pr-7 text-xs">
+								<option value="">{m.cls_no_group()}</option>
+								{#each SPLIT_GROUPS as g (g)}<option value={g}>{m.cls_group()} {g}</option>{/each}
+							</select>
+							<select name="elective_{st.id}" form="groups-form" value={assigned.get(st.id)?.elective ?? ''}
+								onchange={() => (groupsDirty = true)} aria-label={m.cls_elective_of({ name: st.first_name })}
+								class="input w-auto py-1 pr-7 text-xs">
+								<option value="">{m.cls_no_elective()}</option>
+								{#each ELECTIVES as e (e.key)}<option value={e.key} title={e.label}>{e.key}</option>{/each}
+							</select>
+						{/if}
 						<form method="POST" action="?/removeStudent" use:enhance>
 							<input type="hidden" name="student_id" value={st.id} />
 							<button
@@ -94,6 +144,20 @@
 					</li>
 				{/each}
 			</ul>
+
+			{#if hasGroups}
+				<!-- Speichern-Leiste für die Gruppen -->
+				<div class="mt-3 flex flex-wrap items-center justify-end gap-3 border-t border-divider pt-3">
+					{#if form?.groupError}
+						<p class="mr-auto text-sm text-error">{form.groupError}</p>
+					{:else if form?.groupsSaved && !groupsDirty}
+						<p class="mr-auto text-sm text-success-dark">{m.cls_groups_saved()}</p>
+					{/if}
+					<button type="submit" form="groups-form" disabled={!groupsDirty || savingGroups} class="btn-primary w-auto px-5">
+						{savingGroups ? m.saving() : m.cls_save_groups()}
+					</button>
+				</div>
+			{/if}
 		{/if}
 	</section>
 
@@ -126,4 +190,4 @@
 			<p class="text-xs text-subtle">{m.cls_assign_note()}</p>
 		</form>
 	</section>
-</div>
+</div>

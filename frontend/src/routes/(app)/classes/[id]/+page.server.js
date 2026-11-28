@@ -1,5 +1,8 @@
 import { error, fail } from '@sveltejs/kit';
 import { api, apiJson } from '$lib/server/api.js';
+import { timetableApi } from '$lib/server/timetable.js';
+import { errorText } from '$lib/server/quiz.js';
+import { SPLIT_GROUPS, isElective } from '$lib/groups.js';
 import { m } from '$lib/paraglide/messages.js';
 
 // Eine Klasse mit ihren Schülern – nur für Admins
@@ -10,14 +13,18 @@ export async function load({ params, locals }) {
 	const base = `/classes/${params.id}`;
 
 	// apiJson zeigt bei 404 automatisch die Fehlerseite ("Klasse nicht gefunden")
-	const [schoolClass, students, assignableStudents, teachers] = await Promise.all([
+	const [schoolClass, students, assignableStudents, teachers, groupsRes] = await Promise.all([
 		apiJson(base, { token }),
 		apiJson(`${base}/students`, { token }),
 		apiJson(`${base}/assignable-students`, { token }),
-		apiJson('/users?role=lehrkraft', { token }) // für die Klassenvorstand-Auswahl
+		apiJson('/users?role=lehrkraft', { token }), // für die Klassenvorstand-Auswahl
+		timetableApi(`${base}/groups`, locals) // Gruppe X/Y + Wahlfach pro SchülerIn (Mock möglich)
 	]);
 
-	return { schoolClass, students, assignableStudents, teachers };
+	// null = die API kann noch keine Gruppen -> die Seite blendet die Spalten aus
+	const groups = groupsRes.ok ? await groupsRes.json() : null;
+
+	return { schoolClass, students, assignableStudents, teachers, groups };
 }
 
 export const actions = {
@@ -64,5 +71,29 @@ export const actions = {
 		if (res.status === 400) return fail(400, { teacherError: m.cls_err_only_teachers() });
 		if (!res.ok) return fail(res.status, { teacherError: m.cls_err_save_teacher() });
 		return { teacherSaved: true };
+	},
+
+	// Gruppe (X/Y) + Wahlfach aller SchülerInnen auf einmal speichern.
+	// Formular: group_<id> und elective_<id> pro SchülerIn ("" = keine)
+	saveGroups: async ({ request, params, locals }) => {
+		const form = await request.formData();
+		const assignments = [];
+
+		for (const [key, value] of form) {
+			const match = key.match(/^group_(\d+)$/);
+			if (!match) continue;
+			const studentId = Number(match[1]);
+			const group = value.toString() || null;
+			const elective = form.get(`elective_${studentId}`)?.toString() || null;
+
+			if (group && !SPLIT_GROUPS.includes(group)) return fail(400, { groupError: m.cls_err_groups() });
+			if (elective && !isElective(elective)) return fail(400, { groupError: m.cls_err_groups() });
+			assignments.push({ student_id: studentId, group, elective });
+		}
+
+		// Die API trägt die SchülerInnen danach automatisch in die passenden Gruppen-/Wahlfach-Fächer ein
+		const res = await timetableApi(`/classes/${params.id}/groups`, locals, { method: 'PUT', json: { assignments } });
+		if (!res.ok) return fail(res.status, { groupError: await errorText(res, m.cls_err_groups()) });
+		return { groupsSaved: true };
 	}
-};
+};
