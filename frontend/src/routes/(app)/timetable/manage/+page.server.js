@@ -27,7 +27,8 @@ export async function load({ locals, url }) {
 		classes,
 		schoolClass,
 		// Fächer dieser Klasse (class_subjects) – für Namen im Raster und später für den Dialog
-		subjects: allSubjects.filter((s) => s.class_name === schoolClass.name),
+		// inkl. Wahlfächer, an denen diese Klasse beteiligt ist (class_names)
+		subjects: allSubjects.filter((s) => s.class_name === schoolClass.name || s.class_names?.includes(schoolClass.name)),
 		slots: await res.json(),
 		mock
 	};
@@ -140,4 +141,4 @@ export const actions = {
 		if (!removed.ok) return fail(removed.status, { error: removed.error });
 		return { deleted: true };
 	}
-};
+};

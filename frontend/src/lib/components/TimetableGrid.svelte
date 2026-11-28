@@ -136,7 +136,13 @@
 					>
 						<span class="w-1 shrink-0" style="background: {subjectColor(b.subject)}"></span>
 						<span class="min-w-0 flex-1 px-2 py-1.5">
-							<span class="block truncate text-sm font-semibold {b.cancelled ? 'line-through' : ''}">{b.subject}</span>
+							<!-- Fachname + Gruppe (X/Y oder Wahlfach) als kleines Kürzel daneben -->
+							<span class="flex items-center gap-1">
+								<span class="truncate text-sm font-semibold {b.cancelled ? 'line-through' : ''}">{b.subject}</span>
+								{#if b.group}
+									<span class="shrink-0 rounded bg-accent-light px-1 text-[10px] font-semibold text-accent-dark">{b.group}</span>
+								{/if}
+							</span>
 							{#each details as field (field)}
 								{#if b[field]}<span class="block truncate text-xs text-subtle">{b[field]}</span>{/if}
 							{/each}
@@ -156,4 +162,4 @@
 			</div>
 		{/each}
 	</div>
-</div>
+</div>

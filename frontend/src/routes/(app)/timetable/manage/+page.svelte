@@ -13,7 +13,12 @@
 		toBlocks(
 			data.slots.map((s) => {
 				const subject = data.subjects.find((x) => x.id === s.class_subject_id);
-				return { ...s, subject: subject?.subject_name ?? m.tt_unknown_subject(), teacher: subject?.teacher_name };
+				return {
+					...s,
+					subject: subject?.subject_name ?? m.tt_unknown_subject(),
+					teacher: subject?.teacher_name,
+					group: s.group ?? subject?.group ?? null
+				};
 			}),
 			'weekday'
 		)
@@ -170,7 +175,7 @@
 					<select id="tt-subject" name="class_subject_id" required class="input" bind:value={draft.class_subject_id}>
 						<option value="" disabled>{m.tt_choose_subject()}</option>
 						{#each data.subjects as s (s.id)}
-							<option value={s.id}>{s.subject_name} · {s.teacher_name}</option>
+							<option value={s.id}>{s.subject_name}{s.group ? ` · ${s.group}` : ''} · {s.teacher_name}</option>
 						{/each}
 					</select>
 				</div>
