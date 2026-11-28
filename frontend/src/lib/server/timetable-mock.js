@@ -89,28 +89,86 @@ const classSlots = new Map(); // class_id -> [{ id, class_subject_id, weekday, p
 let nextSlotId = 1;
 
 const mockError = (status, detail) => [status, { detail }];
-const sameRoom = (a, b) => Boolean(a) && Boolean(b) && a.trim().toLowerCase() === b.trim().toLowerCase();
+const allSlots = () => [...classSlots.values()].flat();
+
+// ---------- Räume (Stammdaten) ----------
+// Startwerte = die Räume aus dem Beispielplan
+const rooms = ['K16', 'K21', 'K22', 'K23', 'K25', 'K26', 'MLAB', 'PR1', 'PR3', 'S-LAB', 'SW2', 'SYTLAB']
+	.map((name, i) => ({ id: i + 1, name, capacity: null }));
+let nextRoomId = rooms.length + 1;
+
+const roomById = (id) => rooms.find((r) => r.id === Number(id)) ?? null;
+const sortedRooms = () => [...rooms].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+// POST /rooms (id = null) und PUT /rooms/{id}: Name prüfen, Kapazität ist optional
+function saveRoom(json, id = null) {
+	const name = (json?.name ?? '').trim();
+	const capacity = json?.capacity ? Number(json.capacity) : null;
+	if (!name || name.length > 50) return mockError(422, 'Ungültiger Raumname');
+	if (capacity !== null && !(capacity > 0)) return mockError(422, 'Ungültige Kapazität');
+	if (rooms.some((r) => r.id !== id && r.name.toLowerCase() === name.toLowerCase())) {
+		return mockError(409, `Room ${name} already exists`);
+	}
+
+	if (id === null) {
+		const room = { id: nextRoomId++, name, capacity };
+		rooms.push(room);
+		return [201, room];
+	}
+	const room = roomById(id);
+	if (!room) return mockError(404, 'Raum nicht gefunden');
+	Object.assign(room, { name, capacity });
+	// Neuen Namen im Stundenplan mitziehen (in der echten DB passiert das über room_id von selbst)
+	for (const s of allSlots()) if (s.room_id === room.id) s.room = name;
+	return [200, room];
+}
+
+// DELETE /rooms/{id}: nur wenn darin kein Unterricht mehr stattfindet
+function deleteRoom(id) {
+	const room = roomById(id);
+	if (!room) return mockError(404, 'Raum nicht gefunden');
+	if (allSlots().some((s) => s.room_id === room.id)) {
+		return mockError(409, `Room ${room.name} is still used in the timetable`);
+	}
+	rooms.splice(rooms.indexOf(room), 1);
+	return [204, null];
+}
+
+// GET /rooms/availability?weekday=Di&period_from=3&period_to=4&ignore=5,6
+// -> alle Räume, belegte mit taken_by = Klasse. ignore = Stunden des Blocks, der gerade bearbeitet wird
+function availability(params) {
+	const weekday = params.get('weekday');
+	const from = Number(params.get('period_from'));
+	const to = Number(params.get('period_to'));
+	const ignore = (params.get('ignore') ?? '').split(',').filter(Boolean).map(Number);
+	const busy = allSlots().filter(
+		(s) => s.weekday === weekday && s.period >= from && s.period <= to && !ignore.includes(s.id)
+	);
+	return [200, sortedRooms().map((r) => ({ ...r, taken_by: busy.find((s) => s.room_id === r.id)?.class_name ?? null }))];
+}
 
 // POST /timetable: eine Zeile pro Stunde anlegen, vorher Überschneidungen prüfen.
 // extra = { class_id, class_name, teacher_id, teacher_name } kommt nur beim Mock mit (die echte API kennt das selbst).
 // Vereinfachung: prüft Lehrkraft und Raum, aber NICHT die einzelnen Schüler.
 function createSlots(json, extra = {}) {
-	const { class_subject_id, weekday, period_from, period_to, room = null } = json ?? {};
+	const { class_subject_id, weekday, period_from, period_to, room_id = null } = json ?? {};
+	const room = room_id ? roomById(room_id) : null;
+	if (room_id && !room) return mockError(422, 'Raum nicht gefunden');
 	if (!class_subject_id || !extra.class_id) return mockError(422, 'class_subject_id fehlt');
 	if (!WEEKDAYS.some((w) => w.key === weekday)) return mockError(422, 'Ungültiger Wochentag');
 	if (!(period_from >= 1 && period_to <= PERIODS.length && period_from <= period_to)) {
 		return mockError(422, 'Ungültige Stunden');
 	}
 
-	const all = [...classSlots.values()].flat();
+	const all = allSlots();
 	for (let p = period_from; p <= period_to; p++) {
 		const busy = all.filter((s) => s.weekday === weekday && s.period === p);
 		const teacher = busy.find((s) => s.teacher_id === extra.teacher_id);
 		if (teacher) {
 			return mockError(409, `${extra.teacher_name ?? 'The teacher'} already teaches class ${teacher.class_name} in period ${p}`);
 		}
-		const usedRoom = busy.find((s) => sameRoom(s.room, room));
-		if (usedRoom) return mockError(409, `Room ${room} is already used by class ${usedRoom.class_name} in period ${p}`);
+		const usedRoom = room && busy.find((s) => s.room_id === room.id);
+		if (usedRoom) return mockError(409, `Room ${room.name} is already used by class ${usedRoom.class_name} in period ${p}`);
 	}
 
 	const created = [];
@@ -122,7 +180,8 @@ function createSlots(json, extra = {}) {
 			period: p,
 			start_time: PERIODS[p - 1].start,
 			end_time: PERIODS[p - 1].end,
-			room: room || null,
+			room_id: room?.id ?? null,
+			room: room?.name ?? null,
 			// nur für die Prüfungen im Mock
 			class_name: extra.class_name,
 			teacher_id: extra.teacher_id
@@ -157,6 +216,16 @@ function route(method, url, json, user, extra) {
     
 	const one = url.pathname.match(/^\/timetable\/(\d+)$/);
 	if (method === 'DELETE' && one) return deleteSlot(Number(one[1]));
+
+	// ---------- Räume ----------
+	if (url.pathname === '/rooms') {
+		if (method === 'GET') return [200, sortedRooms()];
+		if (method === 'POST') return saveRoom(json);
+	}
+	if (method === 'GET' && url.pathname === '/rooms/availability') return availability(url.searchParams);
+	const room = url.pathname.match(/^\/rooms\/(\d+)$/);
+	if (room && method === 'PUT') return saveRoom(json, Number(room[1]));
+	if (room && method === 'DELETE') return deleteRoom(Number(room[1]));
 
 	return [404, { detail: `Mock: ${method} ${url.pathname} gibt es noch nicht` }];
 }
