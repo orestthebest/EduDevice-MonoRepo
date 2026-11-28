@@ -3,6 +3,7 @@
 // Gleiches Format wie vereinbart: eine Zeile pro Stunde + Tage ohne Unterricht.
 // Liefert für jede Woche denselben Beispiel-Stundenplan (angelehnt an die 5B).
 import { PERIODS, WEEKDAYS, weekStart, addDays } from '$lib/timetable.js';
+import { SPLIT_GROUPS, isElective } from '$lib/groups.js';
 
 // [Wochentag, von, bis, Fach, Raum, Lehrer, class_subject_id, entfällt?]
 const PLAN = [
@@ -28,6 +29,9 @@ const PLAN = [
 	['Fr', 5, 5, 'D', 'K22', 'PAE', 3],
 	['Fr', 6, 6, 'AM', 'K22', 'MOM', 4]
 ];
+
+// Gruppe pro Fach im Beispielplan (fehlt = ganze Klasse): SEW und NWTK am Montag laufen parallel
+const GROUP_OF = { 1: 'X', 2: 'Y', 8: 'MED' };
 
 // Lehrkraft: nur die eigenen Stunden, in verschiedenen Klassen
 // [Wochentag, von, bis, Fach, Raum, Klasse, class_subject_id, entfällt?]
@@ -70,6 +74,7 @@ function week(date, isTeacher) {
 				subject,
 				class_name: isTeacher ? who : '5B',
 				teacher: isTeacher ? null : who,
+				group: GROUP_OF[csId] ?? null,
 				room,
 				cancelled
 			});
@@ -202,6 +207,28 @@ function deleteSlot(id) {
 	return mockError(404, 'Stundenplan-Eintrag nicht gefunden');
 }
 
+// ---------- Gruppe (X/Y) + Wahlfach pro SchülerIn ----------
+// class_id -> Map(student_id -> { group, elective })
+const studentGroups = new Map();
+
+const groupList = (classId) =>
+	[...(studentGroups.get(classId) ?? new Map())].map(([student_id, a]) => ({ student_id, ...a }));
+
+// PUT /classes/{id}/groups { assignments: [{ student_id, group, elective }] } – speichert alle auf einmal
+function setGroups(classId, json) {
+	const list = json?.assignments;
+	if (!Array.isArray(list)) return mockError(422, 'assignments fehlt');
+	for (const a of list) {
+		if (a.group && !SPLIT_GROUPS.includes(a.group)) return mockError(422, `Ungültige Gruppe ${a.group}`);
+		if (a.elective && !isElective(a.elective)) return mockError(422, `Ungültiges Wahlfach ${a.elective}`);
+	}
+
+	const map = studentGroups.get(classId) ?? new Map();
+	for (const a of list) map.set(Number(a.student_id), { group: a.group || null, elective: a.elective || null });
+	studentGroups.set(classId, map);
+	return [200, groupList(classId)];
+}
+
 function route(method, url, json, user, extra) {
 	if (method === 'GET' && url.pathname === '/timetable/week') {
 		const date = url.searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
@@ -216,6 +243,11 @@ function route(method, url, json, user, extra) {
     
 	const one = url.pathname.match(/^\/timetable\/(\d+)$/);
 	if (method === 'DELETE' && one) return deleteSlot(Number(one[1]));
+
+	// ---------- Gruppen ----------
+	const grp = url.pathname.match(/^\/classes\/(\d+)\/groups$/);
+	if (grp && method === 'GET') return [200, groupList(Number(grp[1]))];
+	if (grp && method === 'PUT') return setGroups(Number(grp[1]), json);
 
 	// ---------- Räume ----------
 	if (url.pathname === '/rooms') {
