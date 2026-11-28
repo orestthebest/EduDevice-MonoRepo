@@ -21,7 +21,7 @@
 
 	// ---------- Dialog: Unterrichtseinheit anlegen / bearbeiten ----------
 	let lessonDialog = $state();
-	let draft = $state({ class_subject_id: '', weekday: 'Mo', period_from: 1, period_to: 1, room: '' });
+	let draft = $state({ class_subject_id: '', weekday: 'Mo', period_from: 1, period_to: 1, room_id: '', room: '' });
 	let editing = $state(null); // null = neu anlegen, sonst der angeklickte Block (alte Werte + IDs)
 	let confirmDelete = $state(false);
 	let saving = $state(false);
@@ -37,7 +37,7 @@
 
 	// Klick auf ein freies Feld: Tag + Stunde sind schon ausgefüllt
 	function addLesson({ day, period }) {
-		openDialog({ class_subject_id: '', weekday: day.key, period_from: period, period_to: period, room: '' });
+		openDialog({ class_subject_id: '', weekday: day.key, period_from: period, period_to: period, room_id: '', room: '' });
 	}
 
 	// Klick auf einen Block: Werte übernehmen, IDs aller Stunden des Blocks merken
@@ -47,10 +47,39 @@
 			weekday: block.day,
 			period_from: block.from,
 			period_to: block.to,
+			room_id: block.room_id ?? '',
 			room: block.room ?? ''
 		};
 		openDialog({ ...values }, { ...values, ids: block.items.map((s) => s.id) });
 	}
+
+	// ---------- Räume ----------
+	// null = die API kann noch keine Räume -> Textfeld wie bisher. Sonst alle Räume, belegte mit taken_by
+	let roomOptions = $state(null);
+
+	// Tag oder Stunden geändert -> Räume neu laden (der Block, der gerade bearbeitet wird, zählt nicht als belegt)
+	$effect(() => {
+		const params = new URLSearchParams({
+			weekday: draft.weekday,
+			period_from: String(draft.period_from),
+			period_to: String(draft.period_to),
+			ignore: editing?.ids?.join(',') ?? ''
+		});
+		let stale = false; // ältere Antwort darf eine neuere nicht überschreiben
+		fetch(`/timetable/manage/rooms?${params}`)
+			.then((res) => (res.ok ? res.json() : null))
+			.then((rooms) => {
+				if (!stale) roomOptions = rooms;
+			})
+			.catch(() => {
+				if (!stale) roomOptions = null;
+			});
+		return () => (stale = true);
+	});
+
+	// Ist der gewählte Raum (z. B. nach Ändern der Stunden) inzwischen belegt? -> Hinweis unter dem Feld
+	const selectedTaken = $derived(roomOptions?.find((r) => r.id === Number(draft.room_id))?.taken_by ?? null);
+
 
 	// "Bis"-Stunde darf nie vor der "Von"-Stunde liegen
 	function fixRange() {
@@ -176,7 +205,25 @@
 
 				<div>
 					<label for="tt-room" class="label">{m.tt_room()} <span class="font-normal text-subtle">{m.optional()}</span></label>
-					<input id="tt-room" name="room" maxlength="50" class="input" placeholder={m.tt_room_placeholder()} bind:value={draft.room} />
+					{#if roomOptions}
+						<!-- Belegte Räume sind ausgegraut (disabled) und zeigen, welche Klasse drin ist -->
+						<select id="tt-room" name="room_id" class="input" bind:value={draft.room_id}>
+							<option value="">{m.tt_no_room()}</option>
+							{#each roomOptions as r (r.id)}
+								<option value={r.id} disabled={Boolean(r.taken_by)}>
+									{r.name}{r.taken_by
+										? ` · ${m.tt_room_taken_by({ name: r.taken_by })}`
+										: r.capacity ? ` · ${m.rooms_seats({ n: r.capacity })}` : ''}
+								</option>
+							{/each}
+						</select>
+						{#if selectedTaken}
+							<p class="mt-1 text-xs text-error">{m.tt_room_now_taken({ name: selectedTaken })}</p>
+						{/if}
+					{:else}
+						<!-- Fallback, solange die Räume-API fehlt -->
+						<input id="tt-room" name="room" maxlength="50" class="input" placeholder={m.tt_room_placeholder()} bind:value={draft.room} />
+					{/if}
 				</div>
 			</div>
 
@@ -212,4 +259,4 @@
 		</form>
 	</dialog>
 
-{/if}
+{/if}

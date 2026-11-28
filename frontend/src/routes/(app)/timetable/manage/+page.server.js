@@ -51,6 +51,8 @@ function readLesson(form) {
 		weekday: form.get('weekday')?.toString() ?? '',
 		period_from: Number(form.get('period_from')),
 		period_to: Number(form.get('period_to')),
+		// Raum aus der Liste (room_id). Solange die Räume-API fehlt: Textfeld (room)
+		room_id: Number(form.get('room_id')) || null,
 		room: form.get('room')?.toString().trim() || null
 	};
 	if (!lesson.class_subject_id) return { error: m.tt_err_choose_subject() };
