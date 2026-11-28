@@ -5,12 +5,13 @@
 	import { formatSize, formatDate, typeColor } from '$lib/format.js';
 	import { m } from '$lib/paraglide/messages.js';
 	import SubjectIcon from '$lib/components/SubjectIcon.svelte';
+	import { subjectTarget } from '$lib/groups.js';
 
 	let { data, form } = $props();
 
 	const s = $derived(data.subject);
 	const subtitle = $derived(
-		`${m.class_name({ name: s.class_name })} · ${s.teacher_name} · ${s.file_count} ${s.file_count === 1 ? m.subj_file() : m.subj_files()}`
+		`${m.class_name({ name: subjectTarget(s) })} · ${s.teacher_name} · ${s.file_count} ${s.file_count === 1 ? m.subj_file() : m.subj_files()}`
 	);
     	// Nur der Lehrer dieses Fachs darf hochladen
 	const canEdit = $derived(data.user.role === 'lehrkraft' && s.teacher_id === data.user.id);

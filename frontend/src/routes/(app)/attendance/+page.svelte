@@ -7,6 +7,7 @@
     import { todayISO } from '$lib/format.js';
 	import { periodLabel } from '$lib/timetable.js';
 	import { m } from '$lib/paraglide/messages.js';
+	import { subjectTarget } from '$lib/groups.js';
 
 	let { data, form } = $props();
 
@@ -69,7 +70,7 @@
 					<select id="subject" class="input" value={data.subjectId}
 						onchange={(e) => pick({ subject: e.currentTarget.value, time: '' })}>
 						{#each data.subjects as s (s.id)}
-							<option value={s.id}>{s.subject_name} · {s.class_name}</option>
+							<option value={s.id}>{s.subject_name} · {subjectTarget(s)}</option>
 						{/each}
 					</select>
 				</div>
@@ -109,7 +110,7 @@
 					<div class="mb-3 flex flex-wrap items-start justify-between gap-3">
 						<div>
 							<h2 class="text-base font-semibold">
-								{currentSubject?.subject_name} · {currentSubject?.class_name}
+								{currentSubject?.subject_name} · {currentSubject ? subjectTarget(currentSubject) : ''}
 							</h2>
 							<p class="text-sm text-subtle">
 								{formatDay(data.date)} · {periodLabel(data.lesson.start_time)} · {formatTime(data.lesson.start_time)}–{formatTime(data.lesson.end_time)}
@@ -234,4 +235,4 @@
 			{/if}
 		</aside>
 	</div>
-{/if}
+{/if}

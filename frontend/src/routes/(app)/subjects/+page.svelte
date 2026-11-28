@@ -4,6 +4,7 @@
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { m } from '$lib/paraglide/messages.js';
 	import SubjectIcon from '$lib/components/SubjectIcon.svelte';
+	import { SPLIT_GROUPS, ELECTIVES, isElective, subjectTarget } from '$lib/groups.js';
 
 	let { data, form } = $props();
 
@@ -20,6 +21,14 @@
     // "New subject"-Dialog (natives <dialog>-Element)
 	let dialog = $state();
 	let saving = $state(false);
+
+	// Für wen ist das neue Fach? Bei Wahlfächern können weitere Klassen (gleiches Schuljahr) dazukommen
+	let newClassId = $state('');
+	let newGroup = $state('');
+	const newClass = $derived(data.classes.find((c) => c.id === Number(newClassId)));
+	const otherClasses = $derived(
+		newClass ? data.classes.filter((c) => c.id !== newClass.id && c.school_year === newClass.school_year) : []
+	);
 </script>
 
 <svelte:head>
@@ -62,7 +71,7 @@
 						<p class="truncate text-xs text-subtle">{s.teacher_name}</p>
 					</div>
 					<span class="shrink-0 self-start rounded-md bg-accent-light px-2 py-0.5 text-xs font-semibold text-accent-dark">
-						{m.class_name({ name: s.class_name })}
+						{subjectTarget(s)}
 					</span>
 				</div>
 
@@ -93,8 +102,12 @@
 				return async ({ result, update }) => {
 					await update();
 					saving = false;
-					// Bei Erfolg Dialog schließen
-					if (result.type === 'success') dialog.close();
+					// Bei Erfolg Dialog schließen und Auswahl zurücksetzen
+					if (result.type === 'success') {
+						dialog.close();
+						newClassId = '';
+						newGroup = '';
+					}
 				};
 			}}
 		>
@@ -115,13 +128,43 @@
 			<div class="mt-4 flex flex-col gap-3">
 				<div>
 					<label for="class_id" class="label">{m.class_label()}</label>
-					<select id="class_id" name="class_id" required class="input">
-						<option value="" disabled selected>{m.subj_choose_class()}</option>
+					<select id="class_id" name="class_id" required class="input" bind:value={newClassId}>
+						<option value="" disabled>{m.subj_choose_class()}</option>
 						{#each data.classes as c (c.id)}
 							<option value={c.id}>{c.name} · {c.school_year}</option>
 						{/each}
 					</select>
 				</div>
+
+				<!-- Für wen: ganze Klasse, Gruppe X/Y oder Wahlfach -->
+				<div>
+					<label for="group" class="label">{m.subj_for()}</label>
+					<select id="group" name="group" class="input" bind:value={newGroup}>
+						<option value="">{m.subj_whole_class()}</option>
+						<optgroup label={m.subj_groups()}>
+							{#each SPLIT_GROUPS as g (g)}<option value={g}>{m.cls_group()} {g}</option>{/each}
+						</optgroup>
+						<optgroup label={m.subj_electives()}>
+							{#each ELECTIVES as e (e.key)}<option value={e.key}>{e.key} · {e.label}</option>{/each}
+						</optgroup>
+					</select>
+				</div>
+
+				<!-- Wahlfach: weitere Klassen, deren SchülerInnen mit diesem Wahlfach mitmachen -->
+				{#if isElective(newGroup) && otherClasses.length > 0}
+					<fieldset>
+						<legend class="label">{m.subj_also_classes()}</legend>
+						<div class="flex flex-wrap gap-2">
+							{#each otherClasses as c (c.id)}
+								<label class="flex cursor-pointer items-center gap-2 rounded-lg border border-line px-3 py-1.5 text-sm transition has-checked:border-accent has-checked:bg-accent-light">
+									<input type="checkbox" name="class_ids" value={c.id} class="size-4 rounded border-input text-accent" />
+									{c.name}
+								</label>
+							{/each}
+						</div>
+						<p class="mt-1 text-xs text-subtle">{m.subj_also_hint()}</p>
+					</fieldset>
+				{/if}
 
 				<div>
 					<label for="name" class="label">{m.subj_name()}</label>
